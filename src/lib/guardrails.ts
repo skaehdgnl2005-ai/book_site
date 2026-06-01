@@ -2,9 +2,9 @@
  * Trust-boundary + irreversible-action guardrails.
  *
  * Trust boundary (E4): content originating outside the app — buyer input,
- * admin uploads, Stripe webhook payloads, the web — is UNTRUSTED and must never
- * be interpreted as instructions or trusted in security decisions. Wrap it so
- * call sites are explicit about provenance.
+ * admin uploads, TossPayments webhook payloads, the web — is UNTRUSTED and must
+ * never be interpreted as instructions or trusted in security decisions. Wrap it
+ * so call sites are explicit about provenance.
  */
 export type Trust = "trusted" | "untrusted";
 
@@ -21,11 +21,17 @@ export function trusted<T>(value: T): Tagged<T> {
   return { trust: "trusted", value };
 }
 
-/** Irreversible / high-impact actions that REQUIRE explicit human approval (G-HITL). */
+/**
+ * Irreversible / high-impact actions that REQUIRE explicit human approval (G-HITL).
+ * Payment actions are TossPayments-specific (the provider); booking a consultation is
+ * a real customer-facing commitment (the 맞춤 제작 phone path). Keep this list in sync
+ * with `scripts/approve.mjs` (the CLI that issues the tokens).
+ */
 export const IRREVERSIBLE_ACTIONS = [
-  "stripe.charge.live",
-  "stripe.refund.live",
+  "toss.charge.live",
+  "toss.refund.live",
   "order.confirm",
+  "consultation.book",
   "fulfillment.trigger",
   "inventory.write.production",
   "pii.store",

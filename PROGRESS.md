@@ -3,23 +3,26 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- Next action (single): **F004 done** on `feat/F004` (off `master`). Remaining Wave 0 —
-  F003 (payment+Toss) · F029 (asset); content F024–F028 offloadable. Then catalog F005/F006
-  consume the seeded templates. Stateful funnels stay in the main session. Prompts: `docs/SESSION_PROMPTS.md`.
-- Broken / not done: buyer-flow funnel (F005+) not built yet; F003/F029 in-flight on sibling branches.
+- Next action (single): **Wave 0 integrated to `master`** — F002 home + F003 payment (Toss) +
+  F004 DB+seed + F029 asset all merged & passing. Next: buyer-flow funnel — catalog F005/F006
+  (read the seeded templates) → order F007–F011 → checkout F012–F016. Prompts: `docs/SESSION_PROMPTS.md`.
+- Broken / not done: buyer-flow funnel (F005+) not built yet.
 - **Follow-up (F004):** `prisma db seed` runs the `.ts` seed via Node type-stripping, which needs
   **Node ≥ 22.6** (newer than the `>=20` engines floor; dev runtime is Node 24). Not on the `pnpm check`
   path, so no gate impact. Revisit when a track may touch deps/pins: add `tsx` or bump `.nvmrc`/`engines`.
+- **Follow-up (Stripe→Toss residue, not a gate):** `.github/workflows/ci.yml` still injects `STRIPE_*` env
+  (harmless — optional/ignored; rename rides with the checkout track F012–F016), and prose docs
+  `docs/SAFETY.md`/`CONSTRAINTS.md`/`ARCHITECTURE.md` + `eval/golden` still say "Stripe". `.env.example` is on Toss.
 
 ## Current verified state   ← single source of truth
-- Last green `pnpm check`: **2026-06-01** (lint + typecheck + **19** unit tests + 0 constraint violations,
-  incl. R4/R5 invariants) — verified for F004 on a clean `master` worktree.
+- Last green `pnpm check`: **2026-06-01** (lint + typecheck + unit + 0 constraint violations, incl.
+  R4/R5/R8 invariants) — verified on the integrated `master` after the Wave-0 merges.
 - E2E (`pnpm test:e2e`): **2 passed** (branded home — brand/hero/3 category cards/CTA; 375px no-overflow)
 - Boots via `./init.sh`: **yes** (install → check → ready, exit 0)
 - **Two honest, separate numbers** (`pnpm status`):
   - **Harness readiness** (machinery, product-agnostic): 85.2/100 → READY (see `SCORECARD.md`)
-  - **Product delivery** (그림책 제작소 store): **3 / 32 product features passing (~9%)** — F002 home, F004 DB+seed
-  - harness-track features passing: 6 / 10
+  - **Product delivery** (그림책 제작소 store): **5 / 32 product features passing (~16%)** — F001/F002 home, F003 payment, F004 DB+seed, F029 asset
+  - harness-track features passing: 6 / 10 (F030/F031 evidence refreshed Stripe→Toss)
 - Bootstrap contract (build_guide §7): **MET** — boots, verified tests exist, AGENTS.md router, feature_list aligned.
 
 ## Status
@@ -27,6 +30,14 @@ Harness **INITIALIZED + review-hardened + repurposed to 그림책 제작소**. S
 feature_list/router) now reflects the real product; DESIGN.md (Atelier Sans) wired + enforced. Coding loop next.
 
 ## Session log (newest first)
+### 2026-06-01 — F029 access-controlled Asset storage (child-photo / PII safety)  [feat/F029]
+- Opaque random storageKey (no filename/child-name/byte leak), `untrusted()` trust-gate, kind↔contentType
+  allowlist, PII-free traces asserted through the real observability `emit()` sink. vitest pii.test.ts 15/15.
+- Adversarial multi-lens review fixed a prototype-chain allowlist bypass (untrusted contentType resolved
+  inherited members like `toString`/`__proto__`) + regression test; opaque keys over content-addressing so
+  identical photo bytes don't correlate. Touched only `src/lib/assets.ts` + `tests/unit/pii.test.ts`.
+  `e2e_via` F009/F017/F018 (transitive E2E per R8).
+
 ### 2026-06-01 — F004 DB wrapper (Prisma singleton) + seed the 8 entry templates  [feat/F004]
 - TDD: wrote `tests/unit/db.test.ts` first (singleton once-only + 8-template fidelity + idempotency),
   watched it fail, then implemented `src/lib/db.ts` + `prisma/seed.ts`. 10 tests green.
@@ -44,6 +55,27 @@ feature_list/router) now reflects the real product; DESIGN.md (Atelier Sans) wir
   track's branch): full `pnpm check` green (typecheck + 19 tests + R1–R7 0 violations). Touched only the
   4 allowed files; `feature_list` F004 → `passing` (R4 holds); attempt reset.
 - Next: F003 (Toss) / F029 (asset) land on their branches; then catalog F005/F006 read the seeded templates.
+
+### 2026-06-01 — F003 payment provider abstraction + Stripe→Toss re-point (TRACK-PAY)
+- Built `src/lib/payments/`: provider-agnostic `PaymentProvider` contract (`index.ts`) + TossPayments
+  **test/sandbox** adapter (`toss.ts`). KRW won = integer (no minor unit), enforced. `confirm()` uses an
+  **injectable transport** so `pnpm check` stays hermetic (no network — parallels the DB rule, ADR-0002);
+  maps Toss `DONE→PAID`, error→`FAILED`, `CANCELED→CANCELED`. Adapter refuses live keys (defence in depth).
+- Re-pointed Stripe→Toss across the safety machinery: `env.ts` refuses a live Toss key (`live_sk_`/`live_ck_`)
+  outside production + redacts Toss keys; `check-constraints` **R1** now flags Toss live keys (grouped regex so
+  the rule's own source can't self-match — empirically verified it stays clean AND fires on a planted live key);
+  `guardrails` IRREVERSIBLE_ACTIONS → `toss.charge.live`/`toss.refund.live` + `consultation.book`, with
+  `scripts/approve.mjs` kept in sync (so the error messages' `pnpm approve toss.charge.live` is real).
+- TDD: payments.test.ts (13) RED→GREEN first; smoke.test.ts Toss assertions (10) RED→GREEN. `pnpm check`
+  green (lint+type+unit+constraints). F003 `passing` (R4 holds); F030/F031 evidence refreshed to Toss. attempt reset.
+- Worker≠checker (ADR-0005/F042): ran a 5-dimension adversarial review (each finding independently
+  verified). 5 real findings, all addressed: re-pointed `.env.example` to the Toss env contract; added tests
+  for `confirm()`'s KRW guard, the env client-key live branch, and the legacy-Stripe redact branch; fixed a
+  stale "Stripe webhook" comment in guardrails.ts. 1 dismissed (CI STRIPE_* env — harmless, deferred).
+- Scope note: completing the rename meant touching `scripts/approve.mjs` (approval gate must know the renamed
+  actions) and `.env.example` (dev-facing env contract) — both beyond the literal track file list but unowned
+  by any sibling Wave-0 track (zero merge-conflict risk).
+- Next: remaining Wave 0 (F004 DB, F029 asset, content F024–F028).
 
 ### 2026-06-01 — F002 branded home (pattern-setter) + runbook refinement
 - Built the 그림책 제작소 branded home (hero + 3-category preview + primary CTA) and the reusable
