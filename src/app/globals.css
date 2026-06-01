@@ -1,6 +1,48 @@
+/*
+ * Global styles. Design tokens below are the single source of truth for color,
+ * type, spacing, and motion — mirrored from DESIGN.md (YEOBAEK BOOKS — Atelier Sans).
+ * Every page/component MUST style via these CSS variables, not ad-hoc values.
+ * See /DESIGN.md and src/app/AGENTS.md. (Pure white/black banned -> R7; box-shadow banned -> R6.)
+ */
 :root {
-  color-scheme: light dark;
-  --maxw: 64rem;
+  color-scheme: light;
+
+  /* Color — warm neutrals + a single ink-navy accent (DESIGN.md ## Colors). */
+  --bg: #f4f1ea;          /* Cloud Ivory — page background */
+  --surface: #f8f5f0;     /* Alabaster — cards/plates */
+  --panel: #edeae3;       /* Bone — bands / image mats */
+  --line: #e0dbd2;        /* Plaster — 1px hairlines */
+  --muted: #a89f92;       /* Stone — labels/captions/meta (>=12px only) */
+  --grey: #736b5e;        /* Warm Grey — secondary body */
+  --ink: #23211e;         /* Deep Charcoal — body/headings */
+  --ink-strong: #16140f;  /* Ink — dark bands/footer/hero bg */
+  --accent: #1b2a4a;      /* Ink Navy — the ONLY accent */
+  --accent-hover: #122038;
+  --accent-wash: rgba(27, 42, 74, 0.16); /* focus ring only */
+  --on-dark: #f8f5f0;
+  --on-dark-muted: #c9c3b6;
+
+  /* Type — grotesk (structure) / sans (body+UI) / serif-ko (KO book titles only). */
+  --font-grotesk: "Archivo", "Jost", "Pretendard Variable", system-ui, sans-serif;
+  --font-sans: "Pretendard Variable", "Pretendard", "Inter", "Apple SD Gothic Neo",
+    "Noto Sans KR", system-ui, sans-serif;
+  --font-serif-ko: "Noto Serif KR", serif;
+
+  /* Spacing — 8px base, large multiples only (DESIGN.md ## Layout). */
+  --space-xs: 8px;
+  --space-sm: 16px;
+  --space-md: 24px;
+  --space-lg: 48px;
+  --space-xl: 80px;
+  --section: clamp(72px, 11vw, 160px);
+  --gutter: clamp(20px, 6vw, 120px);
+  --max-width: 1280px;
+  --grid-col: clamp(20px, 2.6vw, 40px);
+  --grid-row: clamp(44px, 5.5vw, 72px);
+
+  /* Shape & motion — sharp is the signature; transform+opacity only. */
+  --radius: 0px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 * {
@@ -14,22 +56,42 @@ body {
 }
 
 body {
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  line-height: 1.5;
+  background-color: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.7;
+  /* Korean body copy: keep words intact (DESIGN.md ## Typography). */
+  word-break: keep-all;
 }
 
 main {
-  max-width: var(--maxw);
+  max-width: var(--max-width);
   margin: 0 auto;
-  padding: 1.5rem clamp(1rem, 4vw, 2rem);
+  padding: var(--space-md) var(--gutter);
 }
 
 h1 {
+  font-family: var(--font-grotesk);
+  /* Skeleton-safe scale; the full hero scale is applied per hero component. */
   font-size: clamp(1.75rem, 5vw, 2.75rem);
-  margin: 0 0 0.5rem;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  margin: 0 0 var(--space-sm);
 }
 
 img {
   max-width: 100%;
   height: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

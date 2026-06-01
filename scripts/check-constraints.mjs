@@ -20,6 +20,7 @@ const SKIP = new Set([
   "docs",
 ]);
 const CODE_EXT = new Set([".ts", ".tsx", ".mjs", ".js"]);
+const STYLE_EXT = new Set([".css"]); // scanned for design-SoR rules (R6/R7) under src/
 
 async function walk(dir) {
   const out = [];
@@ -38,34 +39,57 @@ const add = (cond, file, rule, msg) => {
 };
 
 for (const f of await walk(ROOT)) {
-  if (!CODE_EXT.has(extname(f))) continue;
+  const ext = extname(f);
+  const isCode = CODE_EXT.has(ext);
+  const isStyle = STYLE_EXT.has(ext);
+  if (!isCode && !isStyle) continue;
   const rel = f.slice(ROOT.length + 1).replaceAll("\\", "/");
   const isTest = /\.(test|spec)\.[tj]sx?$/.test(rel) || rel.startsWith("tests/");
   const src = await readFile(f, "utf8");
 
-  // R1: no committed Stripe LIVE keys (test fixtures may reference one to assert refusal).
-  add(
-    !isTest && /\b(?:sk|pk)_live_[A-Za-z0-9]{6,}/.test(src),
-    rel,
-    "R1:no-live-keys",
-    "Stripe LIVE key literal — dev/verify use TEST keys only (G-HITL).",
-  );
-
-  // R2: never log raw process.env (secret / PII leak). Use redact().
-  add(
-    /console\.\w+\([^)]*process\.env\b/.test(src),
-    rel,
-    "R2:no-env-logging",
-    "Logging process.env risks leaking secrets/PII (E3). Use redact().",
-  );
-
-  // R3: irreversible side-effects in src/ must go through requireApproval().
-  if (rel.startsWith("src/") && !rel.includes("guardrails")) {
+  if (isCode) {
+    // R1: no committed Stripe LIVE keys (test fixtures may reference one to assert refusal).
     add(
-      /\.charge\(|\.refund\(|sendEmail\(|\bfulfill\(/.test(src) && !/requireApproval\(/.test(src),
+      !isTest && /\b(?:sk|pk)_live_[A-Za-z0-9]{6,}/.test(src),
       rel,
-      "R3:guard-irreversible",
-      "Irreversible side-effect without requireApproval() (G-HITL).",
+      "R1:no-live-keys",
+      "Stripe LIVE key literal — dev/verify use TEST keys only (G-HITL).",
+    );
+
+    // R2: never log raw process.env (secret / PII leak). Use redact().
+    add(
+      /console\.\w+\([^)]*process\.env\b/.test(src),
+      rel,
+      "R2:no-env-logging",
+      "Logging process.env risks leaking secrets/PII (E3). Use redact().",
+    );
+
+    // R3: irreversible side-effects in src/ must go through requireApproval().
+    if (rel.startsWith("src/") && !rel.includes("guardrails")) {
+      add(
+        /\.charge\(|\.refund\(|sendEmail\(|\bfulfill\(/.test(src) && !/requireApproval\(/.test(src),
+        rel,
+        "R3:guard-irreversible",
+        "Irreversible side-effect without requireApproval() (G-HITL).",
+      );
+    }
+  }
+
+  // --- Design SoR (DESIGN.md / Atelier Sans): UI under src/ only. Minimal set, grows as UI lands.
+  if (rel.startsWith("src/")) {
+    // R6: depth is tone steps + 1px --line hairlines, never box-shadow (DESIGN.md ## Elevation).
+    add(
+      /box-shadow\s*:\s*[^;}\n]*\d/i.test(src) || /\bboxShadow\s*:\s*["'][^"']*\d/.test(src),
+      rel,
+      "R6:no-box-shadow",
+      "box-shadow is banned (DESIGN.md): build depth with tone steps + 1px --line hairlines.",
+    );
+    // R7: no pure white/black — every neutral is warm (DESIGN.md ## Colors).
+    add(
+      /#(?:fff(?:fff)?|000(?:000)?)\b/i.test(src),
+      rel,
+      "R7:no-pure-white-black",
+      "Pure #fff/#000 is banned (DESIGN.md): use the warm tokens (--bg, --surface, --ink, ...).",
     );
   }
 }

@@ -1,7 +1,12 @@
-// Prisma schema — PostgreSQL (local via docker-compose, and production).
-// `pnpm verify` / `make check` are DB-independent (ADR-0002): skeleton code does
-// not instantiate PrismaClient, so typecheck/lint/test run without a database.
-// DB-touching features wire src/lib/db.ts (a PrismaClient wrapper) when they land.
+// Prisma schema — 그림책 제작소 (PostgreSQL; local via docker-compose, and production).
+// `pnpm check` is DB-independent (ADR-0002): skeleton code does not instantiate
+// PrismaClient, so typecheck/lint/test run without a database. DB-touching features
+// wire src/lib/db.ts (a PrismaClient wrapper) when they land.
+//
+// Money: KRW has no minor unit — store *Won as integers (NOT cents).
+// PII: fields tagged "PII (sensitive)" must never be logged/traced in plaintext (E3)
+//      and child photos are stored as access-controlled Assets, never inline.
+// Made-to-order: there is no inventory/stock — do not add oversell logic (G-SIMPLE).
 
 generator client {
   provider = "prisma-client-js"
@@ -12,51 +17,186 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Book {
-  id         String      @id @default(cuid())
-  slug       String      @unique
-  title      String
-  blurb      String
-  priceCents Int
-  coverUrl   String
-  stock      Int         @default(0)
-  featured   Boolean     @default(false)
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
-  orderItems OrderItem[]
+// ── Catalog: a Template IS the entry-line product (선택 = 상품 선택) ───────────────
+model Template {
+  id          String           @id @default(cuid())
+  category    TemplateCategory // ANNIVERSARY(기념일) | FIRST_MOMENT(첫 순간들)
+  key         String           @unique // birth | hundred_days | first_birthday | birthday | admission | first_steps | first_word | became_sibling
+  label       String // 고객 노출명: 탄생/백일/돌/생일/입학/첫 걸음마/첫 말/형아 된 날
+  blurb       String
+  heroImageUrl String?
+  extraVar    TemplateExtraVar @default(NONE) // 결제 전 추가 변수 0~1개
+  softPriceWon Int             @default(43000)
+  hardPriceWon Int             @default(49000)
+  sortOrder   Int              @default(0)
+  active      Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  items       OrderItem[]
 }
 
+// ── Order: a payment/purchase. ENTRY orders carry OrderItems; CUSTOM links a request.
 model Order {
-  id              String      @id @default(cuid())
-  status          OrderStatus @default(PENDING)
-  stripeSessionId String?     @unique
-  email           String // PII — minimize collection, never log in plaintext (E3)
-  totalCents      Int
-  items           OrderItem[]
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id            String      @id @default(cuid())
+  kind          OrderKind   @default(ENTRY)
+  status        OrderStatus @default(CREATED)
+  // TossPayments (provider-agnostic interface stores these). tossOrderId = our orderId sent to Toss.
+  tossOrderId   String      @unique
+  tossPaymentKey String?    @unique
+  amountWon     Int
+  qrVideoAddon  Boolean     @default(false) // 선택 옵션 (기본 미포함)
+  // Buyer / shipping — PII (sensitive): minimize, never log in plaintext (E3).
+  buyerName     String
+  buyerEmail    String
+  buyerPhone    String?
+  shipName      String?
+  shipPhone     String?
+  shipAddress   String?
+  items         OrderItem[]
+  customRequest CustomRequest?
+  assets        Asset[]
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 }
 
+// One personalized book within an ENTRY order.
 model OrderItem {
-  id         String @id @default(cuid())
-  order      Order  @relation(fields: [orderId], references: [id])
-  orderId    String
-  book       Book   @relation(fields: [bookId], references: [id])
-  bookId     String
-  quantity   Int
-  priceCents Int
+  id            String          @id @default(cuid())
+  order         Order           @relation(fields: [orderId], references: [id])
+  orderId       String
+  template      Template        @relation(fields: [templateId], references: [id])
+  templateId    String
+  coverType     CoverType // SOFT(43000) | HARD(49000)
+  unitPriceWon  Int
+  personalization Personalization?
 }
 
-// Webhook idempotency ledger — dedupe Stripe event delivery (F020 / E-safety).
+// Per-book personalization: minimal at pre-pay; finished post-pay in mypage.
+model Personalization {
+  id          String     @id @default(cuid())
+  orderItem   OrderItem  @relation(fields: [orderItemId], references: [id])
+  orderItemId String     @unique
+  // [pre-pay] common required 2 — PII (sensitive).
+  childName   String
+  childGender Gender // MALE(남아) | FEMALE(여아) — 일러스트·호칭 결정
+  // [pre-pay] template-specific extra var (0~1): birthdate / age / school / first_word / sibling_gender.
+  extraVar    Json? // shape governed by Template.extraVar; validated at the trust boundary
+  // [optional] child photo (skippable) — stored as an access-controlled Asset, not inline.
+  photoAsset  Asset?     @relation("PersonalizationPhoto", fields: [photoAssetId], references: [id])
+  photoAssetId String?   @unique
+  // [post-pay] finishing (mypage).
+  dedication  String? // 헌정 문구 — PII (sensitive)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+// ── 맞춤 제작 (full custom). Two paths, ONE shared question set (6 groups). ──────────
+model CustomRequest {
+  id          String        @id @default(cuid())
+  order       Order?        @relation(fields: [orderId], references: [id]) // WRITTEN: 결제 후 / PHONE: 상담 후
+  orderId     String?       @unique
+  path        CustomPath // PHONE(전화 예약) | WRITTEN(글로 작성)
+  status      CustomStatus  @default(SUBMITTED)
+  // 6묶음 의뢰서 — 전화 스크립트 = 웹 폼. PII (sensitive). Structured but free-form per group.
+  form        Json
+  contactName String
+  contactPhone String
+  consultation Consultation?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+// Phone-path consultation booking (예약 캘린더). Booking is free; payment follows the call.
+model Consultation {
+  id              String             @id @default(cuid())
+  customRequest   CustomRequest?     @relation(fields: [customRequestId], references: [id])
+  customRequestId String?            @unique
+  requestedSlot   DateTime
+  status          ConsultationStatus @default(REQUESTED)
+  note            String? // 한 줄 메모
+  createdAt       DateTime           @default(now())
+}
+
+// Uploaded files — child photo / QR video. SENSITIVE: access-controlled, never logged.
+model Asset {
+  id           String          @id @default(cuid())
+  kind         AssetKind // CHILD_PHOTO | QR_VIDEO | OTHER
+  storageKey   String // object-storage key — not a public URL
+  contentType  String
+  byteSize     Int
+  order        Order?          @relation(fields: [orderId], references: [id])
+  orderId      String?
+  personalization Personalization? @relation("PersonalizationPhoto")
+  createdAt    DateTime        @default(now())
+}
+
+// Webhook idempotency ledger — dedupe TossPayments event delivery (E-safety).
 model ProcessedWebhook {
-  id          String   @id // Stripe event id
+  id          String   @id // Toss event / idempotency key
   processedAt DateTime @default(now())
 }
 
+enum TemplateCategory {
+  ANNIVERSARY // 기념일
+  FIRST_MOMENT // 첫 순간들
+}
+
+enum TemplateExtraVar {
+  NONE
+  BIRTHDATE // 탄생: 생년월일
+  AGE // 생일: 몇 번째 생일
+  SCHOOL // 입학: 입학하는 곳
+  FIRST_WORD // 첫 말: 첫 단어
+  SIBLING_GENDER // 형아 된 날: 동생 성별
+}
+
+enum CoverType {
+  SOFT // 43,000원
+  HARD // 49,000원
+}
+
+enum OrderKind {
+  ENTRY
+  CUSTOM
+}
+
 enum OrderStatus {
-  PENDING
+  CREATED // 결제 전/시도
   PAID
-  FULFILLED
+  IN_PRODUCTION
+  SHIPPED
+  COMPLETED
   CANCELLED
   REFUNDED
+}
+
+enum Gender {
+  MALE // 남아
+  FEMALE // 여아
+}
+
+enum CustomPath {
+  PHONE // 전화 상담 예약 → 상담 후 결제
+  WRITTEN // 글로 작성 → 결제 후 제출
+}
+
+enum CustomStatus {
+  SUBMITTED
+  IN_REVIEW
+  IN_PRODUCTION
+  COMPLETED
+  CANCELLED
+}
+
+enum ConsultationStatus {
+  REQUESTED
+  CONFIRMED
+  DONE
+  CANCELLED
+}
+
+enum AssetKind {
+  CHILD_PHOTO
+  QR_VIDEO
+  OTHER
 }
