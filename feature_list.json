@@ -330,9 +330,9 @@
       "description": "FAQ page (제작 기간·커스텀 범위·배송·사진/영상 업로드·환불)",
       "steps": ["Open /faq", "See grouped Q&A", "Covers the brief's FAQ topics"],
       "verification": "pnpm test:e2e -- faq.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-01 Playwright: 2 passed (faq — 5 grouped Q&A incl. 환불, accordion hidden→reveal verified; 375px no-overflow). pnpm check green."
     },
     {
       "id": "F028",
