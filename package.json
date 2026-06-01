@@ -21,6 +21,8 @@
     "check": "pnpm verify && pnpm constraints",
     "constraints": "node scripts/check-constraints.mjs",
     "approve": "node scripts/approve.mjs",
+    "attempt": "node scripts/attempt.mjs",
+    "status": "node scripts/status.mjs",
     "eval": "node eval/run-eval.mjs",
     "db:up": "docker compose up -d db",
     "db:down": "docker compose down",

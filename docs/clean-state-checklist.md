@@ -8,6 +8,6 @@
 - [ ] **Progress** — `PROGRESS.md` reflects the current *verified* state; `feature_list.json`
       `state`/`passes`/`evidence` are accurate (no optimistic `passes:true`).
 - [ ] **Artifacts** — no stray/temp files; no secrets staged; `git status` is intentional.
-- [ ] **Startup** — the next session can resume from `./init.sh` + `session-handoff.md` alone.
+- [ ] **Startup** — the next session can resume from `./init.sh` + the `PROGRESS.md` Handoff section alone.
 
-Then: `git commit` (descriptive) → update `PROGRESS.md` → write `session-handoff.md`.
+Then: `git commit` (descriptive) → update `PROGRESS.md` (incl. Handoff section).

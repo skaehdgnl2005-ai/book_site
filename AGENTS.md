@@ -23,6 +23,8 @@ Plus an admin path to register books. Greenfield; built as a reliability **harne
 - Focused unit test: `pnpm test -- <name>`
 - Arch guardrails: `pnpm constraints`  # executable rules → structured report
 - Eval harness: `pnpm eval`            # purchase-flow metrics
+- Honest status: `pnpm status`         # product delivery vs harness readiness (don't conflate)
+- Record a work attempt: `pnpm attempt <id>`   # start of working a feature (3 → forced blocked)
 - Local DB (optional): `pnpm db:up`    # not needed for `pnpm check`
 - Approve an irreversible action: `pnpm approve <action>`
 
@@ -30,6 +32,8 @@ Plus an admin path to register books. Greenfield; built as a reliability **harne
 A feature is done only when **(1)** its `feature_list.json` entry is `passes:true`
 with `evidence`, **(2)** `pnpm check` is green, **and (3)** a user-facing **E2E** path
 verifies it. Unit tests passing ≠ done. "Code written" ≠ done.
+> Enforced by `pnpm constraints`: **R4** `state:"passing"` ⟺ `passes:true` (no drift);
+> **R5** 3 recorded attempts without passing ⇒ the feature must be `blocked` (escalate).
 
 ## Hard constraints (positive framing — the tool enforces the rest)
 1. Work **one feature at a time** (WIP=1); finish + verify before starting the next.
@@ -51,7 +55,7 @@ verifies it. Unit tests passing ≠ done. "Code written" ≠ done.
 - Data model: `prisma/schema.prisma`.
 - Tools: `scripts/` (approve, check-constraints), `eval/` (eval harness + golden/holdout).
 - Tests: `tests/unit/` (vitest), `tests/e2e/` (Playwright).
-- State: `feature_list.json`, `PROGRESS.md`, `DECISIONS.md`, `session-handoff.md`.
+- State: `feature_list.json`, `PROGRESS.md` (incl. Handoff section), `DECISIONS.md`, `.harness/attempts.json`.
 - Deep docs (read on demand): `docs/ARCHITECTURE.md`, `docs/CONSTRAINTS.md`,
   `docs/SAFETY.md`, `docs/OBSERVABILITY.md`, `docs/EVAL.md`.
 
@@ -63,11 +67,11 @@ verifies it. Unit tests passing ≠ done. "Code written" ≠ done.
   eye on step/token/cost. Prefer caching + the smallest model that passes.
 
 ## Session routine
-**Start:** `pwd` → read `PROGRESS.md` + `git log --oneline -20` → pick the top
-`passes:false` item in `feature_list.json` (WIP=1) → `./init.sh` → smoke. If a prior
-feature is broken, fix it **before** new work.
-**End:** `pnpm check` green → `git commit` (descriptive) → update `PROGRESS.md` →
-write `session-handoff.md` → confirm `docs/clean-state-checklist.md`.
+**Start:** `pwd` → read `PROGRESS.md` (Handoff section) + `git log --oneline -20` → pick the
+top `passes:false` item in `feature_list.json` (WIP=1) → `pnpm attempt <id>` → `./init.sh` →
+smoke. If a prior feature is broken, fix it **before** new work.
+**End:** `pnpm check` green → `git commit` (descriptive) → update `PROGRESS.md` (incl. Handoff
+section; `pnpm attempt <id> --reset` if it reached passing) → confirm `docs/clean-state-checklist.md`.
 
 ## Context management
 `AGENTS.md` is the router; pull deep docs just-in-time. On long tasks, checkpoint to

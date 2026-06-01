@@ -16,11 +16,12 @@ pnpm test:e2e        # Playwright buyer-flow E2E (boots its own server)
 ```
 Requires Node ≥ 20 and pnpm 10. Optional local DB: `pnpm db:up` (Docker).
 
-## Status
-- Bootstrap contract **MET**: boots clean, `pnpm check` green, E2E smoke passes, AGENTS.md
-  router + aligned `feature_list.json`.
-- Product features (catalog → cart → checkout → orders → admin) are tracked, mostly
-  **not yet built** by design (initialization ≠ implementation). See `PROGRESS.md`.
+## Status — two separate numbers (don't conflate)
+- **Harness readiness** (the machinery): **85.2/100 → READY** (`SCORECARD.md`). Bootstrap
+  contract MET: boots clean, `pnpm check` green, E2E smoke passes, router + aligned feature list.
+- **Product delivery** (the actual store): **~1/21 product features passing (`pnpm status`)** —
+  catalog → cart → checkout → orders → admin are **not yet built** by design (initialization ≠
+  implementation). A high harness score does **not** mean the store is shipped.
 
 ## Scripts
 | Command | What |
@@ -28,7 +29,8 @@ Requires Node ≥ 20 and pnpm 10. Optional local DB: `pnpm db:up` (Docker).
 | `pnpm check` | lint + typecheck + unit tests + `pnpm constraints` (canonical gate) |
 | `pnpm verify` | lint + typecheck + unit tests (brief's chain) |
 | `pnpm test:e2e` | Playwright end-to-end (buyer journey) |
-| `pnpm constraints` | executable architecture/safety guardrails |
+| `pnpm constraints` | executable architecture/safety guardrails (incl. feature-list invariants R4/R5) |
+| `pnpm status` | honest split: **product delivery** vs **harness readiness** (never conflate) |
 | `pnpm eval` | purchase-flow eval metrics |
 | `pnpm approve <action>` | issue a human-approval token for an irreversible action |
 

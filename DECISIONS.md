@@ -25,6 +25,25 @@
 - Why: M1/G-SIMPLE — the simplest structure that externalizes "is it done". Avoids unjustified complexity while still preventing self-graded false completion.
 - Rejected: A standing multi-agent crew (complexity not justified at this scale).
 
+## 2026-06-01 — ADR-0007 — Review hardening (accepted design feedback, with scoped pushback)
+- Decision: Accepted 4 review points and patched the harness:
+  1. **Anti-Goodhart (accepted fully):** relabel the rubric number as *harness readiness*; add a
+     separate *product delivery* metric (`pnpm status`, `track` field on every feature); gate
+     ROBUST on real buyer-flow features (F002–F008, F011), not on more machinery.
+  2. **state/passes drift (accepted):** executable invariant R4 (`state:"passing"` ⟺ `passes:true`).
+  3. **Doc consolidation (accepted, scoped):** folded `session-handoff.md` into `PROGRESS.md`
+     (the real per-session overlap). **Pushback:** kept `SCORECARD.md`/`scorecard.yaml` (build-time,
+     produced once / on re-score) and `DECISIONS.md` (append-only) — they are not per-session sync
+     surfaces competing with M4, so collapsing them would lose distinct, low-drift roles. Also made
+     `status.mjs` read the score from `scorecard.yaml` to remove a hardcoded-number drift copy.
+  4. **Executable termination (accepted):** `pnpm attempt <id>` ledger + invariant R5 (3 attempts
+     without passing ⇒ must be `blocked`). Closes the prose-only loop-termination gap.
+- Why: 3 of 4 points exposed a real inconsistency — guardrails were executable but scoring/termination
+  leaned on prose. Fixes align with the harness's own "the tool is the constraint" philosophy.
+- Deliberately NOT done: did not raise the A5 score despite R5 strengthening it — refused to inflate
+  the headline in response to feedback about the headline. Did not delete the meta/process features
+  (F023/F031/F032); classified them `track:harness` instead so they stop inflating product delivery.
+
 ## 2026-06-01 — ADR-0006 — Typecheck independent of Next's generated `next-env.d.ts`
 - Decision: Gitignore `next-env.d.ts`; commit `src/types/globals.d.ts` declaring `*.css`/image modules so `pnpm typecheck` passes on a fresh clone before `next dev|build` runs.
 - Why: Next 15.5 rewrites `next-env.d.ts` to reference `.next/types/*` (absent on a clean checkout), which would break standalone typecheck. Verified empirically by running typecheck with the file removed (exit 0).

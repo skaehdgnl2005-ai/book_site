@@ -1,6 +1,7 @@
 harness_id: "storybook-shop"
 loop_iteration: 1
 task_spec_ref: "PRODUCT_BRIEF.md"
+metric_kind: "harness_readiness"   # measures the MACHINERY, not product delivery — read with `pnpm status` (G1)
 
 # Rubric: docs/method/harness_engineering_rubric.md  (scale 0..3; weights sum 100)
 gates: # 8/8 PASS
@@ -23,15 +24,28 @@ categories:
   G_evaluation:        { weight: 14, scores: {G1: 2, G2: 2, G3: 2, G4: 3, G5: 2, G6: 2}, fraction: 0.722, points: 10.11, floor_ok: true }
   H_observability_ops: { weight: 8,  scores: {H1: 2, H2: 2, H3: 2},                       fraction: 0.667, points: 5.33,  floor_ok: true }
 
-overall_score: 85.2
+overall_score: 85.2        # HARNESS readiness only (not product delivery)
 status: READY               # gates all PASS · all floors ≥ 0.60 · 80 ≤ 85.2 < 90
-top_deficits: []            # status READY → loop stops (rubric §5). Optional ROBUST upgrades in evidence_notes.
+
+product_delivery:           # the actual store — read via `pnpm status`. NOT part of the harness score.
+  product_features_passing: 1
+  product_features_total: 21
+  pct: 5
+  note: "Buyer flow (catalog→checkout→orders→admin) essentially unbuilt. A high harness score ≠ a shipped store."
+
+robust_gate:                # anti-Goodhart: ROBUST needs real features, not just more machinery
+  rule: "ROBUST(≥90) requires overall≥90 AND core buyer-flow features (F002–F008, F011) passing."
+  available_now: false
+  reason: "product_delivery ~5%; ROBUST withheld regardless of machinery polish."
+
+top_deficits: []            # status READY → loop stops (rubric §5).
 evidence_notes: >
   All 8 hard gates PASS; lowest category floor H=0.667 (≥0.60). Scoring is evidence-backed and
   deliberately conservative: criteria with partial/pending implementation (most of G/H, D2/D3,
-  B4/B6, C4/C5, A1/A5, E4) are held at 2, while tested/complete harness capabilities are 3.
-  Safety (E=0.933) and state (F=1.0) are strongest, as required for a payments+PII domain.
-  Cheapest weighted path toward ROBUST (≥90), if later desired: wire traces to a sink + ops
-  dashboard (H1/H2→3, +1.8), implement real eval graders as features land (G1/G3→3, +1.6),
-  add no-progress detection tooling (A5→3, +1.0). Not pursued now: target is READY and met
-  (avoid passing-for-the-sake-of-passing / unjustified complexity).
+  B4/B6, C4/C5, A1/A5, E4) are held at 2, tested/complete capabilities at 3. Safety (E=0.933) and
+  state (F=1.0) are strongest, as required for a payments+PII domain.
+  Review hardening (2026-06-01): A5's no-progress detection is now EXECUTABLE (R5 attempt counter
+  forces 'blocked' after 3 tries), and R4 enforces state⟺passes — but the A5 score is held at 2
+  this cycle on purpose: not inflating the headline in response to feedback about the headline
+  (Goodhart). The number is HARNESS readiness; product delivery is tracked separately and gates
+  ROBUST. Re-rate A5 independently next cycle once the agent-side replan loop exists.

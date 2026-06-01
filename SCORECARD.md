@@ -1,7 +1,18 @@
-# Harness Scorecard — Storybook Shop
+# Harness **Readiness** Scorecard — Storybook Shop
+
+> ⚠️ **This is a HARNESS-READINESS score, not project health.** It measures the machinery
+> (instructions, tools, environment, state, feedback), **not** how much of the store is built.
+> A high number here with an unbuilt store is expected and honest. Always read it next to
+> **product delivery** (`pnpm status`) and real task success (rubric G1). Don't optimize this
+> number in place of shipping features (Goodhart).
+
+| Metric | Value | Means |
+|---|:--:|---|
+| **Harness readiness** (this card) | **85.2 / 100 → READY** | the scaffolding is ready for the coding loop |
+| **Product delivery** (`pnpm status`) | **~1 / 21 product features (~5%)** | the actual store is essentially not built yet |
 
 **Rubric:** `docs/method/harness_engineering_rubric.md` · **Loop iteration:** 1 ·
-**Target:** READY (≥80) · **Result:** **READY** · **Overall: 85.2 / 100**
+**Target:** READY (≥80) · **Result:** **READY** · **Overall (harness): 85.2 / 100**
 _(scale 0–3 per criterion; arithmetic recomputed & verified, 2026-06-01)_
 
 ## Hard gates — 8 / 8 PASS
@@ -44,14 +55,14 @@ partial or pending (most of G/H, D2/D3, B4/B6, C4/C5, A1/A5, E4) are held at **2
 tested/complete harness capabilities earn **3**. Many features are intentionally
 `passes:false` — initialization ≠ implementation.
 
-## Path to ROBUST (≥90) — not pursued (target is READY, met)
-Cheapest weighted upgrades, if later desired:
-1. Wire traces to a sink + ops dashboard → H1/H2 → 3 (+~1.8)
-2. Real eval graders as features land → G1/G3 → 3 (+~1.6)
-3. No-progress detection tooling → A5 → 3 (+~1.0)
-
-These are left undone on purpose: adding complexity past the target risks
-"passing-for-the-sake-of-passing" and violates `G-SIMPLE`.
+## ROBUST (≥90) is gated on PRODUCT delivery, not more machinery
+To prevent gaming the harness number, **ROBUST promotion additionally requires real product
+delivery** — i.e. core buyer-flow features (F002–F008, F011) actually `passing`, not just a
+higher rubric score. Today product delivery is ~5%, so ROBUST is not available regardless of
+machinery polish. Cheapest *harness* upgrades, if later relevant (A5 → 3 was just done via the
+R5 counter; H1/H2 → 3 by wiring traces to a sink; G1/G3 → 3 as graders run on real features),
+are deliberately deferred — adding machinery past READY without shipping features is exactly
+the "passing-for-the-sake-of-passing" the rubric warns against (`G-SIMPLE`).
 
 ## Reproduce
 ```bash

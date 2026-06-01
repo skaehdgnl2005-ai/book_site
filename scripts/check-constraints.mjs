@@ -8,10 +8,12 @@ import { join, extname } from "node:path";
 import { cwd, exit, stdout } from "node:process";
 
 const ROOT = cwd();
+const MAX_ATTEMPTS = 3;
 const SKIP = new Set([
   "node_modules",
   ".next",
   ".git",
+  ".harness",
   "coverage",
   "playwright-report",
   "test-results",
@@ -66,6 +68,33 @@ for (const f of await walk(ROOT)) {
       "Irreversible side-effect without requireApproval() (G-HITL).",
     );
   }
+}
+
+// --- feature_list invariants (structural anti-false-completion + executable termination) ---
+const fl = JSON.parse(await readFile(join(ROOT, "feature_list.json"), "utf8"));
+let attempts = {};
+try {
+  attempts = JSON.parse(await readFile(join(ROOT, ".harness", "attempts.json"), "utf8"));
+} catch {
+  attempts = {};
+}
+for (const f of fl.features) {
+  // R4: "passing" ⟺ passes:true. Catches drift between the two completion fields.
+  add(
+    (f.state === "passing") !== (f.passes === true),
+    "feature_list.json",
+    "R4:state-passes-invariant",
+    `${f.id}: state="${f.state}" but passes=${f.passes} — "passing" must equal passes:true (no false completion).`,
+  );
+  // R5: executable termination — after MAX_ATTEMPTS failed tries a feature must be
+  // "blocked" (escalate), not silently looping. The harness counts; prose doesn't.
+  const n = attempts[f.id] ?? 0;
+  add(
+    n >= MAX_ATTEMPTS && f.passes !== true && f.state !== "blocked",
+    "feature_list.json",
+    "R5:enforce-escalation",
+    `${f.id}: ${n} attempts without passing — state must be "blocked" (escalate), not "${f.state}".`,
+  );
 }
 
 const report = {
