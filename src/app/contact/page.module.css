@@ -1,0 +1,39 @@
+/* F028 문의 — channel list (hairline rows) + intro. Form styles live in
+   ContactForm.module.css. Tokens only; radius 0. */
+
+.intro {
+  max-width: 52ch;
+  margin: 0 0 var(--space-lg);
+  color: var(--grey);
+  line-height: 1.75;
+}
+
+.channels {
+  margin: 0 0 var(--space-xl);
+  padding: 0;
+}
+
+.row {
+  display: flex;
+  gap: var(--space-md);
+  padding: var(--space-sm) 0;
+  border-top: 1px solid var(--line);
+}
+.row:last-child {
+  border-bottom: 1px solid var(--line);
+}
+
+.dt {
+  flex: 0 0 6rem;
+  align-self: center;
+  font-family: var(--font-grotesk);
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.dd {
+  margin: 0;
+  color: var(--ink);
+}

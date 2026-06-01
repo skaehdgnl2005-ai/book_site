@@ -342,9 +342,9 @@
       "description": "문의 page (전화·이메일·문의 폼 중심)",
       "steps": ["Open /contact", "See phone/email + a contact form", "Form input wrapped as untrusted()"],
       "verification": "pnpm test:e2e -- contact.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-01 Playwright: 3 passed (contact — 전화/이메일 flagged placeholders + form: untrusted()-tagged input, empty-submit validation, honest guidance no fake receipt; 375px no-overflow). pnpm check green."
     },
     {
       "id": "F029",
