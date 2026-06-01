@@ -3,12 +3,20 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- Next action (single): **Wave 0 + content integrated to `master`** — F001/F002 home, F003 payment (Toss),
-  F004 DB+seed, F029 asset, and F024–F028 content pages all merged & passing. Next: buyer-flow funnel —
-  catalog F005/F006 (read the seeded templates) → order F007–F011 → checkout F012–F016. Prompts: `docs/SESSION_PROMPTS.md`.
-- Broken / not done: buyer-flow funnel (F005+) not built yet. Content pages are static + not yet wired into
-  the global Nav (Nav is F002-owned/import-only); real assets/founder-story/후기/전화·이메일/배송/환불 await
-  maker input (visible code-flagged TODOs, never fabricated).
+- Next action (single): **TRACK-CAT (F005/F006) merged to `master` + passing** — catalog category pages live
+  (기념일 5 + 첫 순간들 3, DB-backed with a hermetic seed-mirror). Next in the buyer-flow funnel: **TRACK-ORDER
+  (F007–F011, F019)** — precondition F004+F029 (both merged); stateful funnel → build in ONE session, sequential.
+  **TRACK-CUSTOM (F020–F023)** can run in parallel (precondition F003 merged). Prompts: `docs/SESSION_PROMPTS.md`.
+- Broken / not done: buyer-flow funnel from **F007 (order)** onward not built yet (catalog F005/F006 now done).
+  Category cards link to /order/<templateKey> which 404s until TRACK-ORDER lands (documented contract). Content
+  pages static + not Nav-wired; real assets/founder-story/후기/전화·이메일/배송/환불 await maker input (code-flagged TODOs).
+- **Follow-ups (TRACK-CAT, latent — no DB exists yet; tracked not silent, from the adversarial review):**
+  (1) the live-DB branch of `getTemplatesByCategory` is exercised only by the injected-fake unit test, never by a
+  gate (no Postgres in CI); (2) the `rows.length>0` guard falls back to the seed mirror on an empty-but-valid DB
+  result — revisit once admin template-deactivation (`active:false`) ships; (3) `heroImageUrl` is rendered as
+  `<img src>` with no allow-list — add same-origin/allow-list validation when real hero assets land (null today →
+  honest panel mat); (4) the seed mirror duplicates `prisma/seed.ts` (E2E + unit drift-guard covers
+  key/label/price/blurb) — extract a shared data-only module if drift becomes a concern.
 - **Follow-up (F004):** `prisma db seed` runs the `.ts` seed via Node type-stripping, which needs
   **Node ≥ 22.6** (newer than the `>=20` engines floor; dev runtime is Node 24). Not on the `pnpm check`
   path, so no gate impact. Revisit when a track may touch deps/pins: add `tsx` or bump `.nvmrc`/`engines`.
@@ -17,13 +25,14 @@
   `docs/SAFETY.md`/`CONSTRAINTS.md`/`ARCHITECTURE.md` + `eval/golden` still say "Stripe". `.env.example` is on Toss.
 
 ## Current verified state   ← single source of truth
-- Last green `pnpm check`: **2026-06-01** (lint + typecheck + unit + 0 constraint violations, incl.
-  R4/R5/R8 invariants) — verified on the integrated `master` after the Wave-0 + content merges.
-- E2E (`pnpm test:e2e`): **13 passed** (home 2 + content F024–F028: brand-story/gallery/reviews/faq/contact, each + 375px)
+- Last green `pnpm check`: **2026-06-01** (lint + typecheck + **54 unit** + 0 constraint violations, incl.
+  R4/R5/R8 invariants) — verified on the integrated `master` after the TRACK-CAT (F005/F006) merge.
+- E2E (`pnpm test:e2e`): **17 passed** (home 2 + content 11 [brand-story/gallery/reviews/faq + contact×3, each + 375px]
+  + category 4 [anniversary 2 + first-moments 2])
 - Boots via `./init.sh`: **yes** (install → check → ready, exit 0)
 - **Two honest, separate numbers** (`pnpm status`):
   - **Harness readiness** (machinery, product-agnostic): 85.2/100 → READY (see `SCORECARD.md`)
-  - **Product delivery** (그림책 제작소 store): **10 / 32 product features passing (~31%)** — F001/F002 home, F003 payment, F004 DB+seed, F029 asset, F024–F028 content
+  - **Product delivery** (그림책 제작소 store): **12 / 32 product features passing (~38%)** — F001/F002 home, F003 payment, F004 DB+seed, F029 asset, F024–F028 content, **F005/F006 catalog**
   - harness-track features passing: 6 / 10 (F030/F031 evidence refreshed Stripe→Toss)
 - Bootstrap contract (build_guide §7): **MET** — boots, verified tests exist, AGENTS.md router, feature_list aligned.
 
@@ -32,6 +41,37 @@ Harness **INITIALIZED + review-hardened + repurposed to 그림책 제작소**. S
 feature_list/router) now reflects the real product; DESIGN.md (Atelier Sans) wired + enforced. Coding loop next.
 
 ## Session log (newest first)
+### 2026-06-01 — TRACK-CAT (F005 기념일 / F006 첫 순간들) catalog category pages  [feat/category]
+- Built the two entry-line category pages as a DB-backed template card grid. New track-owned kit under
+  `src/app/_components/catalog/`: `templates.ts` (data loader + canonical catalogue + `formatWon`),
+  `TemplateCard.tsx`/`.module.css` (Atelier Sans Product Card — **명조 책 제목 only**, 1px hairlines, navy-only
+  edition no.+dot, radius 0, `:focus-visible` ring), `CategoryView.tsx`/`.module.css` (shared scaffold + product
+  grid). Pages `src/app/{anniversary,first-moments}/page.tsx`. Cards link to `/order/<key>` (contract; 404 until TRACK-ORDER).
+- **Hermetic data access (the core decision):** CI/E2E run **no Postgres, no `prisma generate`, no DATABASE_URL**
+  (confirmed in `ci.yml`/`playwright.config.ts`); `pnpm check` builds nothing, pages compile only under `next dev`
+  on hit routes. So `getTemplatesByCategory` reads the live DB via `@/lib/db` **only when DATABASE_URL is set**
+  (dynamic import → keeps `@prisma/client` out of the hermetic graph), else falls back to a canonical seed-mirror
+  of `prisma/seed.ts` ENTRY_TEMPLATES. `readTemplatesFromDb` is an injection seam (db.ts/seed.ts pattern) so the
+  DB map/order is unit-testable. `export const dynamic='force-dynamic'` so the live-DB read isn't baked at build.
+- TDD: wrote `category-*.spec.ts` first (RED → 404), implemented, GREEN. Full gate: `pnpm check` green
+  (lint+typecheck+**54 unit**+constraints R1–R8 0) + **17 E2E** (no regressions; nav 기념일/첫 순간들 links now
+  resolve). Visual QA via headless browser: desktop 3-col + 375px 1-col, **0 console errors** (screenshots reviewed).
+- **Adversarial worker≠checker review (F042 protocol):** 6-dimension workflow, **24 agents**, each finding
+  independently verified (refute-by-default). 18 raw → **9 fixed**: Korean body line-height 1.75 (bodyKo token),
+  price 0.92rem (price token), card `:focus-visible` navy ring (outline, not box-shadow → R6-safe),
+  `<ul role=list>` (WebKit list semantics), `encodeURIComponent(key)` in the order href (path-traversal harden),
+  per-card role-bound price assertion (was page-global `.first()`), and a DB-branch injection-seam unit test
+  (the live-DB map/order was untested). **9 deferred/dismissed** with recorded rationale (latent — no DB today):
+  empty-DB-result fallback semantics, heroImageUrl allow-list, aria-label title-first, active-on-mirror, blurb
+  drift, media bounding-box; 2 dismissed (per-template price impossible by brief; F006 attempt-ledger nit).
+- **Scope notes (justified, conflict-free — F003 precedent):** added co-located CSS modules + a loader/view in the
+  track's own `_components/catalog/` namespace (contract literally named only TemplateCard.tsx), and
+  `tests/unit/catalog.test.ts` (unowned by any sibling track) to cover the live-DB branch the review flagged.
+  Imported the merged, import-only `@/lib/db`. Did NOT touch the shared `_components` root, `globals.css`, `db.ts`, `seed.ts`.
+- F005/F006 `passing` + dated evidence (R4 holds); F035 evidence updated (category 375px green; order/checkout
+  pending). Attempt reset. Merged `feat/category` → `master` (--no-ff); `pnpm check` + 17 E2E re-verified green on master.
+- Next: TRACK-ORDER (F007–F011, F019) — stateful funnel, one session; TRACK-CUSTOM (F020–F023) parallel-OK.
+
 ### 2026-06-01 — F029 access-controlled Asset storage (child-photo / PII safety)  [feat/F029]
 - Opaque random storageKey (no filename/child-name/byte leak), `untrusted()` trust-gate, kind↔contentType
   allowlist, PII-free traces asserted through the real observability `emit()` sink. vitest pii.test.ts 15/15.
