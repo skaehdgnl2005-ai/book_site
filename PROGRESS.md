@@ -9,6 +9,12 @@
 - Broken / not done: buyer-flow funnel (F005+) not built yet. Content pages are static + not yet wired into
   the global Nav (Nav is F002-owned/import-only); real assets/founder-story/후기/전화·이메일/배송/환불 await
   maker input (visible code-flagged TODOs, never fabricated).
+- **TRACK-CUSTOM (F020–F023) DONE on `feat/custom`** (isolated worktree off master), awaiting merge: 맞춤 제작
+  landing (two paths) + WRITTEN (6-group 의뢰서 → Toss **test** pay → SUBMITTED) + PHONE (booking calendar →
+  Consultation REQUESTED, pay-after-call) + the shared 6-group form (F023). 16 unit + 11 E2E green, `pnpm check`
+  clean (R1–R8), worker≠checker review done (1 finding fixed, 2 dismissed — ADR-0011). Merge one branch at a
+  time per the runbook; conflict hotspot: `feature_list.json`. Custom routes are NOT yet wired into the global
+  Nav (F002-owned/import-only) — a follow-up like the content pages.
 - **Follow-up (F004):** `prisma db seed` runs the `.ts` seed via Node type-stripping, which needs
   **Node ≥ 22.6** (newer than the `>=20` engines floor; dev runtime is Node 24). Not on the `pnpm check`
   path, so no gate impact. Revisit when a track may touch deps/pins: add `tsx` or bump `.nvmrc`/`engines`.
@@ -23,7 +29,7 @@
 - Boots via `./init.sh`: **yes** (install → check → ready, exit 0)
 - **Two honest, separate numbers** (`pnpm status`):
   - **Harness readiness** (machinery, product-agnostic): 85.2/100 → READY (see `SCORECARD.md`)
-  - **Product delivery** (그림책 제작소 store): **10 / 32 product features passing (~31%)** — F001/F002 home, F003 payment, F004 DB+seed, F029 asset, F024–F028 content
+  - **Product delivery** (그림책 제작소 store): **10 / 32 product features passing (~31%)** on `master` — F001/F002 home, F003 payment, F004 DB+seed, F029 asset, F024–F028 content. **+F020–F023 (맞춤 제작) passing on `feat/custom`, awaiting merge → 14 / 32 (~44%) once integrated.**
   - harness-track features passing: 6 / 10 (F030/F031 evidence refreshed Stripe→Toss)
 - Bootstrap contract (build_guide §7): **MET** — boots, verified tests exist, AGENTS.md router, feature_list aligned.
 
@@ -32,6 +38,31 @@ Harness **INITIALIZED + review-hardened + repurposed to 그림책 제작소**. S
 feature_list/router) now reflects the real product; DESIGN.md (Atelier Sans) wired + enforced. Coding loop next.
 
 ## Session log (newest first)
+### 2026-06-01 — TRACK-CUSTOM (F020–F023) 맞춤 제작 intake  [feat/custom worktree]
+- Built the full 맞춤 제작 intake on an isolated `feat/custom` worktree off master (the main checkout held a
+  concurrent category track's uncommitted WIP — per the runbook, each track gets its own worktree):
+  **F020** `/custom` landing (two path cards → /custom/phone & /custom/written, 119,000원); **F021** WRITTEN
+  (6-group 의뢰서 → Toss **test** pay → status SUBMITTED); **F022** PHONE (server-computed booking calendar →
+  Consultation **REQUESTED**, no upfront payment — pay after the call); **F023** the shared 6-group form
+  (`CUSTOM_FORM_GROUPS`) both paths normalize into → identical `CustomRequest.form` shape (homogeneous input).
+- **Decisions (ADR-0011):** D1 hermetic in-memory store on `globalThis` (Prisma is the documented production
+  seam; ADR-0002); D2 WRITTEN payment via the `PaymentProvider` with an injectable sandbox transport, impossible
+  to use in production (ADR-0010/0004); D3 a REQUESTED booking is a customer request, NOT the irreversible
+  operator-side 예약 확정 (no approval gate). Imports only `@/lib/payments` (+ `untrusted()`); all external
+  input tagged at the boundary; no PII/secret logging.
+- **TDD** per feature (tests first → RED → implement → GREEN). Forms are hydration-safe (uncontrolled inputs +
+  FormData + a mounted-gated submit, the ContactForm pattern). 16 unit + 11 E2E green; `pnpm check` clean (R1–R8).
+- **Worker≠checker review** (ADR-0005/F042): a 5-dimension adversarial workflow, each finding skeptic-verified.
+  Found + fixed **1 real bug** — the confirmation page claimed "테스트 결제 완료" for any WRITTEN record without
+  checking `rec.status`, so an unpaid PENDING_PAYMENT request showed a phantom payment-success (spec §5
+  violation); now gated on status + a regression E2E. **2 dismissed** (a confirm-route hardening nit; a
+  double-counted heading concern).
+- **Env trap diagnosed:** Playwright's `webServer` (`pnpm dev`, url :3000, reuseExistingServer) spawns a SECOND
+  `next dev` in the worktree when :3000 is free, clobbering `.next` (ENOENT / static-asset 400 / hydration
+  failures). Fix: run one dev server on :3000 that Playwright reuses. `next build` compiles all routes cleanly.
+- Docs: `docs/superpowers/specs/2026-06-01-custom-track-design.md` + `…/plans/2026-06-01-custom-track.md`.
+- Next: merge `feat/custom` → master (one branch at a time, `pnpm check` each; reconcile `feature_list.json`).
+
 ### 2026-06-01 — F029 access-controlled Asset storage (child-photo / PII safety)  [feat/F029]
 - Opaque random storageKey (no filename/child-name/byte leak), `untrusted()` trust-gate, kind↔contentType
   allowlist, PII-free traces asserted through the real observability `emit()` sink. vitest pii.test.ts 15/15.

@@ -248,9 +248,9 @@
       "description": "맞춤 제작 landing: two paths side-by-side — '전화로 상담 예약하기' / '직접 작성하기'",
       "steps": ["Open /custom", "See the two path buttons", "Each routes to its flow"],
       "verification": "pnpm test:e2e -- custom-landing.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-01 Playwright custom-landing 4 passed (two path cards → /custom/phone & /custom/written with correct hrefs + click-navigation; 119,000원; 375px no-overflow). pnpm check green (lint+typecheck+64 unit+0 constraints R1–R8); Atelier Sans tokens, R6/R7 clean. Built on the feat/custom worktree off master."
     },
     {
       "id": "F021",
@@ -260,9 +260,9 @@
       "description": "Custom WRITTEN path: 6-group request form → pay → submit (same question set as phone)",
       "steps": ["Fill the 6-group 의뢰서 form", "Pay (Toss test)", "Request stored with status SUBMITTED"],
       "verification": "pnpm test:e2e -- custom-written.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-01 Playwright custom-written 4 passed (6-group 의뢰서 → Toss TEST pay via injectable sandbox transport → status SUBMITTED; empty-submit blocked with inline error, no fake success; an unpaid request's confirmation shows no phantom 결제 완료; 375px). Hermetic in-memory store + payments lib createCheckout/confirm (ADR-0010/0011 D1–D2); sandbox transport impossible when APP_ENV=production. Adversarial worker≠checker review (5 dims → skeptic-verified): 1 real finding fixed (status-gated confirmation copy), 2 dismissed. pnpm check green."
     },
     {
       "id": "F022",
@@ -272,9 +272,9 @@
       "description": "Custom PHONE path: consultation booking calendar (slot select; booking free, payment after the call)",
       "steps": ["Open the booking calendar", "Pick a time slot + 이름·연락처·한 줄 메모", "Consultation stored REQUESTED; no upfront payment"],
       "verification": "pnpm test:e2e -- custom-phone.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-01 Playwright custom-phone 3 passed (booking calendar slot → Consultation REQUESTED, NO upfront payment / 상담 후 결제; empty-submit blocked; 375px). REQUESTED is a customer request, not the irreversible operator-side 예약 확정 — no approval gate by design (ADR-0011 D3). Shared complete/[id] confirmation reads the hermetic store. pnpm check green."
     },
     {
       "id": "F023",
@@ -284,9 +284,10 @@
       "description": "Custom request stored uniformly across both paths (identical 6-group question set)",
       "steps": ["Submit via written and via phone", "Both produce the same CustomRequest.form shape", "Production input is homogeneous"],
       "verification": "pnpm test -- custom-request.test.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "e2e_via": ["F021", "F022"],
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-01 vitest custom-request.test.ts 16 passed: CUSTOM_FORM_GROUPS = the 6 groups (protagonist·people·motivation★·direction·expression·practical); buildCustomForm guarantees BOTH paths emit the IDENTICAL group+field shape (homogeneous production input; never throws on untrusted junk); validators reject missing required fields; hermetic in-memory store create/get/markSubmitted round-trips; price 119000. No own E2E surface (the shared shape is a foundation) → e2e_via F021/F022 exercise it end-to-end (R8 / DoD #3). pnpm check green."
     },
     {
       "id": "F024",
