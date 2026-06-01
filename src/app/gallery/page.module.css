@@ -1,0 +1,21 @@
+/* F025 갤러리 — grid only (tile depth lives in GalleryTile.module.css). Tokens only. */
+
+.caption {
+  max-width: 52ch;
+  margin: 0 0 var(--space-lg);
+  color: var(--grey);
+  line-height: 1.75;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--grid-row);
+}
+
+@media (min-width: 720px) {
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+    column-gap: var(--grid-col);
+  }
+}
