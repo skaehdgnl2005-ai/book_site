@@ -4,19 +4,38 @@
 > 각 프롬프트는 이 repo(`AGENTS.md`/`CLAUDE.md`/`DESIGN.md` 자동 로드)를 가정한다. 자동 로드 안 되는 에이전트엔
 > 맨 앞에 한 줄 덧붙여라: *"먼저 AGENTS.md · DESIGN.md · feature_list.json · PROGRESS.md(Handoff)를 읽어라."*
 
-## 권장 실행 모델 (재검토 결론 2026-06-01)
-솔로 개발 + 신중한 검증이라 **물리적 병렬보다 1M 컨텍스트 배치가 이득**이다(하네스 단순성 ADR-0005과도 일치).
-- **기본 = 단일 세션, 그룹별 순차.** 한 그룹을 한 창에 통째로 올려 컨텍스트 리로드 없이 연달아 만든다.
-  **상태형 그룹(주문 퍼널 F007~F011, 체크아웃 F012~F016)은 반드시 이 방식** — 서브에이전트로 쪼개면 공유 상태가 파편화돼 역효과.
-- **서브에이전트 offload(선택) = 독립·기계적 트랙만.** 콘텐츠 5페이지(F024~F028)·F004(DB)·F029(자산)·F003(결제)처럼
-  서로/메인과 무관한 트랙만 격리 서브에이전트로 떼어낸다.
-- **병렬 세션(트랙당 창)은 비권장** — 베이비시팅·수동 머지 비용이 이득을 상쇄한다.
+## ⚡ 지금 뭘 동시에 돌려도 되나 (한눈에)
 
-## 복붙 방법
-- **그룹 직접 작업:** 해당 **TRACK 프롬프트** 블록을 지금 세션에 붙여넣고 끝까지(verify+commit) 간다.
-- **독립 트랙 offload:** 해당 웨이브의 **OFFLOAD 디스패처**를 붙여넣으면, 메인 세션이 격리 서브에이전트로
-  *독립 트랙만* 띄우고 결과를 머지·검증한다. (각 TRACK 스코프는 이 파일에서 읽으므로 다 긁을 필요 없음.)
-- 어느 경우든 머지는 **한 트랙씩 → 매번 `pnpm check`**. 상태형 그룹은 절대 offload하지 말 것.
+**두 트랙을 *동시에* 켜도 되는 조건** = ① 둘 다 **선행(precondition)이 passing** + ② **파일 스코프가 안 겹침**.
+같은 웨이브 트랙들은 그렇게 설계돼 있다. ⚠️ **상태형 퍼널(TRACK-ORDER·TRACK-CHECKOUT)은 내부 기능을 쪼개지 말고 한 세션에서 순차로.**
+
+📍 **현재(2026-06-01): F001·F002 passing.**
+→ **지금 동시 가능 = TRACK-DB(F004) · TRACK-PAY(F003) · TRACK-ASSET(F029) · TRACK-CONTENT(F024–F028) — 4개 동시 OK** (파일 disjoint).
+이 4개가 머지되면 Wave 1이 열린다.
+*(상태 갱신법: 새 세션에서 `feature_list.json`의 passing을 보고 아래 '선행' 열과 대조하면 그때의 동시 가능 집합이 나온다.)*
+
+| 트랙 | 기능 | 선행(merged) | 파일 스코프(겹침 없음) | 같이 켜도 되는 짝 |
+|---|---|---|---|---|
+| **TRACK-DB** | F004 | — | `src/lib/db.ts`·`prisma/seed.ts` | Wave 0 전부 |
+| **TRACK-PAY** | F003 | — | `src/lib/payments`·`env.ts`·`check-constraints` | Wave 0 전부 |
+| **TRACK-ASSET** | F029 | — | `src/lib/assets.ts` | Wave 0 전부 |
+| **TRACK-CONTENT** | F024–F028 | F002 | `src/app/{brand-story,gallery,reviews,faq,contact}` | Wave 0 전부 |
+| **TRACK-CAT** | F005,F006 | F004 | `src/app/{anniversary,first-moments}` | TRACK-CUSTOM |
+| **TRACK-ORDER** ⚠️순차 | F007–F011,F019 | F004,F029 | `src/app/order`·`src/lib/cart.ts` | (한 세션 통째) |
+| **TRACK-CUSTOM** | F020–F023 | F003 | `src/app/custom`·`src/lib/customRequest.ts` | TRACK-CAT |
+| **TRACK-CHECKOUT** ⚠️순차 | F012–F016,F034 | F003,F011 | `src/app/checkout`·`api/payments` | (한 세션 통째) |
+| **TRACK-MYPAGE** | F017,F018 | F013,F029 | `src/app/mypage` | TRACK-CHECKOUT 꼬리 |
+| **TRACK-POLISH** ⚠️순차 | F035–F042 | entry flow | 전반 sweep | (한 세션 통째) |
+
+## 실행 모드 (둘 다 OK)
+- **모드 1 · 다중 세션 병렬** — 동시 가능한 트랙마다 **새 세션**을 열고 그 **TRACK 블록 하나만** 복붙. 각 세션이 자기 worktree 브랜치에서 끝까지(verify+commit). 머지는 **한 번에 하나씩 → 매번 `pnpm check`**.
+- **모드 2 · 단일 세션 + 서브에이전트** — 한 세션에 그 웨이브의 **OFFLOAD 디스패처**를 복붙 → 메인이 격리 서브에이전트로 독립 트랙을 띄우고 머지까지.
+- 둘 다 **상태형 퍼널(⚠️순차)은 절대 쪼개지 말 것** — 한 세션에서 기능을 차례로.
+
+## 복붙 방법 (요약)
+1. 위 매트릭스에서 **선행이 passing인 트랙**을 고른다 = 그게 지금 동시 가능 집합.
+2. **트랙당 새 세션 → 그 TRACK 블록만 복붙** (파일 전체를 긁을 필요 없음).
+3. 끝난 브랜치는 **하나씩 머지 + `pnpm check`** (R4가 state/passes 드리프트를 잡음).
 
 ## 불변 규칙 (모든 프롬프트에 적용 — 굳이 반복 안 해도 됨)
 - **완료 게이트:** `pnpm check` green **AND** 그 기능의 E2E/verification 통과 → 그때만 `feature_list.json`의 해당 항목 `state:"passing"`/`passes:true` + **날짜 박힌 evidence**. 그 전엔 절대 passing 금지.
