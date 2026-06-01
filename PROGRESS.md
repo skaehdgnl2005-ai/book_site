@@ -3,18 +3,18 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- Next action (single): enter the coding loop on **그림책 제작소**. Foundations first —
-  **F004 (DB+seed) ∥ F003 (payment+Toss)** (file-disjoint, parallel-safe), then **F002 branded home**.
-  Parallel-wave plan in this session log.
+- Next action (single): **F002 done** (pattern-setter, loop locked). Run **Wave 0** —
+  F004 (DB+seed) · F003 (payment+Toss) · F029 (asset) independent; content F024–F028 offloadable.
+  Stateful funnels stay in the main session. Prompts: `docs/SESSION_PROMPTS.md`.
 - Broken / not done: no product buyer-flow features built yet (spec layer repurposed; code via the loop).
 
 ## Current verified state   ← single source of truth
 - Last green `pnpm check`: **2026-06-01** (lint + typecheck + 9 unit tests + 0 constraint violations, incl. R4/R5 invariants)
-- E2E smoke (`pnpm test:e2e`): **2 passed** (home renders; mobile responsive at 375px)
+- E2E (`pnpm test:e2e`): **2 passed** (branded home — brand/hero/3 category cards/CTA; 375px no-overflow)
 - Boots via `./init.sh`: **yes** (install → check → ready, exit 0)
 - **Two honest, separate numbers** (`pnpm status`):
   - **Harness readiness** (machinery, product-agnostic): 85.2/100 → READY (see `SCORECARD.md`)
-  - **Product delivery** (그림책 제작소 store): **1 / 32 product features passing (~3%)** — coding loop not yet started
+  - **Product delivery** (그림책 제작소 store): **2 / 32 product features passing (~6%)** — F002 branded home landed
   - harness-track features passing: 6 / 10
 - Bootstrap contract (build_guide §7): **MET** — boots, verified tests exist, AGENTS.md router, feature_list aligned.
 
@@ -23,6 +23,16 @@ Harness **INITIALIZED + review-hardened + repurposed to 그림책 제작소**. S
 feature_list/router) now reflects the real product; DESIGN.md (Atelier Sans) wired + enforced. Coding loop next.
 
 ## Session log (newest first)
+### 2026-06-01 — F002 branded home (pattern-setter) + runbook refinement
+- Built the 그림책 제작소 branded home (hero + 3-category preview + primary CTA) and the reusable
+  `src/app/_components/` kit (Nav, Footer, Button/CtaLink, SectionHeader, CategoryCard) — all styled
+  from DESIGN.md tokens (component classes added to `globals.css`; R6/R7 clean).
+- TDD: rewrote `home.spec.ts` first (brand/hero/3 cards/CTA + 375px). `pnpm check` green + E2E 2 passed
+  → F002 `passing` (R4 holds), attempt reset.
+- Refined `docs/SESSION_PROMPTS.md` per re-examination: default = single-session context-batch; subagent
+  offload only for independent/mechanical tracks; stateful funnels stay in main (parallel sessions dropped).
+- Next: Wave 0 (F003/F004/F029 + content F024–F028).
+
 ### 2026-06-01 — repurpose to 그림책 제작소 (spec layer) + DESIGN.md wiring
 - Wired DESIGN.md (Atelier Sans) as UI SoR: tokens→`globals.css`, fonts→`layout.tsx`, refs (root +
   `src/app/AGENTS.md`), executable R6 (no box-shadow) / R7 (no pure #fff/#000). ADR-0008. Verified green.

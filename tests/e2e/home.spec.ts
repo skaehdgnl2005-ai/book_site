@@ -1,16 +1,29 @@
 import { test, expect } from "@playwright/test";
 
-// Bootstrap E2E smoke (Phase 6): unit tests alone can't prove the user-facing
-// page works (T1-A). This is the seed the buyer-journey flow extends.
-test.describe("home → featured (skeleton smoke)", () => {
-  test("renders the shop title and a featured region", async ({ page }) => {
+// Branded home (F002) — verifies the 그림책 제작소 home and the reusable UI kit.
+// Also covers F001 (boots + hero + featured region) and F035 (mobile responsive).
+test.describe("home (그림책 제작소)", () => {
+  test("renders brand, hero, 3 category cards, and the primary CTA", async ({ page }) => {
     const start = Date.now();
     await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Storybook Shop", level: 1 }),
-    ).toBeVisible();
-    await expect(page.getByTestId("featured")).toBeVisible();
-    // H3 budget: skeleton home must be well under the 2s p95 target.
+
+    // Brand wordmark (nav).
+    await expect(page.getByRole("link", { name: "그림책 제작소" })).toBeVisible();
+
+    // Hero <h1>.
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+
+    // Featured region + the 3 category cards (scoped to avoid the nav links).
+    const featured = page.getByTestId("featured");
+    await expect(featured).toBeVisible();
+    await expect(featured.getByRole("link", { name: /기념일/ })).toBeVisible();
+    await expect(featured.getByRole("link", { name: /첫 순간들/ })).toBeVisible();
+    await expect(featured.getByRole("link", { name: /맞춤 제작/ })).toBeVisible();
+
+    // Primary CTA.
+    await expect(page.getByRole("link", { name: "내 아이의 책 만들기" })).toBeVisible();
+
+    // H3 budget: home well under the 2s p95 target.
     expect(Date.now() - start).toBeLessThan(5_000);
   });
 

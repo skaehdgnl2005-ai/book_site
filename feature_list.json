@@ -30,9 +30,9 @@
       "description": "Branded home: 그림책 제작소 hero + 3-category preview (기념일/첫 순간들/맞춤 제작) + primary CTA '내 아이의 책 만들기'",
       "steps": ["Open /", "See brand hero + tagline '한 아이의 이름으로 시작되는 이야기'", "See 3 category cards", "Primary CTA links into the entry flow"],
       "verification": "pnpm test:e2e -- home.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-01 Playwright: 2 passed (branded home — brand/hero/3 category cards/CTA + 375px no-overflow). pnpm check green (R6/R7 clean). Established src/app/_components kit (Nav/Footer/Button/SectionHeader/CategoryCard) for reuse."
     },
     {
       "id": "F003",

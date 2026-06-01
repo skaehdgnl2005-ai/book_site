@@ -4,9 +4,19 @@
 > 각 프롬프트는 이 repo(`AGENTS.md`/`CLAUDE.md`/`DESIGN.md` 자동 로드)를 가정한다. 자동 로드 안 되는 에이전트엔
 > 맨 앞에 한 줄 덧붙여라: *"먼저 AGENTS.md · DESIGN.md · feature_list.json · PROGRESS.md(Handoff)를 읽어라."*
 
-## 사용법 (두 방식)
-- **A. 트랙당 새 세션** — 새 Claude Code 세션을 열고 해당 **TRACK 프롬프트** 하나를 붙여넣는다. 그 세션이 worktree에서 자기 기능을 끝까지(verify+commit) 가져간다.
-- **B. 1M 단일 세션 디스패처** — 한 세션에서 **WAVE 디스패처 프롬프트**를 붙여넣으면, 그 세션이 worktree+서브에이전트로 그 웨이브의 트랙들을 병렬로 띄우고 하나씩 머지·검증한다.
+## 권장 실행 모델 (재검토 결론 2026-06-01)
+솔로 개발 + 신중한 검증이라 **물리적 병렬보다 1M 컨텍스트 배치가 이득**이다(하네스 단순성 ADR-0005과도 일치).
+- **기본 = 단일 세션, 그룹별 순차.** 한 그룹을 한 창에 통째로 올려 컨텍스트 리로드 없이 연달아 만든다.
+  **상태형 그룹(주문 퍼널 F007~F011, 체크아웃 F012~F016)은 반드시 이 방식** — 서브에이전트로 쪼개면 공유 상태가 파편화돼 역효과.
+- **서브에이전트 offload(선택) = 독립·기계적 트랙만.** 콘텐츠 5페이지(F024~F028)·F004(DB)·F029(자산)·F003(결제)처럼
+  서로/메인과 무관한 트랙만 격리 서브에이전트로 떼어낸다.
+- **병렬 세션(트랙당 창)은 비권장** — 베이비시팅·수동 머지 비용이 이득을 상쇄한다.
+
+## 복붙 방법
+- **그룹 직접 작업:** 해당 **TRACK 프롬프트** 블록을 지금 세션에 붙여넣고 끝까지(verify+commit) 간다.
+- **독립 트랙 offload:** 해당 웨이브의 **OFFLOAD 디스패처**를 붙여넣으면, 메인 세션이 격리 서브에이전트로
+  *독립 트랙만* 띄우고 결과를 머지·검증한다. (각 TRACK 스코프는 이 파일에서 읽으므로 다 긁을 필요 없음.)
+- 어느 경우든 머지는 **한 트랙씩 → 매번 `pnpm check`**. 상태형 그룹은 절대 offload하지 말 것.
 
 ## 불변 규칙 (모든 프롬프트에 적용 — 굳이 반복 안 해도 됨)
 - **완료 게이트:** `pnpm check` green **AND** 그 기능의 E2E/verification 통과 → 그때만 `feature_list.json`의 해당 항목 `state:"passing"`/`passes:true` + **날짜 박힌 evidence**. 그 전엔 절대 passing 금지.
@@ -50,11 +60,11 @@ Report: what passed, screenshots/output, and whether the _components kit is read
 
 ---
 
-# ▶ WAVE 0 — 토대 + 콘텐츠 (F002 후, 4 트랙 병렬)
+# ▶ WAVE 0 — 토대 + 콘텐츠 (F002 후 · 전부 독립 → 원하면 offload)
 
 > 전제: F002 머지됨(공유 `_components` 키트 존재). 트랙들은 파일이 안 겹친다.
 
-### WAVE 0 디스패처 (1M 단일 세션용)
+### WAVE 0 OFFLOAD 디스패처 (선택 · 독립 트랙만 — 상태형 그룹은 메인 세션)
 ```
 You are the integrator in the 그림책 제작소 harness (AGENTS.md governs). Run WAVE 0 in parallel.
 Spin up one git worktree + subagent per track below (TRACK-DB, TRACK-PAY, TRACK-ASSET, TRACK-CONTENT),
@@ -120,12 +130,12 @@ F0XX passing + evidence → commit. After all five: update PROGRESS, stop.
 
 ---
 
-# ▶ WAVE 1 — 카탈로그 + 주문 + 맞춤 (Wave 0 후, 3 트랙 병렬)
+# ▶ WAVE 1 — 카탈로그 + 주문 + 맞춤 (Wave 0 후 · 주문 퍼널은 메인 세션 순차)
 
 > 전제: F004(DB), F029(asset), F003(payment) 머지됨. **라우트 계약**: 카테고리 카드 → `/order/[templateKey]`.
 > 장바구니 상태는 `src/lib/cart.ts`(TRACK-ORDER 소유) — TRACK-CHECKOUT가 나중에 import.
 
-### WAVE 1 디스패처 (1M 단일 세션용)
+### WAVE 1 OFFLOAD 디스패처 (선택 · 독립 트랙만 — 상태형 그룹은 메인 세션)
 ```
 Integrator, 그림책 제작소 harness. Run WAVE 1 (TRACK-CAT, TRACK-ORDER, TRACK-CUSTOM) in parallel worktrees.
 Preconditions: feat F003/F004/F029 already merged. Enforce the route contract: category pages link to
@@ -170,11 +180,11 @@ Per feature: attempt → spec first → implement → `pnpm check`+e2e/test → 
 
 ---
 
-# ▶ WAVE 2 — 체크아웃 + 마이페이지 (Wave 1 후, 2 트랙)
+# ▶ WAVE 2 — 체크아웃 + 마이페이지 (Wave 1 후 · 상태형 → 메인 세션 순차, offload 비권장)
 
 > 전제: F003(payment), F011(cart) 머지됨. E(마이페이지)는 F013(결제완료 주문) 나오면 시작 — D 꼬리와 겹쳐 OK.
 
-### WAVE 2 디스패처 (1M 단일 세션용)
+### WAVE 2 OFFLOAD 디스패처 (선택 · 독립 트랙만 — 상태형 그룹은 메인 세션)
 ```
 Integrator, 그림책 제작소 harness. Run WAVE 2: TRACK-CHECKOUT first; start TRACK-MYPAGE once F013 is merged
 (it needs a PAID order). Worktrees, merge one at a time, `pnpm check` each. Webhook idempotency + signature
