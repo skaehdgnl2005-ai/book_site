@@ -54,9 +54,9 @@
       "description": "DB wrapper src/lib/db.ts (Prisma singleton) + seed the 8 entry templates",
       "steps": ["Add src/lib/db.ts PrismaClient singleton", "Seed templates (탄생·백일·돌·생일·입학·첫 걸음마·첫 말·형아 된 날)", "Seed runs idempotently"],
       "verification": "pnpm test -- db.test.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-01 vitest db.test.ts: 10 pass — lazy Prisma singleton (built once incl. CONCURRENT first-use, retries on failed init), 8 entry templates exact category/key/label/extraVar per brief, prices 43000/49000 won, idempotent upsert keyed on unique `key` (converges to 8 rows, no dupes). Full `pnpm check` green on a clean master worktree (typecheck + 19 unit tests + R1–R7 0 violations). DB-/generate-independent (ADR-0002/0006): no static @prisma/client import — proven (static import breaks tsc TS2305 + throws at runtime). Adversarially reviewed (5 dims, 2 findings fixed: singleton TOCTOU race + idempotency convergence test). Note: `prisma db seed` runner needs Node>=22.6 (PROGRESS follow-up)."
     },
     {
       "id": "F005",
