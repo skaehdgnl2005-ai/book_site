@@ -23,3 +23,6 @@ test-results/
 *.log
 .DS_Store
 Thumbs.db
+
+# gstack browse tooling output (audit/console/network logs from headless QA)
+.gstack/

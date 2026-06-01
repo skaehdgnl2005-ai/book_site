@@ -68,9 +68,9 @@
       "description": "기념일 category page: template card grid (탄생·백일·돌·생일·입학) from the database",
       "steps": ["Navigate to /anniversary", "See a card grid of 5 templates", "Each card shows label, hero image, price (소프트/하드)"],
       "verification": "pnpm test:e2e -- category-anniversary.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-01 Playwright category-anniversary.spec.ts: 2 passed — 5 기념일 cards (탄생·백일·돌·생일·입학) in seed order: exact per-card titles, per-card /order/<key> link, role-bound price 소프트 43,000원·하드 49,000원, media slot; 375px no-overflow. pnpm check green (lint+typecheck+54 unit incl. new catalog.test.ts+constraints R1–R8 0). HERMETIC: page reads the live DB when DATABASE_URL is set, else falls back to a seed-mirror catalogue (mirrors prisma/seed.ts ENTRY_TEMPLATES; E2E + unit drift-guard on key/label/price/blurb) — CI has no Postgres/prisma generate (ADR-0002). Atelier Sans TemplateCard (명조 title only, 1px hairlines, navy-only edition no.+dot, radius 0, :focus-visible ring) via DESIGN tokens (R6/R7 clean). Adversarial 6-dim review (24 agents): 9 findings fixed (Korean line-height 1.75, price 0.92rem token, focus ring, ul role=list, encodeURIComponent(key), per-card price assertion, DB-branch injection-seam unit test); 9 deferred/dismissed w/ rationale (PROGRESS). export const dynamic so the live-DB read isn't baked. Visual QA: desktop 3-col + 375px 1-col screenshots clean, 0 console errors."
     },
     {
       "id": "F006",
@@ -80,9 +80,9 @@
       "description": "첫 순간들 category page: template card grid (첫 걸음마·첫 말·형아 된 날)",
       "steps": ["Navigate to /first-moments", "See a card grid of 3 templates", "Each card opens its order flow"],
       "verification": "pnpm test:e2e -- category-first-moments.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-01 Playwright category-first-moments.spec.ts: 2 passed — 3 첫 순간들 cards (첫 걸음마·첫 말·형아 된 날) in seed order: exact per-card titles, each opens /order/<key>, role-bound price, media slot; 375px no-overflow. Shares the F005 catalog kit (src/app/_components/catalog: TemplateCard + CategoryView + the templates loader). pnpm check green; full E2E suite 17 passed (no regressions; home/nav 첫 순간들 link now resolves). Same hermetic seed-mirror + adversarial-review hardening as F005."
     },
     {
       "id": "F007",
@@ -431,7 +431,7 @@
       "verification": "pnpm test:e2e -- home.spec.ts (responsive) + category/order",
       "state": "in_progress",
       "passes": false,
-      "evidence": "Home verified (E2E responsive green); category/order pending those features."
+      "evidence": "Home + category (anniversary/first-moments) verified (E2E 375px no-overflow green, incl. cards at 1-col mobile); order/checkout pending those features."
     },
     {
       "id": "F036",

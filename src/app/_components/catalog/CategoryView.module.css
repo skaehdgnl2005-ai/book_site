@@ -1,0 +1,30 @@
+/* Category template grid (DESIGN.md ## Layout — product grid). Tight columns,
+   row-gap > col-gap. 1 col mobile → 2 col tablet → 3 col desktop. Tokens only. */
+
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--grid-row);
+}
+
+@media (min-width: 600px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+    column-gap: var(--grid-col);
+    row-gap: var(--grid-row);
+  }
+}
+
+@media (min-width: 900px) {
+  .grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.cell {
+  margin: 0;
+  min-width: 0; /* lets cards shrink inside the grid track — no 375px overflow */
+}
