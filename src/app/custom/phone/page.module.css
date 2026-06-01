@@ -1,0 +1,92 @@
+/* F022 전화 상담 예약 — slot picker + contact form. Tokens only; radius 0; no box-shadow. */
+
+.lead {
+  max-width: 56ch;
+  margin: 0 0 var(--space-lg);
+  color: var(--grey);
+  line-height: 1.75;
+  word-break: keep-all;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-lg);
+  max-width: 640px;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin: 0;
+  padding: var(--space-md) 0 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+
+.legend {
+  padding: 0;
+  font-family: var(--font-grotesk);
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+
+.slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--space-xs);
+}
+.slot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+.slot:has(input:checked) {
+  border-color: var(--accent);
+}
+.slot:focus-within {
+  outline: 2px solid var(--accent-wash);
+  outline-offset: 1px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  color: var(--grey);
+  font-size: 0.9rem;
+  word-break: keep-all;
+}
+
+.input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  resize: vertical;
+}
+.input:focus {
+  outline: 2px solid var(--accent-wash);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+
+/* Navy, never red — ink-navy is the only accent (DESIGN.md). */
+.error {
+  margin: 0;
+  color: var(--accent);
+}
