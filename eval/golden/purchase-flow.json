@@ -1,0 +1,13 @@
+{
+  "name": "purchase-flow",
+  "optimal_steps": 6,
+  "description": "Canonical buyer journey, graded as features land. Holdout variants live in eval/holdout/ and are never used to tune (G4).",
+  "steps": [
+    { "id": "S1", "desc": "Home renders featured region", "verify": "e2e: home featured", "impl": true, "feature": "F001" },
+    { "id": "S2", "desc": "Open a book detail page", "verify": "e2e: book detail", "impl": false, "feature": "F003" },
+    { "id": "S3", "desc": "Add the book to cart", "verify": "e2e: add to cart", "impl": false, "feature": "F004" },
+    { "id": "S4", "desc": "Checkout via Stripe test mode", "verify": "e2e: checkout success", "impl": false, "feature": "F006" },
+    { "id": "S5", "desc": "Order confirmation is shown", "verify": "e2e: order confirm", "impl": false, "feature": "F008" },
+    { "id": "S6", "desc": "Order appears in order history", "verify": "e2e: order history", "impl": false, "feature": "F011" }
+  ]
+}

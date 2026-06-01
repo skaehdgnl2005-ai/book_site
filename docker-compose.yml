@@ -1,0 +1,21 @@
+# Local Postgres for dev/integration (sandboxed, least-privilege scope: one db).
+# Not required for `pnpm verify` / `make check` (ADR-0002). Bring up with: pnpm db:up
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: storybook
+      POSTGRES_PASSWORD: storybook
+      POSTGRES_DB: storybook
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U storybook"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:

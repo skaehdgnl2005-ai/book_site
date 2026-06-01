@@ -1,0 +1,62 @@
+// Prisma schema — PostgreSQL (local via docker-compose, and production).
+// `pnpm verify` / `make check` are DB-independent (ADR-0002): skeleton code does
+// not instantiate PrismaClient, so typecheck/lint/test run without a database.
+// DB-touching features wire src/lib/db.ts (a PrismaClient wrapper) when they land.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Book {
+  id         String      @id @default(cuid())
+  slug       String      @unique
+  title      String
+  blurb      String
+  priceCents Int
+  coverUrl   String
+  stock      Int         @default(0)
+  featured   Boolean     @default(false)
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  orderItems OrderItem[]
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  status          OrderStatus @default(PENDING)
+  stripeSessionId String?     @unique
+  email           String // PII — minimize collection, never log in plaintext (E3)
+  totalCents      Int
+  items           OrderItem[]
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model OrderItem {
+  id         String @id @default(cuid())
+  order      Order  @relation(fields: [orderId], references: [id])
+  orderId    String
+  book       Book   @relation(fields: [bookId], references: [id])
+  bookId     String
+  quantity   Int
+  priceCents Int
+}
+
+// Webhook idempotency ledger — dedupe Stripe event delivery (F020 / E-safety).
+model ProcessedWebhook {
+  id          String   @id // Stripe event id
+  processedAt DateTime @default(now())
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FULFILLED
+  CANCELLED
+  REFUNDED
+}

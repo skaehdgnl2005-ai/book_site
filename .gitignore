@@ -1,0 +1,25 @@
+# dependencies / build
+node_modules/
+.next/
+out/
+build/
+
+# Next.js regenerates this (references generated .next/types). Ambient types we
+# rely on for typecheck live in src/types/globals.d.ts instead.
+next-env.d.ts
+
+# test + tooling artifacts
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+
+# secrets / env (NEVER commit real secrets — Stripe TEST keys only in dev)
+.env
+.env.local
+.env.*.local
+
+# os / logs
+*.log
+.DS_Store
+Thumbs.db

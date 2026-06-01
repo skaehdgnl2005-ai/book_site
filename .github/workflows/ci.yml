@@ -1,0 +1,38 @@
+name: CI
+on:
+  push:
+  pull_request:
+
+# Sandbox parity (G-SANDBOX): runs in an ephemeral container with TEST keys only.
+# Live Stripe credentials are never available to CI.
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Full machine gate: lint + typecheck + unit tests + executable guardrails.
+      - run: pnpm check
+
+      # Eval harness (reports purchase-flow metrics; does not fail the build yet).
+      - run: pnpm eval
+
+      - run: pnpm exec playwright install --with-deps chromium
+
+      - run: pnpm test:e2e
+        env:
+          CI: "true"
+          APP_ENV: test
+          STRIPE_SECRET_KEY: sk_test_ci_placeholder
+          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_ci_placeholder

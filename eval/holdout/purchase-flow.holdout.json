@@ -1,0 +1,13 @@
+{
+  "name": "purchase-flow-holdout",
+  "optimal_steps": 6,
+  "description": "HOLDOUT set (G4). Used ONLY for final regression checks, never for tuning. Variants stress different cards/quantities than the golden set.",
+  "steps": [
+    { "id": "H1", "desc": "Home renders featured region (cold cache)", "verify": "e2e: home featured", "impl": false, "feature": "F001" },
+    { "id": "H2", "desc": "Detail page for an out-of-stock book disables add-to-cart", "verify": "e2e: detail oos", "impl": false, "feature": "F003" },
+    { "id": "H3", "desc": "Add two different books to cart", "verify": "e2e: cart multi", "impl": false, "feature": "F005" },
+    { "id": "H4", "desc": "Checkout declined card (pm_card_chargeDeclined) → no order", "verify": "e2e: checkout declined", "impl": false, "feature": "F009" },
+    { "id": "H5", "desc": "Cancel at Stripe → cart preserved", "verify": "e2e: checkout cancel", "impl": false, "feature": "F010" },
+    { "id": "H6", "desc": "Duplicate webhook delivery is ignored (idempotent)", "verify": "integration: webhook dedupe", "impl": false, "feature": "F020" }
+  ]
+}
