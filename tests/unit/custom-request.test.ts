@@ -1,0 +1,177 @@
+import { describe, it, expect } from "vitest";
+import {
+  CUSTOM_PRICE_WON,
+  CUSTOM_FORM_GROUPS,
+  buildCustomForm,
+  buildWrittenIntake,
+  buildPhoneIntake,
+  validateWrittenInput,
+  validatePhoneInput,
+  customRequestStore,
+  type CustomForm,
+} from "../../src/lib/customRequest";
+
+// The 맞춤 제작 question set — one shared 6-group 의뢰서 (web-brief §4 "공통 의뢰서 양식").
+// Phone script == web form, so production input is homogeneous regardless of path (F023).
+const GROUP_KEYS = ["protagonist", "people", "motivation", "direction", "expression", "practical"];
+
+describe("CUSTOM_FORM_GROUPS — the shared 6-group 의뢰서", () => {
+  it("has exactly the 6 groups in order, each with at least one field", () => {
+    expect(CUSTOM_FORM_GROUPS.map((g) => g.key)).toEqual(GROUP_KEYS);
+    for (const g of CUSTOM_FORM_GROUPS) {
+      expect(g.title.length).toBeGreaterThan(0);
+      expect(g.fields.length).toBeGreaterThan(0);
+      for (const f of g.fields) expect(f.label.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("marks 이 책의 계기와 마음 as the ★ full-custom core group", () => {
+    const motivation = CUSTOM_FORM_GROUPS.find((g) => g.key === "motivation");
+    expect(motivation?.star).toBe(true);
+  });
+});
+
+describe("price", () => {
+  it("맞춤 제작 is 119,000원 (KRW won integer)", () => {
+    expect(CUSTOM_PRICE_WON).toBe(119000);
+    expect(Number.isInteger(CUSTOM_PRICE_WON)).toBe(true);
+  });
+});
+
+describe("buildCustomForm — identical shape across both paths (F023 invariant)", () => {
+  const writtenRaw = {
+    protagonist: { name: "  서연  ", ageGender: "5세 여아", personality: "씩씩함" },
+    people: { relationToChild: "엄마" },
+    motivation: { occasion: "다섯 번째 생일", messageToConvey: "넌 그대로 충분해" },
+    direction: { mood: "따뜻한" },
+    expression: { delegateToExpert: true },
+    practical: { recipientShipping: "서울시 ...", contact: "010-1234-5678" },
+    bogusGroup: { x: 1 }, // unknown group → ignored
+  };
+  const phoneRaw = {
+    practical: { preferredCallTime: "평일 저녁", contact: "010-9876-5432" },
+  };
+
+  it("produces the identical group + field key set regardless of which path filled it", () => {
+    const w = buildCustomForm(writtenRaw);
+    const p = buildCustomForm(phoneRaw);
+    expect(Object.keys(w.groups)).toEqual(Object.keys(p.groups));
+    expect(Object.keys(w.groups)).toEqual(GROUP_KEYS);
+    for (const k of GROUP_KEYS) {
+      const wk = w.groups[k as keyof CustomForm["groups"]];
+      const pk = p.groups[k as keyof CustomForm["groups"]];
+      expect(Object.keys(wk).sort()).toEqual(Object.keys(pk).sort());
+    }
+    expect(w.version).toBe(1);
+  });
+
+  it("trims values, fills missing fields with '', coerces non-strings, ignores unknown keys", () => {
+    const w = buildCustomForm(writtenRaw);
+    expect(w.groups.protagonist.name).toBe("서연"); // trimmed
+    expect(w.groups.protagonist.nickname).toBe(""); // missing → ""
+    expect(w.groups.expression.delegateToExpert).toBe("true"); // boolean coerced to string
+    expect((w.groups as Record<string, unknown>).bogusGroup).toBeUndefined();
+    expect(buildCustomForm({}).groups.motivation.occasion).toBe("");
+  });
+
+  it("never throws on junk / non-object input (untrusted)", () => {
+    expect(() => buildCustomForm({ protagonist: "not-an-object" } as Record<string, unknown>)).not.toThrow();
+    expect(() => buildCustomForm(undefined as unknown as Record<string, unknown>)).not.toThrow();
+    expect(buildCustomForm({ protagonist: "x" } as Record<string, unknown>).groups.protagonist.name).toBe("");
+  });
+});
+
+describe("validateWrittenInput (untrusted)", () => {
+  it("rejects empty contact / missing protagonist name", () => {
+    expect(validateWrittenInput({ contactName: "", contactPhone: "", answers: {} }).ok).toBe(false);
+    expect(
+      validateWrittenInput({ contactName: "김부모", contactPhone: "010-1234-5678", answers: { protagonist: {} } }).ok,
+    ).toBe(false);
+    expect(validateWrittenInput("garbage").ok).toBe(false);
+  });
+
+  it("accepts a minimal valid payload", () => {
+    const r = validateWrittenInput({
+      contactName: "김부모",
+      contactPhone: "010-1234-5678",
+      answers: { protagonist: { name: "서연" } },
+    });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.value.contactName).toBe("김부모");
+  });
+});
+
+describe("validatePhoneInput (untrusted)", () => {
+  it("rejects missing slot / name / phone (memo optional)", () => {
+    expect(validatePhoneInput({ slot: "", name: "", phone: "", memo: "" }).ok).toBe(false);
+    expect(validatePhoneInput({ slot: "2026-06-08T10:00", name: "", phone: "010", memo: "" }).ok).toBe(false);
+    expect(validatePhoneInput(42).ok).toBe(false);
+  });
+
+  it("accepts a slot + name + phone, memo optional", () => {
+    const r = validatePhoneInput({ slot: "2026-06-08T10:00", name: "김부모", phone: "010-1234-5678", memo: "" });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.value.slot).toBe("2026-06-08T10:00");
+  });
+});
+
+describe("buildWrittenIntake / buildPhoneIntake", () => {
+  it("WRITTEN: PENDING_PAYMENT, 119000원, no consultation, child name in the form", () => {
+    const d = buildWrittenIntake({
+      contactName: "김부모",
+      contactPhone: "010-1234-5678",
+      answers: { protagonist: { name: "서연" }, motivation: { occasion: "생일" } },
+    });
+    expect(d.path).toBe("WRITTEN");
+    expect(d.status).toBe("PENDING_PAYMENT");
+    expect(d.amountWon).toBe(119000);
+    expect(d.consultation).toBeUndefined();
+    expect(d.form.groups.protagonist.name).toBe("서연");
+    expect(d.form.groups.motivation.occasion).toBe("생일");
+  });
+
+  it("PHONE: a REQUESTED consultation, no upfront payment, slot recorded in the form", () => {
+    const d = buildPhoneIntake({
+      slot: "2026-06-08T10:00",
+      name: "김부모",
+      phone: "010-1234-5678",
+      memo: "낮에 전화 주세요",
+    });
+    expect(d.path).toBe("PHONE");
+    expect(d.consultation?.status).toBe("REQUESTED");
+    expect(d.consultation?.requestedSlot).toBe("2026-06-08T10:00");
+    expect(d.consultation?.note).toBe("낮에 전화 주세요");
+    expect(d.contactName).toBe("김부모"); // the requester (booking contact)
+    expect(d.form.groups.practical.preferredCallTime).toBe("2026-06-08T10:00");
+    expect(d.form.groups.protagonist.name).toBe(""); // child details are filled live during the call
+  });
+});
+
+describe("customRequestStore — hermetic in-memory repository", () => {
+  const draft = () =>
+    buildWrittenIntake({ contactName: "김부모", contactPhone: "010", answers: { protagonist: { name: "서연" } } });
+
+  it("create → get round-trips with a unique cr_ id + createdAt", () => {
+    const rec = customRequestStore.create(draft());
+    expect(rec.id).toMatch(/^cr_/);
+    expect(rec.createdAt).toBeTruthy();
+    expect(customRequestStore.get(rec.id)?.contactName).toBe("김부모");
+  });
+
+  it("markSubmitted flips PENDING_PAYMENT → SUBMITTED", () => {
+    const rec = customRequestStore.create(draft());
+    expect(rec.status).toBe("PENDING_PAYMENT");
+    expect(customRequestStore.markSubmitted(rec.id)?.status).toBe("SUBMITTED");
+  });
+
+  it("unknown id → undefined for get and markSubmitted", () => {
+    expect(customRequestStore.get("cr_nope")).toBeUndefined();
+    expect(customRequestStore.markSubmitted("cr_nope")).toBeUndefined();
+  });
+
+  it("assigns distinct ids across creates", () => {
+    const a = customRequestStore.create(buildPhoneIntake({ slot: "s", name: "n", phone: "p", memo: "" }));
+    const b = customRequestStore.create(buildPhoneIntake({ slot: "s", name: "n", phone: "p", memo: "" }));
+    expect(a.id).not.toBe(b.id);
+  });
+});
