@@ -354,9 +354,9 @@
       "description": "Child photo & sensitive PII: access-controlled storage, never written to logs/traces/E2E fixtures",
       "steps": ["Upload a child photo", "Stored by storageKey (not public/inline)", "No PII appears in logs/traces (redact) or test fixtures"],
       "verification": "pnpm test -- pii.test.ts && pnpm constraints",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-01 vitest pii.test.ts 15/15: opaque storageKey (no filename/child-name/byte leak), untrusted() trust-gate, kind↔contentType allowlist, PII-free trace asserted through the real observability emit() sink. pnpm check green (lint+typecheck+constraints R1–R7/R4–R5 clean) in the integrated tree (44 tests w/ F003+F004). Adversarial multi-lens review (18 agents) → fixed a prototype-chain allowlist bypass (untrusted contentType 'toString'/'__proto__' resolved inherited members) + regression test; chose random opaque keys over content-addressing for privacy-by-default (identical photo bytes no longer correlate). Touched only src/lib/assets.ts + tests/unit/pii.test.ts."
     },
     {
       "id": "F030",
