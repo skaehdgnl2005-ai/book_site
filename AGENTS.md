@@ -36,9 +36,13 @@ is **backstage / out of web scope**. See `PRODUCT_BRIEF.md`. Built as a reliabil
 ## Definition of done
 A feature is done only when **(1)** its `feature_list.json` entry is `passes:true`
 with `evidence`, **(2)** `pnpm check` is green, **and (3)** a user-facing **E2E** path
-verifies it. Unit tests passing ≠ done. "Code written" ≠ done.
+verifies it — **directly, or transitively** for a foundation lib with no own surface
+(`src/lib/*`): such a feature must declare `e2e_via: [dependent ids]` naming the
+buyer-facing features whose E2E exercise it, so "no own E2E" is an explicit, traceable
+choice — never a silent skip. Unit tests passing ≠ done. "Code written" ≠ done.
 > Enforced by `pnpm constraints`: **R4** `state:"passing"` ⟺ `passes:true` (no drift);
-> **R5** 3 recorded attempts without passing ⇒ the feature must be `blocked` (escalate).
+> **R5** 3 recorded attempts without passing ⇒ the feature must be `blocked` (escalate);
+> **R8** a `passing` product feature with no own E2E must declare a valid `e2e_via`.
 
 ## Hard constraints (positive framing — the tool enforces the rest)
 1. Work **one feature at a time** (WIP=1); finish + verify before starting the next.

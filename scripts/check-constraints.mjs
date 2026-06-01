@@ -121,6 +121,31 @@ for (const f of fl.features) {
   );
 }
 
+// R8: a "passing" product feature whose `verification` declares no E2E is a foundation
+// lib with no own surface — it must name the buyer-facing dependents whose E2E transitively
+// exercise it via `e2e_via` (DoD #3). Makes "no own E2E" an explicit, traceable choice, not
+// a silent skip; listed ids must exist. Harness-track + features with their own E2E are exempt.
+const featureIds = new Set(fl.features.map((f) => f.id));
+for (const f of fl.features) {
+  if (f.track !== "product" || f.passes !== true) continue;
+  if (/\be2e\b|playwright|test:e2e/i.test(f.verification ?? "")) continue;
+  const via = Array.isArray(f.e2e_via) ? f.e2e_via : [];
+  add(
+    via.length === 0,
+    "feature_list.json",
+    "R8:declare-transitive-e2e",
+    `${f.id}: passing product feature with no own E2E — declare e2e_via:[dependent ids] (transitive E2E, DoD #3), don't skip silently.`,
+  );
+  for (const dep of via) {
+    add(
+      !featureIds.has(dep),
+      "feature_list.json",
+      "R8:declare-transitive-e2e",
+      `${f.id}: e2e_via names unknown feature "${dep}".`,
+    );
+  }
+}
+
 const report = {
   tool: "check-constraints",
   ok: violations.length === 0,
