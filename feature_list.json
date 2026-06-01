@@ -294,9 +294,9 @@
       "description": "브랜드 스토리 page (번역가의 시작 이야기 — 신뢰의 핵심)",
       "steps": ["Open /brand-story", "See the founder/translator narrative", "Follows DESIGN.md typography"],
       "verification": "pnpm test:e2e -- brand-story.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-01 Playwright: 2 passed (brand-story — nav/h1/grounded translator narrative + honest 준비중 placeholder/CTA; 375px no-overflow). pnpm check green (R6/R7 clean)."
     },
     {
       "id": "F025",
