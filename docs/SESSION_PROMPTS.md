@@ -35,41 +35,27 @@
 4. 끝난 브랜치는 **한 번에 하나씩 머지 → 매번 `pnpm check`** (R4가 state/passes 드리프트를 잡음). 충돌 핫스팟: `feature_list.json`·`package.json`. (맨 아래 머지 프롬프트 참고)
 5. ⚠️ **상태형 퍼널(TRACK-ORDER·TRACK-CHECKOUT)은 쪼개지 말 것** — 한 세션에서 기능을 차례로.
 
-## 불변 규칙 (모든 프롬프트에 적용 — 굳이 반복 안 해도 됨)
-- **완료 게이트:** `pnpm check` green **AND** 그 기능의 E2E/verification 통과 → 그때만 `feature_list.json`의 해당 항목 `state:"passing"`/`passes:true` + **날짜 박힌 evidence**. 그 전엔 절대 passing 금지.
+## 불변 규칙 (모든 트랙에 자동 적용 — 트랙 블록에 반복하지 않는다)
+- **완료 게이트:** `pnpm check` green **AND** 그 기능의 E2E/verification 통과 → 그때만 `feature_list.json` 해당 항목 `state:"passing"`/`passes:true` + **날짜 박힌 evidence**. 그 전엔 절대 passing 금지.
+- **루프:** `pnpm attempt <id>` → **테스트 먼저(TDD)** → 구현 → 게이트 통과 → passing+evidence → 서술형 `git commit` → `PROGRESS.md` 갱신.
 - **WIP=1(로컬):** 한 트랙은 한 번에 기능 하나. 끝내고(verify) 다음.
-- **UI 규칙:** 스타일은 **DESIGN.md 토큰만**(`src/app/globals.css`의 CSS 변수). box-shadow 금지·순백/순흑(#fff/#000) 금지·radius 0·**명조(Noto Serif KR)는 한국어 책/이야기 제목에만**. (R6/R7이 `pnpm check`에서 강제)
-- **결제/PII:** 비가역 행동은 `requireApproval()`. 아동 사진·이름 등 민감 PII는 로그/트레이스/E2E 픽스처에 평문 금지(`redact()`), 접근통제 `Asset`로 저장.
-- **TDD:** 가능하면 테스트(E2E/유닛) 먼저 작성→실패 확인→구현으로 green.
-- **퇴근:** `pnpm check` green → 서술형 `git commit` → `PROGRESS.md`(Handoff/세션로그) 갱신.
-- **충돌 회피:** 각 트랙은 **자기 파일만** 만지고, 공유 컴포넌트는 `src/app/_components/<area>/`로 네임스페이스. 라우트/인터페이스 **계약**을 지킨다(각 트랙 명시). 머지는 **한 트랙씩 → 매번 `pnpm check`**.
+- **UI:** 스타일은 **DESIGN.md 토큰만**(`globals.css` CSS 변수). box-shadow·순백/순흑·둥근 모서리 금지·명조는 한국어 책 제목에만. (R6/R7이 강제)
+- **결제/PII:** 비가역 행동은 `requireApproval()`. 민감 PII는 평문 로그/트레이스/픽스처 금지(`redact()`), 접근통제 `Asset` 저장. 외부 입력은 `untrusted()`.
+- **충돌 회피:** 각 트랙은 **자기 파일만**. 공유 키트 `src/app/_components/` 루트(Nav·Footer·CtaLink·SectionHeader·CategoryCard, **F002 소유**)는 **import-only(편집 금지)** — 새 컴포넌트는 `_components/<area>/`에 네임스페이스. 라우트/소유권 **계약** 준수. 머지는 한 트랙씩 + 매번 `pnpm check`.
+
+> **그래서 아래 각 TRACK 블록은 "트랙 고유 델타"만 담는다** — 기능 ID·파일 스코프·계약·고유 주의·검증 명령. 보편 규칙(루프·TDD·DESIGN·커밋·WIP)은 위에서 한 번만 정의되고 전부에 적용된다.
 
 ---
 
-# ▶ 패턴 세터 — F002 브랜드 홈 (✅ 완료, 커밋 38a1707 · 패턴 참고용)
+# ▶ 패턴 세터 — F002 브랜드 홈 (✅ 완료, 38a1707 · 참고용)
 
 ```
-You are in the 그림책 제작소 reliability harness. Follow AGENTS.md + DESIGN.md (auto-loaded).
-This is the PATTERN-SETTER: do this ONE feature end-to-end so we lock the loop before parallelizing.
-
-Feature: F002 — Branded home (그림책 제작소): hero + tagline "한 아이의 이름으로 시작되는 이야기"
-+ 3-category preview cards (기념일 / 첫 순간들 / 맞춤 제작) + primary CTA "내 아이의 책 만들기".
-Acceptance = feature_list.json F002 steps + verification (pnpm test:e2e -- home.spec.ts).
-
-Also establish the shared UI kit everything else reuses: src/app/_components/ (Nav, Footer, CtaLink,
-SectionHeader, CategoryCard) built strictly from DESIGN.md tokens. Category cards link to /anniversary,
-/first-moments, /custom (routes may 404 for now — only the home links matter here). No DB/payment needed.
-
-Loop:
-  1. `pnpm attempt F002`
-  2. Rewrite tests/e2e/home.spec.ts FIRST for the new brand (assert 그림책 제작소 brand, hero h1, 3
-     category cards, the CTA) + keep the 375px no-overflow check. Watch it fail.
-  3. Implement src/app/page.tsx + src/app/_components/* using only globals.css tokens
-     (--bg/--ink/--accent/--font-grotesk/--font-serif-ko/...). Radius 0, no box-shadow, no #fff/#000.
-  4. Gate: `pnpm check` green AND `pnpm test:e2e -- home.spec.ts` passing. Only then set F002
-     passing/passes:true with dated evidence in feature_list.json. (Keep F001 passing too.)
-  5. `git commit` (descriptive) → update PROGRESS.md.
-Report: what passed, output, and whether the _components kit is ready for reuse.
+F002 — Branded home: hero + tagline "한 아이의 이름으로 시작되는 이야기" + 3-category cards
+(기념일/첫 순간들/맞춤 제작) + primary CTA "내 아이의 책 만들기".
+Also establishes the shared kit src/app/_components/ (Nav, Footer, CtaLink, SectionHeader, CategoryCard).
+Touch: src/app/page.tsx, src/app/_components/*, tests/e2e/home.spec.ts.
+Contract: home category cards link to /anniversary, /first-moments, /custom (those routes may 404 for now).
+Verify: pnpm test:e2e -- home.spec.ts.
 ```
 
 > ✅ F002 완료 → 아래 **Wave 0**부터 병렬로 진행한다.
@@ -78,153 +64,128 @@ Report: what passed, output, and whether the _components kit is ready for reuse.
 
 # ▶ WAVE 0 — 토대 + 콘텐츠 (F002 후 · 4개 전부 독립 → 동시 가능)
 
-> 전제: F002 머지됨(공유 `_components` 키트 존재). 트랙들은 파일이 안 겹친다 → 4개 세션 동시 OK.
-
-### TRACK-DB — F004 (DB wrapper + seed)
+### TRACK-DB — F004
 ```
-Harness: 그림책 제작소 (AGENTS.md/DESIGN.md auto-loaded). Worktree branch: feat/F004.
-Touch ONLY: src/lib/db.ts, prisma/seed.ts, package.json (add prisma.seed only), tests/unit/db.test.ts.
-Do NOT edit: src/app/*, src/lib/payments*, scripts/check-constraints.mjs, smoke.test.ts.
-Feature F004: Prisma singleton wrapper + seed the 8 entry templates (탄생·백일·돌·생일·입학·첫 걸음마·첫 말·
-형아 된 날) with category/key/label/prices(소프트 43000/하드 49000 원, 정수)/extraVar per PRODUCT_BRIEF.
-Loop: `pnpm attempt F004` → write tests/unit/db.test.ts first (seed idempotent; 8 templates; prices in won)
-→ implement → `pnpm check` green AND `pnpm test -- db.test.ts` → set F004 passing + evidence → commit.
-Note: keep `pnpm check` DB-independent (ADR-0002) — db.test.ts must not require a live Postgres (mock/inject).
+Branch feat/F004 · Precondition: none.
+F004 — Prisma singleton (src/lib/db.ts) + seed the 8 entry templates
+(탄생·백일·돌·생일·입학·첫 걸음마·첫 말·형아 된 날): key/label/softPriceWon 43000/hardPriceWon 49000/extraVar per PRODUCT_BRIEF.
+Touch ONLY: src/lib/db.ts, prisma/seed.ts, package.json (prisma.seed only), tests/unit/db.test.ts.
+⚠️ Keep `pnpm check` DB-independent (ADR-0002): db.test.ts must NOT need a live Postgres (mock/inject).
+Verify: pnpm test -- db.test.ts.
 ```
 
-### TRACK-PAY — F003 (payment abstraction + Toss adapter)
+### TRACK-PAY — F003
 ```
-Harness: 그림책 제작소. Worktree branch: feat/F003.
-Touch ONLY: src/lib/payments/ (index.ts interface + toss.ts test adapter), src/lib/env.ts (re-point key
-validation Stripe→Toss), src/lib/guardrails.ts (IRREVERSIBLE_ACTIONS → Toss/consultation names),
-scripts/check-constraints.mjs (R1: Stripe→Toss live-key pattern), tests/unit/payments.test.ts,
-tests/unit/smoke.test.ts (update the env-key + guardrail-action tests to Toss).
-Do NOT edit: src/app/*, src/lib/db.ts, src/lib/assets.ts, prisma/*.
-Feature F003: provider-agnostic PaymentProvider interface + TossPayments test/sandbox adapter; env refuses
-a LIVE Toss key when APP_ENV!=production, accepts a test key; R1 flags committed Toss live keys.
-Loop: `pnpm attempt F003` → tests first (payments.test.ts + updated smoke tests) → implement →
-`pnpm check` green (constraints incl. updated R1) AND `pnpm test -- payments.test.ts` → F003 passing +
-evidence; refresh F030/F031 evidence note to Toss → commit.
+Branch feat/F003 · Precondition: none.
+F003 — provider-agnostic PaymentProvider interface + TossPayments test/sandbox adapter. env refuses a LIVE
+Toss key when APP_ENV!=production (accepts test key); check-constraints R1 → Toss live-key pattern;
+guardrails IRREVERSIBLE_ACTIONS → Toss/consultation names; refresh F030/F031 evidence to Toss.
+Touch ONLY: src/lib/payments/ (index.ts + toss.ts), src/lib/env.ts, src/lib/guardrails.ts,
+scripts/check-constraints.mjs, tests/unit/payments.test.ts, tests/unit/smoke.test.ts.
+Ownership: this track SOLELY owns check-constraints.mjs + guardrails.ts this wave.
+Verify: pnpm test -- payments.test.ts && pnpm constraints.
 ```
 
-### TRACK-ASSET — F029 (asset storage + PII safety)
+### TRACK-ASSET — F029
 ```
-Harness: 그림책 제작소. Worktree branch: feat/F029.
-Touch ONLY: src/lib/assets.ts (upload→access-controlled storage by storageKey, never inline/public),
-tests/unit/pii.test.ts. REUSE redact()/untrusted() from src/lib (import, do NOT edit observability.ts,
-guardrails.ts, or check-constraints.mjs this wave — TRACK-PAY owns check-constraints/guardrails; a new
-PII check-constraints rule, if any, is a LATER wave).
-Do NOT edit: src/app/*, scripts/*, src/lib/payments*, src/lib/db.ts.
-Feature F029: child photo / QR video stored as Asset (storageKey, contentType, byteSize); upload input
-wrapped untrusted(); a test asserts no PII (filename, child name, bytes) reaches logs/traces/fixtures.
-Loop: `pnpm attempt F029` → pii.test.ts first → implement → `pnpm check` green AND `pnpm test -- pii.test.ts`
-→ F029 passing + evidence → commit.
+Branch feat/F029 · Precondition: none.
+F029 — store child photo / QR video as Asset (storageKey, contentType, byteSize), access-controlled
+(never inline/public); upload input untrusted(); test asserts no PII (filename/child name/bytes) leaks to
+logs/traces/fixtures.
+Touch ONLY: src/lib/assets.ts, tests/unit/pii.test.ts. Import redact()/untrusted() only — do NOT edit
+observability.ts / guardrails.ts / check-constraints.mjs (TRACK-PAY owns those).
+Verify: pnpm test -- pii.test.ts.
 ```
 
-### TRACK-CONTENT — F024–F028 (content pages)
+### TRACK-CONTENT — F024–F028
 ```
-Harness: 그림책 제작소. Worktree branch: feat/content.
-Touch ONLY: src/app/brand-story/, src/app/gallery/, src/app/reviews/, src/app/faq/, src/app/contact/,
-src/app/_components/content/ (new namespaced components), and one e2e spec per page. Import the shared kit
-from src/app/_components/ (Nav/Footer/CtaLink/SectionHeader/CategoryCard, built by F002) — do NOT modify it.
-Do NOT edit: src/lib/*, prisma/*, scripts/*, other src/app routes, src/app/_components root files.
-Features (WIP=1, one at a time, all UI on DESIGN.md tokens): F024 브랜드 스토리, F025 갤러리(placeholder
-assets, flagged TODO), F026 후기(정직한 placeholder, 날조 금지), F027 FAQ(제작기간·커스텀·배송·업로드·환불),
-F028 문의(전화·이메일·문의폼; 폼 입력 untrusted()).
-Per feature loop: `pnpm attempt F0XX` → e2e spec first → implement page → `pnpm check` green AND its e2e →
-F0XX passing + evidence → commit. After all five: update PROGRESS, stop.
+Branch feat/content · Precondition: F002.
+F024 브랜드 스토리 · F025 갤러리(placeholder, flagged TODO) · F026 후기(honest placeholder, 날조 금지)
+· F027 FAQ(제작기간·커스텀·배송·업로드·환불) · F028 문의(전화·이메일·문의폼).
+Touch ONLY: src/app/{brand-story,gallery,reviews,faq,contact}/, src/app/_components/content/ (new),
+one e2e spec per page. Import the shared _components kit — do NOT modify _components root files.
+Verify (per feature): pnpm test:e2e -- <page>.spec.ts.
 ```
 
 ---
 
 # ▶ WAVE 1 — 카탈로그 + 주문 + 맞춤 (Wave 0 후 · 주문 퍼널은 한 세션 순차)
 
-> 전제: F004(DB), F029(asset), F003(payment) 머지됨. **라우트 계약**: 카테고리 카드 → `/order/[templateKey]`.
-> 장바구니 상태는 `src/lib/cart.ts`(TRACK-ORDER 소유) — TRACK-CHECKOUT가 나중에 import.
 > 동시 가능: **TRACK-CAT · TRACK-CUSTOM** (TRACK-ORDER는 상태형이라 한 세션 통째).
 
-### TRACK-CAT — F005, F006 (category pages)
+### TRACK-CAT — F005, F006
 ```
-Harness: 그림책 제작소. Worktree branch: feat/category. Precondition: F004 merged.
+Branch feat/category · Precondition: F004 merged.
+F005 기념일(탄생·백일·돌·생일·입학) · F006 첫 순간들(첫 걸음마·첫 말·형아 된 날) — template card grid from DB
+(label/hero/price), DESIGN ProductCard pattern (명조 = 책 제목, 헤어라인, radius 0).
 Touch ONLY: src/app/anniversary/, src/app/first-moments/, src/app/_components/catalog/TemplateCard.tsx (new),
-tests/e2e/category-*.spec.ts. Read templates via src/lib/db (do not edit it). Link cards to /order/[key].
-Do NOT build the order flow. Do NOT edit src/lib/*, src/app/order/*, src/app/_components root files.
-Features: F005 기념일(탄생·백일·돌·생일·입학), F006 첫 순간들(첫 걸음마·첫 말·형아 된 날) — card grid from DB,
-each card shows label/hero/price, DESIGN.md ProductCard pattern (명조 책 제목, 헤어라인, 0 radius).
-Per feature: attempt → e2e first → implement → `pnpm check`+e2e green → passing+evidence → commit.
+tests/e2e/category-*.spec.ts. Import src/lib/db only.
+Contract: cards link to /order/[templateKey] (the order flow itself is built by TRACK-ORDER).
+Verify: pnpm test:e2e -- category-anniversary.spec.ts / category-first-moments.spec.ts.
 ```
 
-### TRACK-ORDER — F007–F011, F019 (pre-pay funnel)
+### TRACK-ORDER — F007–F011, F019  ⚠️ stateful funnel (one session, sequential)
 ```
-Harness: 그림책 제작소. Worktree branch: feat/order. Precondition: F004 + F029 merged.
-Touch ONLY: src/app/order/, src/lib/cart.ts (you own it), src/app/_components/order/*, tests/e2e/order-*.spec.ts
-+ cart.spec.ts. Import Asset upload from src/lib/assets (F029, do not edit). At the cart→checkout seam, just
-expose cart via src/lib/cart.ts; the checkout route is built by Wave 2.
-Do NOT edit: category pages, src/lib/payments*, src/lib/db.ts, assets.ts, src/app/_components root files.
-Features (sequential funnel, WIP=1): F007 template→order start (extra var resolved), F008 pre-pay minimal form
-(이름·성별 + 0~1 var, validated, minimal), F009 optional photo upload + skip (never blocks pay), F010 cover
-(소프트43000/하드49000, price reflects), F019 QR add-on toggle, F011 cart (line + grand total, 원).
-Per feature: attempt → spec first → implement → `pnpm check`+e2e → passing+evidence → commit.
+Branch feat/order · Precondition: F004 + F029 merged.
+F007 template→order start (extra var resolved) · F008 pre-pay minimal form (이름·성별 + 0~1 var, validated)
+· F009 optional photo upload + skip (never blocks pay) · F010 cover (소프트43000/하드49000, price reflects)
+· F019 QR add-on toggle · F011 cart (line + grand total, 원).
+Touch ONLY: src/app/order/, src/lib/cart.ts (you OWN it), src/app/_components/order/*,
+tests/e2e/order-*.spec.ts + cart.spec.ts. Import src/lib/assets only.
+Contract: build /order/[templateKey]; expose cart via src/lib/cart.ts (TRACK-CHECKOUT imports it).
+Verify (per feature): pnpm test:e2e -- order-*.spec.ts / cart.spec.ts.
 ```
 
-### TRACK-CUSTOM — F020–F023 (맞춤 제작)
+### TRACK-CUSTOM — F020–F023
 ```
-Harness: 그림책 제작소. Worktree branch: feat/custom. Precondition: F003 merged.
+Branch feat/custom · Precondition: F003 merged.
+F020 landing (two path buttons) · F021 WRITTEN (6-group form → Toss pay → submit) · F022 PHONE (booking
+calendar, free booking / pay after the call) · F023 both paths store the same CustomRequest.form shape.
 Touch ONLY: src/app/custom/, src/app/api/custom/, src/lib/customRequest.ts, tests/e2e/custom-*.spec.ts
-+ tests/unit/custom-request.test.ts. Use payments from src/lib/payments (F003, import only). Form input untrusted().
-Do NOT edit: entry-line order/checkout files, src/lib/payments*, src/app/_components root files.
-Features: F020 landing(두 경로 버튼), F021 WRITTEN(6묶음 폼 → Toss 결제 → submit), F022 PHONE(예약 캘린더,
-무료 예약·상담 후 결제), F023 두 경로가 동일한 CustomRequest.form 형태로 저장.
-Per feature: attempt → spec first → implement → `pnpm check`+e2e/test → passing+evidence → commit.
++ tests/unit/custom-request.test.ts. Import src/lib/payments only.
+Verify (per feature): pnpm test:e2e -- custom-*.spec.ts / pnpm test -- custom-request.test.ts.
 ```
 
 ---
 
 # ▶ WAVE 2 — 체크아웃 + 마이페이지 (Wave 1 후 · 상태형 → 한 세션 순차)
 
-> 전제: F003(payment), F011(cart) 머지됨. TRACK-MYPAGE는 F013(결제완료 주문) 나오면 시작 — 체크아웃 꼬리와 겹쳐 OK.
+> TRACK-MYPAGE는 F013(결제완료 주문) 나오면 시작 — 체크아웃 꼬리와 겹쳐 OK.
 
-### TRACK-CHECKOUT — F012–F016, F034 (Toss flows)
+### TRACK-CHECKOUT — F012–F016, F034  ⚠️ stateful (success path first, variants reuse plumbing)
 ```
-Harness: 그림책 제작소. Worktree branch: feat/checkout. Precondition: F003 + F011 merged.
-Touch ONLY: src/app/checkout/, src/app/api/payments/ (create/confirm/webhook), src/app/orders/[id]/,
-tests/e2e/checkout-*.spec.ts, tests/e2e/order-confirm.spec.ts, tests/unit/webhook.test.ts. Import cart
-(src/lib/cart), payments (src/lib/payments) — do not edit them.
-Features (success path first, then variants reuse the plumbing): F012 create Toss test payment + redirect,
-F013 SUCCESS confirm+webhook → PAID (signature-verified, idempotent via ProcessedWebhook), F014 confirmation
-page, F015 FAILURE (no PAID order), F016 CANCEL (cart preserved), F034 record worker≠checker review for the
-checkout chain in PROGRESS/DECISIONS.
-Per feature: attempt → test first → implement → `pnpm check`+E2E → passing+evidence → commit.
+Branch feat/checkout · Precondition: F003 + F011 merged.
+F012 create Toss test payment + redirect · F013 SUCCESS confirm+webhook → PAID (signature-verified,
+idempotent via ProcessedWebhook) · F014 confirmation page · F015 FAILURE (no PAID order) · F016 CANCEL
+(cart preserved) · F034 record the checkout chain's worker≠checker review in PROGRESS/DECISIONS.
+Touch ONLY: src/app/checkout/, src/app/api/payments/, src/app/orders/[id]/, tests/e2e/checkout-*.spec.ts
++ order-confirm.spec.ts, tests/unit/webhook.test.ts. Import src/lib/cart + src/lib/payments only.
+Verify (per feature): pnpm test -- webhook.test.ts / pnpm test:e2e -- checkout-*.spec.ts / order-confirm.spec.ts.
 ```
 
 ### TRACK-MYPAGE — F017, F018
 ```
-Harness: 그림책 제작소. Worktree branch: feat/mypage. Precondition: F013 + F029 merged.
-Touch ONLY: src/app/mypage/, src/app/_components/mypage/*, tests/e2e/mypage-*.spec.ts. Import Asset upload
-(F029) — do not edit it. Do NOT edit src/app/_components root files.
-Features: F017 mypage(주문 상태 + 결제 후 사진 업로드 if skipped), F018 finishing(헌정 문구 + QR 업로드 —
-QR 옵션 켠 경우에만 노출). All PII redacted, photos via Asset storageKey.
-Per feature: attempt → spec first → implement → `pnpm check`+e2e → passing+evidence → commit.
+Branch feat/mypage · Precondition: F013 + F029 merged.
+F017 mypage (order status + post-pay photo upload if skipped) · F018 finishing (dedication + QR upload,
+QR shown only if the add-on is on). Photos via Asset storageKey, PII redacted.
+Touch ONLY: src/app/mypage/, src/app/_components/mypage/*, tests/e2e/mypage-*.spec.ts. Import src/lib/assets only.
+Verify (per feature): pnpm test:e2e -- mypage-*.spec.ts.
 ```
 
 ---
 
-# ▶ WAVE 3 — 횡단 폴리시 + eval (제품 플로우 완성 후)
+# ▶ WAVE 3 — 횡단 폴리시 + eval (제품 플로우 완성 후 · 한 세션 순차)
 
-> F038(traces)·F041(holdout)은 이미 passing. 나머지는 페이지 전반 sweep이라 한 트랙에서 순차.
+> F038(traces)·F041(holdout)은 이미 passing.
 
 ### TRACK-POLISH — F035, F037, F036, F039, F040, F042
 ```
-Harness: 그림책 제작소. Worktree branch: feat/polish. Precondition: entry flow (F002,F005–F016) merged.
-Features (focused passes, WIP=1):
-  F035 mobile 375px no-overflow sweep across home/category/order/checkout (extend home.spec pattern).
-  F037 a11y (heading order, form labels, alt text) across pages.
-  F036 perf budget: p95 < 2s on home/category (perf.spec).
-  F039 ops metrics (latency/error/tool-call-failure) from traced().
-  F040 entry-line purchase-flow eval: re-point eval/golden to the Toss entry flow; pending steps reported
-       honestly (not as success). Keep eval/holdout untouched (F041 policy).
-  F042 worker≠checker protocol doc + applied to one shipped feature, recorded.
-Per feature: attempt → test/check first → implement → `pnpm check`+verification → passing+evidence → commit.
+Branch feat/polish · Precondition: entry flow (F002, F005–F016) merged.
+F035 mobile 375px no-overflow sweep (home/category/order/checkout) · F037 a11y (heading order, labels, alt)
+· F036 perf p95<2s (home/category) · F039 ops metrics (latency/error/tool-call-failure) from traced()
+· F040 entry-line eval (re-point eval/golden to the Toss entry flow; pending steps reported honestly;
+do NOT touch eval/holdout — F041) · F042 worker≠checker protocol doc + applied to one shipped feature.
+Verify (per feature): pnpm test:e2e -- perf.spec.ts / a11y.spec.ts · pnpm test -- metrics.test.ts · pnpm eval.
 ```
 
 ---
