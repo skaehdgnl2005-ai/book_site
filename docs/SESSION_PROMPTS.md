@@ -35,6 +35,16 @@
 4. 끝난 브랜치는 **한 번에 하나씩 머지 → 매번 `pnpm check`** (R4가 state/passes 드리프트를 잡음). 충돌 핫스팟: `feature_list.json`·`package.json`. (맨 아래 머지 프롬프트 참고)
 5. ⚠️ **상태형 퍼널(TRACK-ORDER·TRACK-CHECKOUT)은 쪼개지 말 것** — 한 세션에서 기능을 차례로.
 
+## 트랙 시작 전 — 격리 preflight (동시 세션이면 필수)
+동시에 여러 트랙을 돌리면 **각 세션은 자기 worktree(별도 디렉터리)에서** 작업한다. **한 디렉터리 + 동시 세션 = 금지** — 같은 working tree를 동시에 편집하면 미커밋 WIP이 뒤엉킨다.
+1. `git worktree add ../gpcs-<id> master -b feat/<id>` — 최신 master 기반 (이미 있는 브랜치면 `-b` 빼고 브랜치명만).
+2. `cd ../gpcs-<id> && pnpm install`
+3. **베이스라인 확인:** `git status` 깨끗 + `pnpm check` green이어야 시작. *다른 트랙의 미커밋/untracked 변경이 보이면 잘못된 디렉터리다 — 멈춰라.*
+4. 작업 → (불변 규칙의 루프) → 자기 브랜치에 commit.
+5. 머지·검증 끝나면 `git worktree remove ../gpcs-<id>`.
+> 동시성이 필요 없으면 worktree 없이 한 디렉터리에서 **한 트랙씩**(다음 트랙 전 commit). 단 **동시 세션 + 한 디렉터리는 절대 금지**.
+> 이미 엉켰으면(같은 dir에 여러 트랙 WIP): 파일 스코프가 disjoint하므로 `git add <그 트랙 파일들>`로 트랙별 분리 커밋이 가능하다.
+
 ## 불변 규칙 (모든 트랙에 자동 적용 — 트랙 블록에 반복하지 않는다)
 - **완료 게이트:** `pnpm check` green **AND** 그 기능의 E2E/verification 통과 → 그때만 `feature_list.json` 해당 항목 `state:"passing"`/`passes:true` + **날짜 박힌 evidence**. 그 전엔 절대 passing 금지.
 - **루프:** `pnpm attempt <id>` → **테스트 먼저(TDD)** → 구현 → 게이트 통과 → passing+evidence → 서술형 `git commit` → `PROGRESS.md` 갱신.

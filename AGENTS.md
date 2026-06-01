@@ -66,6 +66,7 @@ verifies it. Unit tests passing ≠ done. "Code written" ≠ done.
 - Tests: `tests/unit/` (vitest), `tests/e2e/` (Playwright).
 - State: `feature_list.json`, `PROGRESS.md` (incl. Handoff section), `DECISIONS.md`, `.harness/attempts.json`.
 - Coding-loop runbook: `docs/SESSION_PROMPTS.md` — ready-to-paste parallel session prompts (waves/tracks).
+  Parallel work uses an isolated **`git worktree` per track** (run its preflight; never edit one working dir from two concurrent sessions).
 - Deep docs (read on demand): `docs/ARCHITECTURE.md`, `docs/CONSTRAINTS.md`,
   `docs/SAFETY.md`, `docs/OBSERVABILITY.md`, `docs/EVAL.md`.
 
