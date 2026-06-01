@@ -1,0 +1,46 @@
+/* F026 후기 — honest empty state + a single framed beta-signal figure. Tokens only;
+   the 80% number is the lone navy accent (an edition-style number, within budget). */
+
+.empty {
+  max-width: 52ch;
+  margin: 0 0 var(--space-lg);
+  color: var(--grey);
+  line-height: 1.75;
+}
+
+.stat {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  max-width: 24rem;
+  padding: var(--space-lg) var(--space-md);
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+
+.statNum {
+  font-family: var(--font-grotesk);
+  font-weight: 600;
+  font-size: clamp(2.4rem, 7vw, 3.6rem);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--accent);
+}
+
+.statLabel {
+  display: block;
+  margin-bottom: var(--space-xs);
+  font-family: var(--font-grotesk);
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.statCap {
+  display: block;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--grey);
+}

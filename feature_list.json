@@ -318,9 +318,9 @@
       "description": "후기 page (placeholder until real reviews are provided)",
       "steps": ["Open /reviews", "See review layout", "Empty/placeholder state is honest, not fabricated"],
       "verification": "pnpm test:e2e -- reviews.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-01 Playwright: 2 passed (reviews — honest empty state + framed beta 80% signal, no fabricated quotes; 375px no-overflow). pnpm check green."
     },
     {
       "id": "F027",
