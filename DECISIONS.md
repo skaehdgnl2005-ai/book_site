@@ -98,3 +98,29 @@
   visual SYSTEM applies regardless of wordmark — reconcile the wordmark when the branded home (F002) lands.
 - Rejected: a real-time in-app AI generation pipeline now (out of scope, huge); keeping Stripe (wrong
   payment UX for a Korean product); building the full site at once (slower to a verified first flow).
+
+## 2026-06-01 — ADR-0010 — F003: provider-agnostic PaymentProvider + TossPayments adapter
+- Decision: the app depends on a small `PaymentProvider` interface (`src/lib/payments/index.ts`),
+  never on a concrete gateway. Surface = `createCheckout(input): Checkout` (pure/sync — returns only
+  public, non-secret fields the browser needs) and `confirm(input): Promise<Confirmation>` (settles with
+  the gateway, mapping its status to our `PAID | FAILED | CANCELED`). TossPayments is the first adapter
+  (`toss.ts`), **test/sandbox only**: it refuses live keys in its constructor (belt-and-braces with the
+  `parseEnv` boot refusal), authenticates the confirm call with Basic `base64("<secretKey>:")`, and takes
+  an **injectable HTTP transport** so unit tests need no network (`pnpm check` stays hermetic, mirrors
+  ADR-0002). Money stays KRW won = integer.
+- Re-point (the Stripe→Toss swap promised in ADR-0009, now executed & verified): env key fields + live-key
+  refusal, `redact()` patterns, `check-constraints` R1 (live-key literal scan), and the
+  `IRREVERSIBLE_ACTIONS` set (`toss.charge.live`/`toss.refund.live` + `consultation.book`).
+- Why: F003's whole point is that swapping/adding a provider is "write another adapter", not "touch the
+  order/checkout code". Doing the swap as a *verified feature* (not a silent edit) keeps the gates honest.
+- Scope deviation (recorded deliberately): also edited `scripts/approve.mjs` — outside the track's literal
+  file list, but the approval CLI must recognise the renamed actions or the error messages that tell a human
+  to run `pnpm approve toss.charge.live` would be false. It is unowned by any sibling Wave-0 track, so zero
+  merge-conflict risk. The list is duplicated in `guardrails.ts` (TS) and `approve.mjs` (CLI) because a `.mjs`
+  script can't import the `.ts` module; both carry a "keep in sync" comment.
+- Deliberately NOT done here: prose docs (`docs/SAFETY.md`, `CONSTRAINTS.md`, `ARCHITECTURE.md`) and
+  `eval/golden` still name Stripe — they describe webhook/checkout mechanics that land with F012–F016 / F040,
+  so re-pointing them now (partially) would create a worse, internally-inconsistent doc. Tracked in PROGRESS.
+- Rejected: a sync-only or async-only interface baked to Toss's exact shape (loses provider-agnosticism);
+  hitting the real Toss API in tests (flaky, non-hermetic); removing the unused `stripe` npm dep now
+  (package.json is TRACK-DB's this wave; trivial follow-up).

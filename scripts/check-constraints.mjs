@@ -48,12 +48,15 @@ for (const f of await walk(ROOT)) {
   const src = await readFile(f, "utf8");
 
   if (isCode) {
-    // R1: no committed Stripe LIVE keys (test fixtures may reference one to assert refusal).
+    // R1: no committed LIVE payment keys. TossPayments live keys are live_sk_/live_ck_;
+    // legacy Stripe sk_live_/pk_live_ stays caught (defence in depth). Test fixtures may
+    // reference one to assert refusal, so tests are exempt. (Pattern is grouped so this
+    // rule's own source never self-matches.)
     add(
-      !isTest && /\b(?:sk|pk)_live_[A-Za-z0-9]{6,}/.test(src),
+      !isTest && /\b(?:live_(?:sk|ck)|(?:sk|pk)_live)_[A-Za-z0-9]{6,}/.test(src),
       rel,
       "R1:no-live-keys",
-      "Stripe LIVE key literal — dev/verify use TEST keys only (G-HITL).",
+      "TossPayments LIVE key literal (or legacy Stripe) — dev/verify use TEST keys only (G-HITL).",
     );
 
     // R2: never log raw process.env (secret / PII leak). Use redact().

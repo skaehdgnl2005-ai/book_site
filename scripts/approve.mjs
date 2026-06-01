@@ -11,10 +11,13 @@
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout, argv, exit } from "node:process";
 
+// Keep in sync with IRREVERSIBLE_ACTIONS in src/lib/guardrails.ts (a .mjs CLI can't
+// import the .ts module). Payment actions are TossPayments-specific (F003).
 const IRREVERSIBLE = [
-  "stripe.charge.live",
-  "stripe.refund.live",
+  "toss.charge.live",
+  "toss.refund.live",
   "order.confirm",
+  "consultation.book",
   "fulfillment.trigger",
   "inventory.write.production",
   "pii.store",

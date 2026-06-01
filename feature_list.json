@@ -42,9 +42,9 @@
       "description": "Payment provider abstracted behind a provider-agnostic interface; TossPayments (test/sandbox) is the first adapter; env + check-constraints R1 re-pointed from Stripe to Toss live-key refusal",
       "steps": ["Define PaymentProvider interface", "Implement TossPayments test adapter", "env refuses a live Toss key outside production; accepts test key", "R1 flags committed Toss live keys"],
       "verification": "pnpm test -- payments.test.ts && pnpm constraints",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-01 vitest — payments.test.ts: 13 passed + smoke.test.ts: 10 (Toss env/HITL/redact). Provider-agnostic PaymentProvider + TossPayments test adapter: createCheckout KRW-integer guard & no secret leak, confirm Basic-auth POST mapping DONE→PAID/error→FAILED/CANCELED + pre-gateway amount guard, live-key refusal, tossFromEnv. pnpm check green (lint+typecheck+unit+0 constraints); R1 re-pointed to Toss live_sk_/live_ck_ — empirically verified it stays clean AND fires on a committed live key. env.ts refuses a live Toss key (secret+client) outside production, accepts test key; guardrails+approve.mjs+.env.example re-pointed to toss.charge.live/toss.refund.live + consultation.book. Adversarial worker≠checker review: 5 findings all addressed, 1 dismissed."
     },
     {
       "id": "F004",
@@ -368,7 +368,7 @@
       "verification": "pnpm test -- smoke.test.ts (HITL guardrails)",
       "state": "passing",
       "passes": true,
-      "evidence": "2026-06-01 vitest: requireApproval default-deny + token-match + mismatch-reject pass. Action set re-pointed to Toss/consultation under F003."
+      "evidence": "2026-06-01 vitest (smoke HITL): requireApproval default-deny + token-match + mismatch-reject pass; isIrreversible('toss.charge.live') true. Action set re-pointed to Toss (toss.charge.live/toss.refund.live) + consultation.book under F003; scripts/approve.mjs kept in sync."
     },
     {
       "id": "F031",
@@ -380,7 +380,7 @@
       "verification": "pnpm test -- smoke.test.ts (env contract)",
       "state": "passing",
       "passes": true,
-      "evidence": "2026-06-01 vitest: refuses live key outside prod, accepts test key (currently Stripe-keyed; F003 re-points the pattern to Toss)."
+      "evidence": "2026-06-01 vitest (smoke env): parseEnv refuses a Toss live key (live_sk_) outside production and accepts a test key (test_sk_). Re-pointed from Stripe to TossPayments under F003."
     },
     {
       "id": "F032",

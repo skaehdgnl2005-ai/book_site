@@ -10,23 +10,30 @@ describe("env contract (G-ERR / E3)", () => {
     expect(env.BASE_URL).toBe("http://localhost:3000");
   });
 
-  it("refuses a Stripe LIVE key outside production", () => {
-    expect(() => parseEnv({ STRIPE_SECRET_KEY: "sk_live_abc123" })).toThrow(/LIVE key/);
+  it("refuses a TossPayments LIVE secret key outside production", () => {
+    expect(() => parseEnv({ TOSS_SECRET_KEY: "live_sk_abc123" })).toThrow(/LIVE key/);
   });
 
-  it("allows a Stripe TEST key in development", () => {
-    expect(() => parseEnv({ STRIPE_SECRET_KEY: "sk_test_abc123" })).not.toThrow();
+  it("refuses a TossPayments LIVE client key outside production", () => {
+    expect(() => parseEnv({ NEXT_PUBLIC_TOSS_CLIENT_KEY: "live_ck_abc123" })).toThrow(/LIVE key/);
   });
 
-  it("redacts secrets and emails", () => {
-    expect(redact("token sk_test_abc123 end")).toContain("sk_test_***");
+  it("allows a TossPayments TEST key in development", () => {
+    expect(() => parseEnv({ TOSS_SECRET_KEY: "test_sk_abc123" })).not.toThrow();
+  });
+
+  it("redacts payment secrets and emails", () => {
+    expect(redact("key test_sk_abc123 end")).toContain("test_sk_***");
+    expect(redact("key test_ck_abc123 end")).toContain("test_ck_***");
+    // Legacy Stripe key shapes stay redacted too (defence-in-depth branch in env.ts).
+    expect(redact("key sk_live_DEADBEEF end")).toContain("sk_live_***");
     expect(redact("mail a@b.com")).toContain("***@***");
   });
 });
 
 describe("HITL guardrails (G-HITL / E1 / E4)", () => {
   it("recognises irreversible actions", () => {
-    expect(isIrreversible("stripe.charge.live")).toBe(true);
+    expect(isIrreversible("toss.charge.live")).toBe(true);
     expect(isIrreversible("read.catalog")).toBe(false);
   });
 
