@@ -1,0 +1,31 @@
+/* F024 브랜드 스토리 — net-new styles only (global .section/.eyebrow/.cta reused).
+   Tokens only: depth via tone steps + 1px --line hairlines, warm neutrals (R6/R7). */
+
+.lead {
+  max-width: 30ch;
+  margin: 0 0 var(--space-lg);
+  font-size: clamp(1.3rem, 3.4vw, 2rem);
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.prose p {
+  max-width: 62ch;
+  margin: 0 0 var(--space-md);
+  color: var(--grey);
+  line-height: 1.75;
+}
+
+.note {
+  max-width: 52ch;
+  margin: var(--space-lg) 0 0;
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.ctaRow {
+  margin-top: var(--space-lg);
+}

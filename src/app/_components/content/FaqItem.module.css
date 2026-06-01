@@ -1,0 +1,31 @@
+/* F027 FaqItem — hairline-divided accordion, radius 0, tokens only. Active = navy. */
+
+.item {
+  border-top: 1px solid var(--line);
+}
+.item:last-child {
+  border-bottom: 1px solid var(--line);
+}
+
+.q {
+  list-style: none;
+  cursor: pointer;
+  padding: var(--space-md) 0;
+  font-family: var(--font-grotesk);
+  font-weight: 500;
+  font-size: 1rem;
+  color: var(--ink);
+}
+.q::-webkit-details-marker {
+  display: none;
+}
+.item[open] .q {
+  color: var(--accent);
+}
+
+.a {
+  max-width: 62ch;
+  padding: 0 0 var(--space-md);
+  color: var(--grey);
+  line-height: 1.75;
+}

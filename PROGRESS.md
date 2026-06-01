@@ -3,10 +3,12 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- Next action (single): **Wave 0 integrated to `master`** — F002 home + F003 payment (Toss) +
-  F004 DB+seed + F029 asset all merged & passing. Next: buyer-flow funnel — catalog F005/F006
-  (read the seeded templates) → order F007–F011 → checkout F012–F016. Prompts: `docs/SESSION_PROMPTS.md`.
-- Broken / not done: buyer-flow funnel (F005+) not built yet.
+- Next action (single): **Wave 0 + content integrated to `master`** — F001/F002 home, F003 payment (Toss),
+  F004 DB+seed, F029 asset, and F024–F028 content pages all merged & passing. Next: buyer-flow funnel —
+  catalog F005/F006 (read the seeded templates) → order F007–F011 → checkout F012–F016. Prompts: `docs/SESSION_PROMPTS.md`.
+- Broken / not done: buyer-flow funnel (F005+) not built yet. Content pages are static + not yet wired into
+  the global Nav (Nav is F002-owned/import-only); real assets/founder-story/후기/전화·이메일/배송/환불 await
+  maker input (visible code-flagged TODOs, never fabricated).
 - **Follow-up (F004):** `prisma db seed` runs the `.ts` seed via Node type-stripping, which needs
   **Node ≥ 22.6** (newer than the `>=20` engines floor; dev runtime is Node 24). Not on the `pnpm check`
   path, so no gate impact. Revisit when a track may touch deps/pins: add `tsx` or bump `.nvmrc`/`engines`.
@@ -16,12 +18,12 @@
 
 ## Current verified state   ← single source of truth
 - Last green `pnpm check`: **2026-06-01** (lint + typecheck + unit + 0 constraint violations, incl.
-  R4/R5/R8 invariants) — verified on the integrated `master` after the Wave-0 merges.
-- E2E (`pnpm test:e2e`): **2 passed** (branded home — brand/hero/3 category cards/CTA; 375px no-overflow)
+  R4/R5/R8 invariants) — verified on the integrated `master` after the Wave-0 + content merges.
+- E2E (`pnpm test:e2e`): **13 passed** (home 2 + content F024–F028: brand-story/gallery/reviews/faq/contact, each + 375px)
 - Boots via `./init.sh`: **yes** (install → check → ready, exit 0)
 - **Two honest, separate numbers** (`pnpm status`):
   - **Harness readiness** (machinery, product-agnostic): 85.2/100 → READY (see `SCORECARD.md`)
-  - **Product delivery** (그림책 제작소 store): **5 / 32 product features passing (~16%)** — F001/F002 home, F003 payment, F004 DB+seed, F029 asset
+  - **Product delivery** (그림책 제작소 store): **10 / 32 product features passing (~31%)** — F001/F002 home, F003 payment, F004 DB+seed, F029 asset, F024–F028 content
   - harness-track features passing: 6 / 10 (F030/F031 evidence refreshed Stripe→Toss)
 - Bootstrap contract (build_guide §7): **MET** — boots, verified tests exist, AGENTS.md router, feature_list aligned.
 
@@ -76,6 +78,24 @@ feature_list/router) now reflects the real product; DESIGN.md (Atelier Sans) wir
   actions) and `.env.example` (dev-facing env contract) — both beyond the literal track file list but unowned
   by any sibling Wave-0 track (zero merge-conflict risk).
 - Next: remaining Wave 0 (F004 DB, F029 asset, content F024–F028).
+
+### 2026-06-01 — TRACK-CONTENT (F024–F028) content pages [feat/content worktree]
+- Built 5 static content pages on the Atelier Sans system, isolated in a `feat/content` worktree off
+  master (other Wave-0 tracks' uncommitted WIP in the main checkout left untouched): **F024 브랜드 스토리**
+  (grounded translator narrative + flagged founder-story TODO), **F025 갤러리** (honest placeholder tiles),
+  **F026 후기** (honest empty state + framed beta 80% signal, no fabricated quotes), **F027 FAQ** (native
+  `<details>` accordion, 5 topics incl. honest 환불 placeholder), **F028 문의** (전화/이메일 flagged
+  placeholders + client form that tags input `untrusted()` and gives honest guidance, no fake receipt).
+- Honesty-first (날조 금지): every unprovided datum (founder story / sample images / reviews / 전화·이메일 /
+  배송 carrier·fee / 환불 policy) is a visible, code-flagged `TODO`, never fabricated.
+- Styled without touching the off-limits `globals.css`: co-located **CSS Modules** consuming `:root` tokens;
+  new shared sub-components under `_components/content/` (GalleryTile, FaqItem, ContactForm). The F002
+  `_components` kit + `globals.css` were import-only.
+- TDD per feature (spec first → page → `pnpm check` + that page's E2E). Full gate green: `pnpm check`
+  (lint+typecheck+9 unit+constraints 0) + **13 E2E passed**. F024–F028 `passing` + dated evidence; attempts reset.
+- Docs: `docs/superpowers/specs/2026-06-01-content-pages-design.md` + `…/plans/2026-06-01-content-pages.md`.
+  Commits: 9b728e1 · d0129ea · fe6295e · 7580693 · ac2d815.
+- Next: merge `feat/content` → master one branch at a time (`pnpm check` each) per the runbook merge prompt.
 
 ### 2026-06-01 — F002 branded home (pattern-setter) + runbook refinement
 - Built the 그림책 제작소 branded home (hero + 3-category preview + primary CTA) and the reusable

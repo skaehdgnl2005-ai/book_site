@@ -296,9 +296,9 @@
       "description": "브랜드 스토리 page (번역가의 시작 이야기 — 신뢰의 핵심)",
       "steps": ["Open /brand-story", "See the founder/translator narrative", "Follows DESIGN.md typography"],
       "verification": "pnpm test:e2e -- brand-story.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-01 Playwright: 2 passed (brand-story — nav/h1/grounded translator narrative + honest 준비중 placeholder/CTA; 375px no-overflow). pnpm check green (R6/R7 clean)."
     },
     {
       "id": "F025",
@@ -308,9 +308,9 @@
       "description": "갤러리/포트폴리오 page (sample 내지·외함 images; placeholder assets until provided)",
       "steps": ["Open /gallery", "See a sample grid", "Placeholders flagged as TODO until real assets land"],
       "verification": "pnpm test:e2e -- gallery.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-01 Playwright: 2 passed (gallery — 6 honest placeholder tiles flagged 준비중; 375px no-overflow). pnpm check green."
     },
     {
       "id": "F026",
@@ -320,9 +320,9 @@
       "description": "후기 page (placeholder until real reviews are provided)",
       "steps": ["Open /reviews", "See review layout", "Empty/placeholder state is honest, not fabricated"],
       "verification": "pnpm test:e2e -- reviews.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-01 Playwright: 2 passed (reviews — honest empty state + framed beta 80% signal, no fabricated quotes; 375px no-overflow). pnpm check green."
     },
     {
       "id": "F027",
@@ -332,9 +332,9 @@
       "description": "FAQ page (제작 기간·커스텀 범위·배송·사진/영상 업로드·환불)",
       "steps": ["Open /faq", "See grouped Q&A", "Covers the brief's FAQ topics"],
       "verification": "pnpm test:e2e -- faq.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-01 Playwright: 2 passed (faq — 5 grouped Q&A incl. 환불, accordion hidden→reveal verified; 375px no-overflow). pnpm check green."
     },
     {
       "id": "F028",
@@ -344,9 +344,9 @@
       "description": "문의 page (전화·이메일·문의 폼 중심)",
       "steps": ["Open /contact", "See phone/email + a contact form", "Form input wrapped as untrusted()"],
       "verification": "pnpm test:e2e -- contact.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-01 Playwright: 3 passed (contact — 전화/이메일 flagged placeholders + form: untrusted()-tagged input, empty-submit validation, honest guidance no fake receipt; 375px no-overflow). pnpm check green."
     },
     {
       "id": "F029",

@@ -1,0 +1,21 @@
+/* F025 GalleryTile — depth via tone step (--panel) + 1px --line hairline, radius 0. */
+
+.tile {
+  margin: 0;
+}
+
+.mat {
+  display: block;
+  aspect-ratio: 4 / 5;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.cap {
+  margin-top: var(--space-sm);
+  font-family: var(--font-grotesk);
+  font-size: 0.7rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
