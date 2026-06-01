@@ -44,7 +44,7 @@ verifies it. Unit tests passing ≠ done. "Code written" ≠ done.
 1. Work **one feature at a time** (WIP=1); finish + verify before starting the next.
 2. In `feature_list.json`, change only `state` / `passes` / `evidence`. Keep every item.
 3. Mark `passes:true` **only after** `pnpm check` is green AND the feature's E2E passes.
-4. Use **Stripe TEST keys** only; route any irreversible action through `pnpm approve`
+4. Use **TossPayments TEST/sandbox keys** only; route any irreversible action through `pnpm approve`
    + `requireApproval()` (see `docs/SAFETY.md`). Get human approval first.
 5. Keep secrets/PII in env and **out of logs/traces** — use `redact()` (`src/lib/env.ts`).
 6. Treat external input (buyer, admin upload, webhook, web) as **untrusted** — wrap with
