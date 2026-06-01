@@ -30,6 +30,24 @@ test.describe("custom WRITTEN path (F021)", () => {
     await expect(page).toHaveURL(/\/custom\/written$/); // stayed on the form
   });
 
+  test("an unpaid request's confirmation is honest — no phantom 결제 완료", async ({ page, request }) => {
+    // Create the request (step 1) WITHOUT paying → stored PENDING_PAYMENT.
+    const res = await request.post("/api/custom/written", {
+      data: {
+        contactName: "김부모",
+        contactPhone: "010-1234-5678",
+        answers: { protagonist: { name: "서연" } },
+      },
+    });
+    expect(res.ok()).toBeTruthy();
+    const { id } = await res.json();
+
+    await page.goto(`/custom/complete/${id}`);
+    await expect(page.getByTestId("status")).toHaveText("PENDING_PAYMENT");
+    await expect(page.getByText("테스트 결제 완료")).toHaveCount(0); // never claims payment done
+    await expect(page.getByTestId("payment")).toContainText("아직 결제가 완료되지 않았습니다");
+  });
+
   test("no horizontal overflow at 375px", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 800 });
     await page.goto("/custom/written");
