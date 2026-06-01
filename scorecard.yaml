@@ -1,0 +1,37 @@
+harness_id: "storybook-shop"
+loop_iteration: 1
+task_spec_ref: "PRODUCT_BRIEF.md"
+
+# Rubric: docs/method/harness_engineering_rubric.md  (scale 0..3; weights sum 100)
+gates: # 8/8 PASS
+  G-SIMPLE:  { status: PASS, evidence: "Simplest skeleton first (0 feature code); single-deployable Next app; no multi-agent framework; worker≠checker is a pass not a crew (ADR-0005)." }
+  G-GROUND:  { status: PASS, evidence: "passes:true gated on real tool output — pnpm check + Playwright E2E; init.sh runs the real verify. No progress claimed without env feedback." }
+  G-TERM:    { status: PASS, evidence: "WIP=1; explicit done definition; budgets (p95<2s, step/cost); blocked state + no-progress→escalate in AGENTS.md." }
+  G-ERR:     { status: PASS, evidence: "parseEnv fail-fast model-readable; check-constraints structured JSON; traced() captures+rethrows errors into the loop." }
+  G-HITL:    { status: PASS, evidence: "requireApproval() default-deny (tested) + pnpm approve + constraints R3 + docs/SAFETY.md irreversible-action list." }
+  G-SANDBOX: { status: PASS, evidence: "docker-compose isolated DB (scoped user); secrets env-only; .env gitignored; CI container with TEST keys; pnpm check needs no DB/secrets." }
+  G-EVAL:    { status: PASS, evidence: "Definitive pass/fail via pnpm check + E2E + feature_list verification; eval harness reports purchase-flow metrics." }
+  G-TRACE:   { status: PASS, evidence: "observability.ts emits one JSON line per step/tool/error with sessionId+durationMs; Playwright trace on retry." }
+
+categories:
+  A_loop_control:      { weight: 15, scores: {A1: 2, A2: 3, A3: 3, A4: 3, A5: 2},        fraction: 0.867, points: 13.00, floor_ok: true }
+  B_tools_aci:         { weight: 16, scores: {B1: 3, B2: 3, B3: 3, B4: 2, B5: 3, B6: 2}, fraction: 0.889, points: 14.22, floor_ok: true }
+  C_context_eng:       { weight: 15, scores: {C1: 3, C2: 3, C3: 3, C4: 2, C5: 2, C6: 3}, fraction: 0.889, points: 13.33, floor_ok: true }
+  D_error_recovery:    { weight: 12, scores: {D1: 3, D2: 2, D3: 2, D4: 3},               fraction: 0.833, points: 10.00, floor_ok: true }
+  E_safety_guardrails: { weight: 12, scores: {E1: 3, E2: 3, E3: 3, E4: 2, E5: 3},        fraction: 0.933, points: 11.20, floor_ok: true }
+  F_state_memory:      { weight: 8,  scores: {F1: 3, F2: 3, F3: 3},                       fraction: 1.000, points: 8.00,  floor_ok: true }
+  G_evaluation:        { weight: 14, scores: {G1: 2, G2: 2, G3: 2, G4: 3, G5: 2, G6: 2}, fraction: 0.722, points: 10.11, floor_ok: true }
+  H_observability_ops: { weight: 8,  scores: {H1: 2, H2: 2, H3: 2},                       fraction: 0.667, points: 5.33,  floor_ok: true }
+
+overall_score: 85.2
+status: READY               # gates all PASS · all floors ≥ 0.60 · 80 ≤ 85.2 < 90
+top_deficits: []            # status READY → loop stops (rubric §5). Optional ROBUST upgrades in evidence_notes.
+evidence_notes: >
+  All 8 hard gates PASS; lowest category floor H=0.667 (≥0.60). Scoring is evidence-backed and
+  deliberately conservative: criteria with partial/pending implementation (most of G/H, D2/D3,
+  B4/B6, C4/C5, A1/A5, E4) are held at 2, while tested/complete harness capabilities are 3.
+  Safety (E=0.933) and state (F=1.0) are strongest, as required for a payments+PII domain.
+  Cheapest weighted path toward ROBUST (≥90), if later desired: wire traces to a sink + ops
+  dashboard (H1/H2→3, +1.8), implement real eval graders as features land (G1/G3→3, +1.6),
+  add no-progress detection tooling (A5→3, +1.0). Not pursued now: target is READY and met
+  (avoid passing-for-the-sake-of-passing / unjustified complexity).
