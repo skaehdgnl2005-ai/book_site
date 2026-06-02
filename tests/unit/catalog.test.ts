@@ -3,8 +3,11 @@ import {
   formatWon,
   getTemplatesByCategory,
   readTemplatesFromDb,
+  getTemplateByKey,
   type CatalogCategory,
+  type TemplateExtraVar,
 } from "../../src/app/_components/catalog/templates";
+import { ENTRY_TEMPLATES } from "../../prisma/seed";
 
 // Catalog data access for the category pages (F005 기념일 / F006 첫 순간들).
 //
@@ -137,5 +140,69 @@ describe("readTemplatesFromDb — live-DB branch (injected fake client)", () => 
     };
     const [r] = await readTemplatesFromDb("ANNIVERSARY", fakeDb);
     expect(r.heroImageUrl).toBeNull();
+  });
+
+  it("maps extraVar from the DB row, defaulting a missing one to NONE", async () => {
+    const fakeDb = {
+      template: {
+        findMany: async () => [
+          { ...row("birth", "탄생", 1), extraVar: "BIRTHDATE" },
+          row("hundred_days", "백일", 2), // no extraVar field → NONE
+        ],
+      },
+    };
+    const rows = await readTemplatesFromDb("ANNIVERSARY", fakeDb);
+    expect(rows.find((r) => r.key === "birth")?.extraVar).toBe("BIRTHDATE");
+    expect(rows.find((r) => r.key === "hundred_days")?.extraVar).toBe("NONE");
+  });
+});
+
+// extraVar must be a single source of truth: the mirror must match prisma/seed.ts exactly,
+// AND the live-DB seam must carry it (a DB-configured deploy must not silently drop it).
+describe("catalog extraVar — drift guard vs prisma/seed.ts (no DATABASE_URL)", () => {
+  const saved = process.env.DATABASE_URL;
+  beforeEach(() => delete process.env.DATABASE_URL);
+  afterEach(() => {
+    if (saved === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = saved;
+  });
+
+  it("every template's extraVar matches the seed source of truth", async () => {
+    for (const seed of ENTRY_TEMPLATES) {
+      const t = await getTemplateByKey(seed.key);
+      expect(t, `missing template ${seed.key}`).not.toBeNull();
+      expect(t!.extraVar).toBe(seed.extraVar);
+    }
+  });
+
+  it("the mirror's set of extraVar values equals the seed's set (catches a new enum member)", () => {
+    const seedSet = new Set(ENTRY_TEMPLATES.map((t) => t.extraVar));
+    const mirrorSet = new Set<TemplateExtraVar>();
+    // pull the mirror via getTemplateByKey for each seed key
+    return Promise.all(ENTRY_TEMPLATES.map((s) => getTemplateByKey(s.key))).then((rows) => {
+      for (const r of rows) mirrorSet.add(r!.extraVar);
+      expect([...mirrorSet].sort()).toEqual([...seedSet].sort());
+    });
+  });
+});
+
+describe("getTemplateByKey — hermetic resolution (no DATABASE_URL)", () => {
+  const saved = process.env.DATABASE_URL;
+  beforeEach(() => delete process.env.DATABASE_URL);
+  afterEach(() => {
+    if (saved === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = saved;
+  });
+
+  it("resolves a known key from the seed mirror", async () => {
+    const t = await getTemplateByKey("birth");
+    expect(t?.label).toBe("탄생");
+    expect(t?.extraVar).toBe("BIRTHDATE");
+  });
+  it("resolves a NONE-extraVar template", async () => {
+    expect((await getTemplateByKey("hundred_days"))?.extraVar).toBe("NONE");
+  });
+  it("returns null for an unknown key", async () => {
+    expect(await getTemplateByKey("not-a-real-key")).toBeNull();
   });
 });
