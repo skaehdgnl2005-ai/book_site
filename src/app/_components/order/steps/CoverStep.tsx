@@ -2,7 +2,7 @@
 import type { CatalogTemplate } from "../../catalog/templates";
 import type { Draft } from "../OrderWizard";
 import styles from "../order.module.css";
-import { formatWon } from "../format";
+import { formatWon, COVER_LABEL } from "../format";
 
 export function CoverStep({
   template, draft, unitPriceWon, onPatch, onNext, onBack,
@@ -22,12 +22,12 @@ export function CoverStep({
           <label className={`${styles.choice} ${draft.coverType === "SOFT" ? styles.choiceActive : ""}`}>
             <input type="radio" name="cover" data-testid="order-cover-soft"
               checked={draft.coverType === "SOFT"} onChange={() => onPatch({ coverType: "SOFT" })} />
-            소프트커버 <span className={styles.choicePrice}>{formatWon(template.softPriceWon)}</span>
+            {COVER_LABEL.SOFT} <span className={styles.choicePrice}>{formatWon(template.softPriceWon)}</span>
           </label>
           <label className={`${styles.choice} ${draft.coverType === "HARD" ? styles.choiceActive : ""}`}>
             <input type="radio" name="cover" data-testid="order-cover-hard"
               checked={draft.coverType === "HARD"} onChange={() => onPatch({ coverType: "HARD" })} />
-            하드커버 <span className={styles.choicePrice}>{formatWon(template.hardPriceWon)}</span>
+            {COVER_LABEL.HARD} <span className={styles.choicePrice}>{formatWon(template.hardPriceWon)}</span>
           </label>
         </div>
       </fieldset>

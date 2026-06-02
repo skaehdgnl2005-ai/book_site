@@ -3,11 +3,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Nav } from "../Nav";
 import { Footer } from "../Footer";
-import { formatWon } from "./format";
+import { formatWon, COVER_LABEL } from "./format";
 import { loadCart, grandTotalWon, type Cart } from "@/lib/cart";
 import styles from "./order.module.css";
-
-const COVER_LABEL = { SOFT: "소프트커버", HARD: "하드커버" } as const;
 
 export function CartView() {
   // SSR renders a deterministic empty shell; the real cart is read from localStorage on mount

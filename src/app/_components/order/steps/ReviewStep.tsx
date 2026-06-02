@@ -1,10 +1,8 @@
 "use client";
 import type { CatalogTemplate } from "../../catalog/templates";
-import { formatWon } from "../format";
+import { formatWon, COVER_LABEL } from "../format";
 import type { Draft } from "../OrderWizard";
 import styles from "../order.module.css";
-
-const COVER_LABEL = { SOFT: "소프트커버", HARD: "하드커버" } as const;
 
 export function ReviewStep({
   template, draft, unitPriceWon, onBack, onAddToCart,
