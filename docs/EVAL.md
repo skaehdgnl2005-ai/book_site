@@ -29,9 +29,10 @@ Reported per run / per task:
 - Deterministic where possible: E2E assertions + the constraints checker.
 - For subjective output (e.g. catalog copy, error UX), use an **LLM-as-judge** rubric pass
   and escalate borderline cases to human review.
-- **Worker ≠ checker (F032):** the agent that implements a feature does not mark it done.
+- **Worker ≠ checker (F042):** the agent that implements a feature does not mark it done.
   A separate review pass (or sub-agent) returns **Accept / Revise / Block**; the result is
-  recorded in `PROGRESS.md` before `passes:true`.
+  recorded in `PROGRESS.md` before `passes:true`. Full protocol: **`docs/WORKER_CHECKER.md`**
+  (roles, refute-by-default stance, review dimensions, recording rules, worked applications).
 
 ## Failure clustering (G6)
 Triage failures by the build-guide's 5 layers, not one-offs:

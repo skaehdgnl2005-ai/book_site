@@ -307,3 +307,62 @@
   a guessable-id-only access link with no ownership proof (the email gate closes the tampering surface); a
   client-side `server-only` guard (non-`NEXT_PUBLIC_` secret is `undefined` in client bundles anyway, and bare
   `server-only` breaks vitest-style resolution).
+
+## 2026-06-02 — ADR-0015 — TRACK-POLISH (F036, F037, F039, F040, F042): cross-cutting polish + eval
+- Decision: close the entry-line with the cross-cutting polish track (F035 375px already done). **F036**
+  perf budget; **F037** a11y; **F039** ops metrics; **F040** entry-line eval re-point; **F042** worker≠checker
+  protocol doc. Each TDD (test-first, watched RED→GREEN), then ONE independent worker≠checker review pass
+  (sub-agents, refute-by-default) before any `passes:true` — this review **is** F042's applied instance.
+- **F036 (perf, `tests/e2e/perf.spec.ts`).** Asserts **p95 < 2000ms** on `/` + both category pages, measured as
+  the browser's Navigation-Timing `duration` over **20 WARM loads** (after 2 unmeasured warmups) — nearest-rank
+  p95 drops only the single worst sample. Each route's p95 is emitted as a `kind:"metric"` trace line via the
+  real `observability.emit()` (ties perf into the F039 stream / OBSERVABILITY.md H3). **Why warm:** `next dev`
+  compiles each route on first hit (a dev-only cost); the budget targets **steady-state serve latency** (the
+  production proxy), so warmups are off-the-clock and every measured load is fully-compiled. Measured ~600ms
+  (≈3× headroom); the assertion has teeth (a genuinely >2s page recurs on warm loads and fails).
+- **F037 (a11y, `tests/e2e/a11y.spec.ts`).** A **hand-rolled in-browser DOM audit** (no axe dependency — keeps
+  `pnpm check` hermetic + dep-pinned) over **14 pages**: heading order (first heading h1, no descending skips),
+  every form control has an accessible name (label[for] / wrapping `<label>` / aria-label / aria-labelledby /
+  title), every `<img>` has alt. A **"teeth" self-test** feeds a deliberately-broken fixture and asserts the
+  audit flags all three classes, so the clean-page assertions are demonstrably non-vacuous. The page sweep sees
+  only each route's INITIAL render, so a **wizard deep-step audit** walks `/order/birth` (info→photo→cover).
+  **Two real defects found + fixed:** (1) `PhotoStep`'s file input had **no accessible name** (its label was a
+  bare `<p>`) → `aria-labelledby` to the now-`id`'d label; (2) the order wizard was the **only** form whose
+  validation errors weren't announced (every other form already used `role="alert"`) → `role="alert"` +
+  `id` on the error `<p>`s + `aria-invalid`/`aria-describedby` on the inputs (`InfoStep`, `PhotoStep`). Edits
+  are **purely additive ARIA** (every `data-testid` preserved → order specs still 13/13).
+- **F039 (ops metrics, `src/lib/metrics.ts`).** `collectMetrics` / `collectMetricsBySession` / `createCollector`
+  read the trace stream (never diverge from what happened). Definitions per OBSERVABILITY.md H2: **error rate** =
+  error events ÷ all events; **tool-call failure rate** = failed tool calls ÷ tool calls, where a *tool call* is
+  a `traced()` outcome (`kind:"tool"` ok:true **or** `kind:"error"` ok:false carrying a `durationMs`) — the only
+  reading that makes the metric non-trivial given `traced()` never emits `tool`+`ok:false`; **latency** p50/p95/max
+  (nearest-rank, null-safe on empty) over tool-call durations (excludes `kind:"metric"` measurements). `createCollector`
+  plugs into `traced()`'s `sink`, parsing each **already-redacted** `emit()` line → PII can't reach metrics (proven
+  by a test). 6 unit tests pin exact values.
+- **F040 (entry-line eval, `eval/golden/purchase-flow.json`).** Re-pointed the golden from the Stripe-era flow to
+  the real **Toss entry-line journey** (home→category→configure→cart→Toss test→PAID→mypage). S1–S9 map to the real
+  passing features + their actual E2E specs (`impl:true`); **S10** (durable Postgres/Asset persistence across
+  restart) is a genuine documented seam → `impl:false`, reported **pending, not success**. `pnpm eval` runs
+  end-to-end → `task_success_rate 0.9` (honest). **`eval/holdout/` untouched** (F041 boundary, G4).
+- **F042 (worker≠checker doc, `docs/WORKER_CHECKER.md`).** A real protocol: roles (worker doesn't self-certify),
+  3-tier independence, **refute-by-default** stance, Accept/Revise/Block verdicts, 6 review dimensions, and
+  recording-before-`passes:true` (tied to R4). `docs/EVAL.md` now links it + the stale `F032`→`F042` reference is
+  fixed. **Applied instance = this session's review** (below).
+- **Process — independent worker≠checker review (ADR-0005/F042):** 4 parallel adversarial sub-agents
+  (refute-by-default; barred from `pnpm test:e2e` to avoid port-3000 races since the suite was already green) →
+  **ALL ACCEPT, zero blocker/major/minor code findings.** Confirmed: warmup is honest steady-state (not gaming);
+  p95/percentile math correct; a11y audit logic + teeth sound, ARIA standards-compliant, no order-spec regression;
+  metric definitions match H2, edge-safe, PII-proven, tests have teeth; eval 0.9 honest, holdout untouched, pending
+  never counted as pass; F042 doc accurate vs the cited ADRs. The only item was **this ADR** (process ratification).
+- **Scope deviations (ratified, conflict-free — `feat/polish` solo, no concurrent writer):** F037's a11y sweep
+  edited TRACK-ORDER-owned `InfoStep.tsx`/`PhotoStep.tsx` — **additive ARIA only**, every `data-testid` preserved.
+  TRACK-POLISH is the **one track with no "Touch ONLY" allowlist** (stated scope = 전반/overall a11y sweep), and an
+  a11y *label* sweep structurally must touch form components. `perf.spec.ts` import-only consumes the real
+  `observability.emit()`. EVAL.md/golden edits are within track scope.
+- Gates: `pnpm check` green (lint+typecheck+**131 unit** [+6 metrics]+0 constraints R1–R8 incl. R4/R8) + **92 E2E**
+  (71 prior + 3 perf + 18 a11y; no regressions) + `pnpm eval` 0.9 (honest pending). F036/F037/F039/F040/F042 →
+  `passing` + dated evidence (R4 holds). **Product delivery 30→32/32 (100%); harness-track 7→10/10.**
+- Rejected: an **axe-core** dependency (kept hermetic/dep-pinned → hand-rolled audit + a teeth self-test instead);
+  fabricating a pending eval step for appearances (S10 is a genuine documented seam); measuring F036 against a
+  production build (E2E runs `next dev`; warm steady-state is the honest in-harness proxy); gold-plating ARIA
+  beyond the one real announced-error gap (TDD: no production code without a failing test).

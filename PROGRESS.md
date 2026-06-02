@@ -3,18 +3,21 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- Next action (single): **TRACK-MYPAGE (F017, F018) DONE + passing** (this work) — the entry-line buyer flow is
-  now complete end-to-end through **post-pay finishing**: `/mypage` order# + email lookup (verified vs
-  `order.buyerEmail`) → HMAC-signed, expiring, httpOnly per-order capability cookie → `/mypage/[orderId]`
-  (status + child-photo upload if skipped at checkout · dedication prefilled via the cookie-gated `no-store`
-  `/state` route · QR video upload revealed only when `Order.qrVideoAddon`). Access gate runs BEFORE any order
-  lookup (no existence oracle); writes re-verify the cookie + require PAID; uploads drive the REAL F029
-  `assets.ts` path (realizing F029's `e2e_via`). Finishing data lives in a mypage-owned hermetic store (Prisma
-  seam). Decisions/seams: **ADR-0014**. **Next pick (buyer flow complete): TRACK-POLISH** — top `passes:false`
-  product features are **F036** (perf p95<2s home/category) and **F037** (a11y: heading order/labels/alt);
-  harness extras **F039** (ops metrics), **F040** (entry-line eval), **F042** (worker≠checker protocol doc).
-  Prompts: `docs/SESSION_PROMPTS.md` (Wave 3 / TRACK-POLISH). Note: mypage routes are not yet wired into the
-  global Nav (F002-owned, import-only — like the custom/content routes; reachable post-pay via the order link).
+- Next action (single): **TRACK-POLISH (F036, F037, F039, F040, F042) DONE + passing** (this work) — the cross-cutting
+  polish track closes the entry line. **F036** perf budget (`perf.spec.ts`: p95<2s on home + both categories, measured
+  WARM steady-state via Navigation Timing, ~580–680ms / ≈3× headroom, each route's p95 emitted as a `kind:"metric"`
+  trace). **F037** a11y (`a11y.spec.ts`: a hermetic in-browser DOM audit over 14 pages + a teeth self-test; found+fixed
+  2 REAL defects — `PhotoStep`'s unlabelled file input + the order wizard's un-announced validation errors →
+  `aria-labelledby`/`role="alert"`/`aria-invalid`/`aria-describedby`). **F039** ops metrics (`src/lib/metrics.ts`:
+  error/failure rate + latency p50/p95 from the `traced()` stream, PII-safe via the redacted sink; `metrics.test.ts` +6).
+  **F040** entry-line eval (`golden` re-pointed Stripe→Toss; `task_success_rate 0.9` with the durable-persistence seam
+  honestly PENDING; **holdout untouched** per F041). **F042** worker≠checker protocol doc (`docs/WORKER_CHECKER.md`)
+  applied LIVE this session: 4 adversarial sub-agents reviewed F036/F037/F039/F040 → **ALL ACCEPT, 0 code findings**.
+  Decisions + scope-ratification (F037 touched TRACK-ORDER's `InfoStep`/`PhotoStep`, additive ARIA only): **ADR-0015**.
+  **ALL 42 features now passing (product 32/32 · harness 10/10).** **Next pick:** no open feature work — remaining items
+  are named backstage/production seams (durable Postgres/Asset persistence, real Toss browser SDK, real buyer auth — all
+  out of web scope) + the Stripe→Toss prose/CI residue cleanup follow-up below. mypage/custom routes still not Nav-wired
+  (F002-owned, import-only).
 - **TRACK-CHECKOUT decisions (ADR-0013 — read before mypage):** order persistence is a hermetic `globalThis`
   store + `ProcessedWebhook` ledger under `src/app/api/payments/_lib/` (Prisma adapter is the documented prod
   seam; hermetic items key by `templateKey`, prod resolves `templateKey`→`Template.id`). Amount is recomputed
@@ -42,15 +45,15 @@
   `docs/SAFETY.md`/`CONSTRAINTS.md`/`ARCHITECTURE.md` + `eval/golden` still say "Stripe". `.env.example` is on Toss.
 
 ## Current verified state   ← single source of truth
-- Last green `pnpm check`: **2026-06-02** (lint + typecheck + **125 unit** + 0 constraint violations, incl.
-  R4/R5/R8 invariants) — verified on `feat/mypage` (mypage adds no unit tests; its crypto branches are E2E-tested).
-- E2E (`pnpm test:e2e`): **71 passed** (home 2 + content 11 + category 4 + order/cart 18 + custom 11 +
-  checkout 12 + **mypage 13** [mypage-photo 8 + mypage-finish 5])
+- Last green `pnpm check`: **2026-06-02** (lint + typecheck + **131 unit** + 0 constraint violations, incl.
+  R4/R5/R8 invariants) — verified on `feat/polish` (TRACK-POLISH adds `metrics.test.ts` +6; F036/F037 are E2E-tested).
+- E2E (`pnpm test:e2e`): **92 passed** (71 prior + **3 perf** [perf.spec.ts] + **18 a11y** [a11y.spec.ts])
+- Eval (`pnpm eval`): `task_success_rate` **0.9** — 9 entry-line steps pass; 1 durable-persistence seam reported **pending** (honest, not success).
 - Boots via `./init.sh`: **yes** (install → check → ready, exit 0)
 - **Two honest, separate numbers** (`pnpm status`):
   - **Harness readiness** (machinery, product-agnostic): 85.2/100 → READY (see `SCORECARD.md`)
-  - **Product delivery** (그림책 제작소 store): **30 / 32 product features passing (94%)** — F001/F002 home, F003 payment, F004 DB+seed, F029 asset, F024–F028 content, F005/F006 catalog, F007–F011 + F019 order funnel, F020–F023 맞춤 제작, F012–F016 checkout, **F017/F018 mypage finishing**, F035 responsive (375px). Remaining: F036 perf, F037 a11y.
-  - harness-track features passing: **7 / 10** (+F034 checkout/confirm explicit verification)
+  - **Product delivery** (그림책 제작소 store): **32 / 32 product features passing (100%)** — F001/F002 home, F003 payment, F004 DB+seed, F029 asset, F024–F028 content, F005/F006 catalog, F007–F011 + F019 order funnel, F020–F023 맞춤 제작, F012–F016 checkout, F017/F018 mypage finishing, F035 responsive (375px), **F036 perf (p95<2s), F037 a11y**.
+  - harness-track features passing: **10 / 10** (+F034 checkout verification, **F039 ops metrics, F040 entry-line eval, F042 worker≠checker protocol**).
 - Bootstrap contract (build_guide §7): **MET** — boots, verified tests exist, AGENTS.md router, feature_list aligned.
 
 ## Status
@@ -58,6 +61,44 @@ Harness **INITIALIZED + review-hardened + repurposed to 그림책 제작소**. S
 feature_list/router) now reflects the real product; DESIGN.md (Atelier Sans) wired + enforced. Coding loop next.
 
 ## Session log (newest first)
+### 2026-06-02 — TRACK-POLISH (F036, F037, F039, F040, F042) cross-cutting polish + eval  [feat/polish]
+- Closed the entry line with the cross-cutting polish track (F035 375px was already done). Each feature TDD
+  (test-first, watched RED→GREEN), then ONE independent worker≠checker review before any `passes:true`.
+- **F036 perf** (`tests/e2e/perf.spec.ts`): asserts **p95 < 2000ms** on `/` + `/anniversary` + `/first-moments`,
+  measured as the browser's Navigation-Timing `duration` over **20 WARM loads** (2 unmeasured warmups absorb
+  `next dev`'s on-demand per-route compile; nearest-rank p95 drops only the single worst sample). Observed
+  ~580–680ms (≈3× headroom). Each route's p95 is emitted as a `kind:"metric"` line via the real
+  `observability.emit()`, tying perf into the F039 stream / OBSERVABILITY.md H3. Honest scope: the budget targets
+  steady-state serve latency (production proxy); a genuinely >2s page recurs on warm loads and fails (real teeth).
+- **F037 a11y** (`tests/e2e/a11y.spec.ts`): a **hand-rolled in-browser DOM audit** (no axe dep → hermetic) over
+  **14 pages** — heading order (first h1, no descending skips), every control accessibly named, every `<img>` has
+  alt — plus a **teeth self-test** (broken fixture → all 3 violation classes flagged) and a **wizard deep-step
+  audit** (the page sweep only sees initial render). Found + fixed **2 real defects**: `PhotoStep`'s file input had
+  no accessible name (label was a bare `<p>`) → `aria-labelledby`; the order wizard was the only form whose
+  validation errors weren't announced → `role="alert"` + `aria-invalid` + `aria-describedby` (`InfoStep`/`PhotoStep`).
+  Additive ARIA only → order specs still 13/13 (no regression).
+- **F039 ops metrics** (`src/lib/metrics.ts` + `tests/unit/metrics.test.ts` +6): `collectMetrics` /
+  `collectMetricsBySession` / `createCollector` derive error rate, tool-call failure rate, and latency p50/p95/max
+  from the `traced()` trace stream (per OBSERVABILITY.md H2). `createCollector` plugs into `traced()`'s sink and
+  consumes **already-redacted** `emit()` lines, so PII can't reach metrics (proven by a test). Null-safe on empty.
+- **F040 entry-line eval** (`eval/golden/purchase-flow.json`): re-pointed the Stripe-era golden to the real **Toss
+  entry-line journey** (S1–S9 → real passing features + their actual E2E specs, `impl:true`; S10 durable-persistence
+  seam `impl:false`). `pnpm eval` → `task_success_rate 0.9`, the seam reported **pending, not success**.
+  **`eval/holdout/` untouched** (F041 boundary, G4).
+- **F042 worker≠checker doc** (`docs/WORKER_CHECKER.md`): roles, 3-tier independence, refute-by-default stance,
+  Accept/Revise/Block, 6 dimensions, recording-before-`passes:true` (tied to R4). `docs/EVAL.md` links it + the
+  stale `F032`→`F042` reference fixed. **Applied instance = this session's review.**
+- **Process (worker≠checker, ADR-0005/F042):** 4 parallel adversarial sub-agents (refute-by-default; barred from
+  `pnpm test:e2e` to avoid port-3000 races since the suite was already green) reviewed F036/F037/F039/F040 →
+  **ALL ACCEPT, zero blocker/major/minor code findings.** The only item was this ADR (process ratification of
+  F037's additive-ARIA touch into TRACK-ORDER's `InfoStep`/`PhotoStep`). Decisions: **ADR-0015**.
+- Gates: `pnpm check` green (lint+typecheck+**131 unit**+0 constraints R1–R8 incl. R4/R8) + **92 E2E** (71 prior +
+  3 perf + 18 a11y, no regressions) + `pnpm eval` 0.9 (honest pending). F036/F037/F039/F040/F042 → `passing` +
+  dated evidence (R4 holds). **Product delivery 30→32/32 (100%); harness-track 7→10/10 (100%). ALL 42 features passing.**
+- Next: merge `feat/polish` → master (--no-ff), re-verify; the harness + entry-line product are complete. Remaining
+  open items are named backstage/production seams (durable persistence, real Toss SDK, real buyer auth) + the
+  Stripe→Toss prose/CI residue cleanup follow-up.
+
 ### 2026-06-02 — TRACK-MYPAGE (F017, F018) post-pay finishing (photo · dedication · QR)  [feat/mypage]
 - Built 마이페이지 post-pay finishing, completing the entry-line buyer flow end-to-end. **F017**: `/mypage` order#
   + email lookup (verified vs `order.buyerEmail`, uniform error → no existence oracle) → an HMAC-signed, expiring,

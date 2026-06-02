@@ -41,10 +41,11 @@ export function PhotoStep({
 
   return (
     <div className={styles.step}>
-      <p className={styles.label}>아이 사진 (선택 — 나중에 마이페이지에서 올려도 됩니다)</p>
-      <input type="file" accept="image/*" data-testid="order-photo-input" onChange={onFile} disabled={busy} />
+      <p className={styles.label} id="order-photo-label">아이 사진 (선택 — 나중에 마이페이지에서 올려도 됩니다)</p>
+      <input type="file" accept="image/*" data-testid="order-photo-input" aria-labelledby="order-photo-label"
+        onChange={onFile} disabled={busy} />
       {draft.photo && <p className={styles.photoStatus} data-testid="order-photo-status">사진 첨부됨</p>}
-      {error && <p className={styles.error} data-testid="order-photo-error">{error}</p>}
+      {error && <p className={styles.error} role="alert" data-testid="order-photo-error">{error}</p>}
       <div className={styles.nav}>
         <button className={styles.back} type="button" data-testid="order-back" onClick={onBack}>뒤로</button>
         <div className={styles.navGroup}>
