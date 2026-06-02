@@ -49,21 +49,22 @@ export function InfoStep({
       {errors.childGender && <p className={styles.error} data-testid="order-error-childGender">{errors.childGender}</p>}
 
       {spec && (
-        <div className={styles.field}>
-          <span className={styles.label} data-testid="order-extravar-label">{spec.label}</span>
-          {spec.inputType === "gender" ? (
-            <fieldset>
-              <label><input type="radio" name="extraVar" data-testid="order-extravar-male"
-                checked={draft.extraVarValue === "MALE"} onChange={() => onPatch({ extraVarValue: "MALE" })} /> 남아</label>
-              <label><input type="radio" name="extraVar" data-testid="order-extravar-female"
-                checked={draft.extraVarValue === "FEMALE"} onChange={() => onPatch({ extraVarValue: "FEMALE" })} /> 여아</label>
-            </fieldset>
-          ) : (
+        spec.inputType === "gender" ? (
+          <fieldset className={styles.field}>
+            <legend className={styles.label} data-testid="order-extravar-label">{spec.label}</legend>
+            <label><input type="radio" name="extraVar" data-testid="order-extravar-male"
+              checked={draft.extraVarValue === "MALE"} onChange={() => onPatch({ extraVarValue: "MALE" })} /> 남아</label>
+            <label><input type="radio" name="extraVar" data-testid="order-extravar-female"
+              checked={draft.extraVarValue === "FEMALE"} onChange={() => onPatch({ extraVarValue: "FEMALE" })} /> 여아</label>
+          </fieldset>
+        ) : (
+          <label className={styles.field}>
+            <span className={styles.label} data-testid="order-extravar-label">{spec.label}</span>
             <input className={styles.input} data-testid="order-extravar-input"
               type={spec.inputType === "date" ? "date" : spec.inputType === "number" ? "number" : "text"}
               value={draft.extraVarValue} onChange={(e) => onPatch({ extraVarValue: e.target.value })} />
-          )}
-        </div>
+          </label>
+        )
       )}
       {errors.extraVar && <p className={styles.error} data-testid="order-error-extraVar">{errors.extraVar}</p>}
 
