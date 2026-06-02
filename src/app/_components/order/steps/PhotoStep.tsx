@@ -16,18 +16,26 @@ export function PhotoStep({
   const [busy, setBusy] = useState(false);
 
   const onFile = async (e: ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const input = e.target;
+    const file = input.files?.[0];
     if (!file) return;
     setBusy(true);
     setError(null);
-    const fd = new FormData();
-    fd.set("photo", file);
-    const res = await uploadChildPhoto(fd);
-    setBusy(false);
-    if (res.ok) onPatch({ photo: res.photo });
-    else {
-      setError(res.error);
+    try {
+      const fd = new FormData();
+      fd.set("photo", file);
+      const res = await uploadChildPhoto(fd);
+      if (res.ok) onPatch({ photo: res.photo });
+      else {
+        setError(res.error);
+        onPatch({ photo: null });
+      }
+    } catch {
+      setError("사진을 올리지 못했습니다. 잠시 후 다시 시도해 주세요.");
       onPatch({ photo: null });
+    } finally {
+      setBusy(false);
+      input.value = ""; // allow re-selecting the same file to re-fire onChange
     }
   };
 
