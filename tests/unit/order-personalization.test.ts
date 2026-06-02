@@ -48,4 +48,15 @@ describe("validatePersonalization", () => {
     expect(toExtraVarValue("NONE", "x")).toBeNull();
     expect(toExtraVarValue("AGE", " 2 ")).toEqual({ kind: "AGE", value: "2" });
   });
+
+  it("BIRTHDATE rejects non-YYYY-MM-DD Date-parseable strings", () => {
+    expect(validatePersonalization({ ...base, extraVarValue: "2024/01/15" }, "BIRTHDATE").extraVar).toBeDefined();
+    expect(validatePersonalization({ ...base, extraVarValue: "12345" }, "BIRTHDATE").extraVar).toBeDefined();
+  });
+
+  it("AGE rejects hex and exponent forms; plain digit string still valid", () => {
+    expect(validatePersonalization({ ...base, extraVarValue: "0x5" }, "AGE").extraVar).toBeDefined();
+    expect(validatePersonalization({ ...base, extraVarValue: "1e1" }, "AGE").extraVar).toBeDefined();
+    expect(isValid(validatePersonalization({ ...base, extraVarValue: "3" }, "AGE"))).toBe(true);
+  });
 });

@@ -52,18 +52,38 @@ export function validatePersonalization(
     const v = raw.extraVarValue.trim();
     if (v.length === 0) {
       errors.extraVar = "필수 항목을 입력해 주세요.";
-    } else if (extraVar === "BIRTHDATE") {
-      const ms = Date.parse(v);
-      if (Number.isNaN(ms)) errors.extraVar = "올바른 날짜를 입력해 주세요.";
-      else if (ms > Date.now()) errors.extraVar = "미래 날짜는 입력할 수 없습니다.";
-    } else if (extraVar === "AGE") {
-      const n = Number(v);
-      if (!Number.isInteger(n) || n < 1 || n > 12)
-        errors.extraVar = "1에서 12 사이의 숫자를 입력해 주세요.";
-    } else if (extraVar === "SIBLING_GENDER") {
-      if (v !== "MALE" && v !== "FEMALE") errors.extraVar = "동생의 성별을 선택해 주세요.";
-    } else if (v.length > TEXT_MAX) {
-      errors.extraVar = `${TEXT_MAX}자 이내로 입력해 주세요.`;
+    } else {
+      switch (extraVar) {
+        case "BIRTHDATE": {
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+            errors.extraVar = "올바른 날짜를 입력해 주세요.";
+          } else {
+            const ms = Date.parse(v);
+            if (Number.isNaN(ms)) errors.extraVar = "올바른 날짜를 입력해 주세요.";
+            else if (ms > Date.now()) errors.extraVar = "미래 날짜는 입력할 수 없습니다.";
+          }
+          break;
+        }
+        case "AGE": {
+          const n = Number(v);
+          if (!/^\d+$/.test(v) || !Number.isInteger(n) || n < 1 || n > 12)
+            errors.extraVar = "1에서 12 사이의 숫자를 입력해 주세요.";
+          break;
+        }
+        case "SIBLING_GENDER": {
+          if (v !== "MALE" && v !== "FEMALE") errors.extraVar = "동생의 성별을 선택해 주세요.";
+          break;
+        }
+        case "SCHOOL":
+        case "FIRST_WORD": {
+          if (v.length > TEXT_MAX) errors.extraVar = `${TEXT_MAX}자 이내로 입력해 주세요.`;
+          break;
+        }
+        default: {
+          const _exhaustive: never = extraVar;
+          void _exhaustive;
+        }
+      }
     }
   }
   return errors;
