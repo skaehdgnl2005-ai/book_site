@@ -1,7 +1,7 @@
 {
   "name": "purchase-flow",
   "optimal_steps": 9,
-  "description": "Canonical 그림책 제작소 ENTRY-LINE buyer journey (기념일/첫 순간들): home → category → configure → cart → TossPayments (test) → PAID confirmation → mypage finishing. Graded as features land; each step names the real E2E/integration check that grades it. Durable Postgres persistence (orders/finishing/custom) is now wired (Prisma, verified across a simulated restart); the remaining seam is durable object storage of upload BYTES, reported as PENDING until verified. Unbuilt steps report as PENDING, never success. Holdout variants live in eval/holdout/ and are never used to tune (G4).",
+  "description": "Canonical 그림책 제작소 ENTRY-LINE buyer journey (기념일/첫 순간들): home → category → configure → cart → TossPayments (test) → PAID confirmation → mypage finishing. Graded as features land; each step names the real E2E/integration check that grades it. Durable Postgres persistence (orders/finishing/custom) is wired (Prisma, verified across a simulated restart) AND durable object storage of upload BYTES is live (Supabase Storage, verified by an upload→read-back→cleanup round-trip). Unbuilt steps report as PENDING, never success. Holdout variants live in eval/holdout/ and are never used to tune (G4).",
   "steps": [
     { "id": "S1", "desc": "Home renders the brand hero + 3-category featured region", "verify": "e2e: home.spec.ts", "impl": true, "feature": "F002" },
     { "id": "S2", "desc": "Open the 기념일 category and see the seeded template cards", "verify": "e2e: category-anniversary.spec.ts", "impl": true, "feature": "F005" },
@@ -13,6 +13,6 @@
     { "id": "S8", "desc": "Order confirmation shows items, total, status PAID (no PII)", "verify": "e2e: order-confirm.spec.ts", "impl": true, "feature": "F014" },
     { "id": "S9", "desc": "Mypage finishing: dedication saved + prefilled, photo upload if skipped", "verify": "e2e: mypage-finish.spec.ts", "impl": true, "feature": "F017" },
     { "id": "S10", "desc": "Paid order + per-item finishing (dedication, photo descriptor) persist to Postgres across a restart", "verify": "integration: Prisma persistence (order create→get→markPaid survives a fresh client; finishing round-trip)", "impl": true, "feature": "F012/F017 (Prisma OrderRepo + FinishingStore)" },
-    { "id": "S11", "desc": "Uploaded photo BYTES stored durably in object storage (Supabase Storage), not just the descriptor", "verify": "integration: Supabase Storage putObject round-trip (needs SUPABASE_SERVICE_ROLE_KEY)", "impl": false, "feature": "seam: object-storage bytes — wired + unit-tested, live verification pending the storage key (ADR-0016)" }
+    { "id": "S11", "desc": "Uploaded photo BYTES stored durably in object storage (Supabase Storage), not just the descriptor", "verify": "integration: Supabase Storage putObject round-trip (persistence-integration.test.ts) — upload → read-back → cleanup", "impl": true, "feature": "F009/F017 (src/lib/storage.ts) — live-verified against Supabase Storage (ADR-0016)" }
   ]
 }

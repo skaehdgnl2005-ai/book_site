@@ -389,9 +389,9 @@ implement → adversarial review → commit) was completed autonomously.
   `redact()`-covered. Env-gated: unconfigured ⇒ `putObject` is a **no-op** (descriptor-only, hermetic E2E unaffected);
   configured ⇒ real PUT, errors surface. Wired into both upload paths (`order/photo-action.ts` pre-pay +
   `mypage/_lib/actions.ts`). `next.config` `serverActions.bodySizeLimit: 25mb` (default 1MB rejects real photos; QR
-  video is no longer uploaded so this need only fit photos). **LIVE byte round-trip is UNVERIFIED** pending the
-  `SUPABASE_SERVICE_ROLE_KEY` (maker unavailable to paste it) → recorded honestly as **eval S11 PENDING**; code is
-  complete + unit-tested + gated.
+  video is no longer uploaded so this need only fit photos). **LIVE byte round-trip VERIFIED** — once the maker created
+  the private `assets` bucket + supplied the `service_role` key, a gated integration test uploaded an object, read the
+  exact bytes back, and deleted it (eval **S11 PASS**). (It was honestly PENDING until the key arrived.)
 - **QR option B.** The order keeps the `qrVideoAddon` flag end-to-end; mypage shows an honest **backstage notice**
   (영상은 제작팀이 카카오톡·이메일로 따로 안내), **no web upload**. Removed `uploadQrVideo` +
   `FinishingStore.getQrVideo/setQrVideo`. Rationale: an optional, unpriced add-on doesn't warrant self-serve
@@ -403,8 +403,9 @@ implement → adversarial review → commit) was completed autonomously.
 - **Verification.** `pnpm check` green (lint + typecheck + **145 unit** + constraints R1–R8 0); **92 hermetic E2E**
   (in-memory; `.env.local` moved aside so Next doesn't load the DB env); a gated live-Supabase integration test
   (`tests/unit/persistence-integration.test.ts`, `skipIf(!DATABASE_URL)`) **4/4** incl. **restart-survival** (a fresh
-  PrismaClient reads committed rows); `pnpm eval` **0.909** (S10 Postgres-persistence PASS; S11 object-storage bytes
-  PENDING). Throwaway raw-`node` proofs were run + deleted during dev; the gated vitest test is the durable artifact.
+  PrismaClient reads committed rows) + a Supabase **Storage** byte round-trip (upload→read-back→cleanup); `pnpm eval`
+  **1.0** (S10 Postgres-persistence + S11 object-storage bytes both PASS). Throwaway raw-`node` proofs were run + deleted
+  during dev; the gated vitest test is the durable artifact.
 - **Process — independent worker≠checker (ADR-0005/F042).** 4 parallel refute-by-default sub-agents
   (adapter-correctness / hermetic-safety / security-PII / async-completeness). **3 Major fixed:** (1) untrusted slot
   format → boundary validation; (2) `setPhoto` one-to-one `photoAsset` collision (reachable via the server action when

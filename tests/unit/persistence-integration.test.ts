@@ -7,12 +7,15 @@
  * the committed rows). Creates and then DELETES everything it touches (no DB pollution).
  */
 import { describe, it, expect, afterAll } from "vitest";
+import { randomUUID } from "node:crypto";
 import { getDb, type Db } from "../../src/lib/db";
 import { createPrismaOrderRepo, type OrderDraft } from "../../src/app/api/payments/_lib/orders";
 import { createPrismaFinishingStore } from "../../src/app/mypage/_lib/finishing";
 import { createPrismaBackend, buildWrittenIntake, buildPhoneIntake } from "../../src/lib/customRequest";
+import { storageConfig, putObject } from "../../src/lib/storage";
 
 const hasDb = !!process.env.DATABASE_URL;
+const hasStorage = !!storageConfig();
 const fresh = (): Promise<Db> => getDb(undefined, {}); // a fresh store ⇒ brand-new client = simulated restart
 
 const orderIds: string[] = [];
@@ -121,5 +124,34 @@ describe.skipIf(!hasDb)("Supabase persistence integration", () => {
       await db.customRequest.delete({ where: { id } });
     }
     await db.$disconnect();
+  });
+});
+
+// Gated on the SUPABASE_* storage config (separate from DATABASE_URL). Proves photo BYTES durably
+// round-trip through Supabase Storage (eval S11). Uploads a tiny object, reads it back, deletes it.
+describe.skipIf(!hasStorage)("Supabase Storage integration (eval S11)", () => {
+  it("putObject stores bytes that round-trip from the private bucket, then cleans up", async () => {
+    const cfg = storageConfig();
+    if (!cfg) return;
+    const key = `child-photo/itest-${randomUUID()}.jpg`;
+    const bytes = new Uint8Array([1, 2, 3, 4, 5, 250]);
+    const auth = { Authorization: `Bearer ${cfg.serviceKey}` };
+    const objectUrl = `${cfg.url}/storage/v1/object/${cfg.bucket}/${key}`;
+
+    try {
+      const res = await putObject(key, "image/jpeg", bytes);
+      expect(res).toEqual({ stored: true });
+
+      // Read it back via the Storage REST API (service_role) — proves the bytes are durably stored.
+      const got = await fetch(objectUrl, { headers: auth });
+      expect(got.ok).toBe(true);
+      expect(Array.from(new Uint8Array(await got.arrayBuffer()))).toEqual([1, 2, 3, 4, 5, 250]);
+    } finally {
+      await fetch(objectUrl, { method: "DELETE", headers: auth });
+    }
+  });
+
+  it("unconfigured putObject is a no-op (descriptor-only), independent of the live bucket", async () => {
+    expect(await putObject("child-photo/x.jpg", "image/jpeg", new Uint8Array([1]), { config: null })).toEqual({ stored: false });
   });
 });

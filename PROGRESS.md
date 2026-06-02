@@ -7,9 +7,9 @@
   orders/finishing/custom surfaces, gated on `DATABASE_URL`, no silent write-fallback), photo bytes → Supabase Storage
   (`src/lib/storage.ts`, env-gated), QR **option B** (flag + backstage notice, no web upload). Gates: `pnpm check` 145
   unit + 92 hermetic E2E + gated live-Supabase integration **4/4 (restart-survival)** + `pnpm eval` 0.909.
-  **⤷ ONE maker step remains:** create a **PRIVATE `assets` Storage bucket** + paste `SUPABASE_SERVICE_ROLE_KEY` into
-  `.env.local` → then photo-byte storage is live and **eval S11** is verifiable (`set -a; . .env.local; set +a;
-  pnpm exec vitest run persistence-integration`). Prior work: **TRACK-POLISH (F036, F037, F039, F040, F042) DONE + passing** — the cross-cutting
+  **⤷ Maker step DONE:** the PRIVATE `assets` bucket + `SUPABASE_SERVICE_ROLE_KEY` are in place → photo-byte storage is
+  LIVE and **eval S11 verified** (upload→read-back→cleanup), so **`pnpm eval` is now 1.0**. All seams closed. Prior work:
+  **TRACK-POLISH (F036, F037, F039, F040, F042) DONE + passing** — the cross-cutting
   polish track closes the entry line. **F036** perf budget (`perf.spec.ts`: p95<2s on home + both categories, measured
   WARM steady-state via Navigation Timing, ~580–680ms / ≈3× headroom, each route's p95 emitted as a `kind:"metric"`
   trace). **F037** a11y (`a11y.spec.ts`: a hermetic in-browser DOM audit over 14 pages + a teeth self-test; found+fixed
@@ -55,10 +55,11 @@
   R4/R5/R8 invariants) — incl. ADR-0016 (DB persistence + storage + QR-B). The live-Supabase integration test
   (`persistence-integration.test.ts`) is **gated `skipIf(!DATABASE_URL)`** → skipped in hermetic check.
 - E2E (`pnpm test:e2e`): **92 passed** (hermetic / in-memory; run with `.env.local` moved aside so Next doesn't load the DB env).
-- Live-Supabase integration (`set -a; . .env.local; set +a; pnpm exec vitest run persistence-integration`): **4/4** —
-  orders / finishing / custom round-trip AND **survive a restart** (fresh PrismaClient reads committed rows); self-cleans.
-- Eval (`pnpm eval`): `task_success_rate` **0.909** — S1–S10 pass (incl. S10 durable **Postgres** persistence, now wired);
-  S11 (durable object-storage of upload **bytes**) reported **pending** — code complete + gated, live verify needs `SUPABASE_SERVICE_ROLE_KEY`.
+- Live-Supabase integration (`set -a; . .env.local; set +a; pnpm exec vitest run persistence-integration`): **6/6** —
+  orders / finishing / custom round-trip AND **survive a restart** (fresh PrismaClient reads committed rows), PLUS
+  **photo-byte storage** (Supabase Storage upload → read-back → cleanup); self-cleans, no pollution.
+- Eval (`pnpm eval`): `task_success_rate` **1.0** — all 11 steps pass, incl. S10 durable **Postgres** persistence AND
+  S11 durable object-storage of upload **bytes** (Supabase Storage, live-verified by the upload→read-back→cleanup round-trip).
 - Boots via `./init.sh`: **yes** (install → check → ready, exit 0)
 - **Two honest, separate numbers** (`pnpm status`):
   - **Harness readiness** (machinery, product-agnostic): 85.2/100 → READY (see `SCORECARD.md`)
@@ -83,17 +84,17 @@ feature_list/router) now reflects the real product; DESIGN.md (Atelier Sans) wir
   `CustomStatus.PENDING_PAYMENT`.
 - **Photo bytes → Supabase Storage** (`src/lib/storage.ts`, TDD): `putObject` server-only `service_role` PUT, env-gated
   (unconfigured ⇒ no-op descriptor-only ⇒ hermetic E2E unaffected). Wired into pre-pay (`photo-action.ts`) + mypage
-  (`actions.ts`). `next.config` `serverActions.bodySizeLimit:25mb`. **S11 byte round-trip UNVERIFIED** pending the
-  `SUPABASE_SERVICE_ROLE_KEY` (placeholder in `.env.local`).
+  (`actions.ts`). `next.config` `serverActions.bodySizeLimit:25mb`. **S11 byte round-trip LIVE-VERIFIED** against the
+  private `assets` bucket (upload→read-back→cleanup) once the maker supplied the `service_role` key.
 - **QR option B**: order keeps the `qrVideoAddon` flag; mypage shows a backstage notice, **no web upload**
   (`uploadQrVideo` + `FinishingStore` QR methods removed). F018 + `mypage-finish.spec.ts` re-spec'd.
 - **worker≠checker** (4 refute-by-default sub-agents): **3 Major + 4 Minor/latent fixed** (slot boundary-validation;
   `setPhoto` upsert vs one-to-one collision; `redact()` now covers `service_role` JWT/`sb_secret_`; storageKey
   path-guard; finishing relative-import; `@@unique` invariant; stale comment). 1 pre-existing key-nondeterminism noted.
 - **Gates:** `pnpm check` green (lint+typecheck+**145 unit**+constraints R1–R8 0); **92 hermetic E2E**; gated live-Supabase
-  integration test (`persistence-integration.test.ts`) **4/4 incl. restart-survival**; `pnpm eval` **0.909** (S10 Postgres
-  PASS, S11 bytes PENDING). **One remaining maker step:** paste `SUPABASE_SERVICE_ROLE_KEY` into `.env.local` (create a
-  PRIVATE `assets` bucket) → then byte storage is live + S11 verifiable.
+  integration test (`persistence-integration.test.ts`) **6/6** (orders/finishing/custom restart-survival + photo-byte
+  Storage round-trip); `pnpm eval` **1.0** (S10 Postgres + S11 object-storage bytes both verified). **All persistence
+  seams closed** — the maker supplied the `service_role` key + `assets` bucket, so byte storage is live.
 
 ### 2026-06-02 — TRACK-POLISH (F036, F037, F039, F040, F042) cross-cutting polish + eval  [feat/polish]
 - Closed the entry line with the cross-cutting polish track (F035 375px was already done). Each feature TDD
