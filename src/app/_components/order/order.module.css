@@ -1,0 +1,65 @@
+/* order funnel + cart — Atelier Sans. Tokens only (R6: no box-shadow; R7: no pure white/black).
+   Radius 0; depth = tone steps + 1px --line hairlines; serif reserved for book titles. */
+.wizard { padding: var(--space-lg) 0; max-width: 640px; }
+.step { display: flex; flex-direction: column; gap: var(--space-md); }
+
+.field { display: flex; flex-direction: column; gap: var(--space-xs); border: 0; margin: 0; padding: 0; }
+.label {
+  font-family: var(--font-grotesk); font-weight: 600; font-size: 0.78rem;
+  letter-spacing: 0.04em; color: var(--ink);
+}
+.input {
+  font-family: var(--font-sans); font-size: 1rem; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 0.7em 0.9em;
+}
+.input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.error { margin: 0; font-size: 0.82rem; color: var(--accent); }
+
+.choices { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
+.choice {
+  display: inline-flex; align-items: baseline; gap: var(--space-xs);
+  padding: 0.8em 1em; border: 1px solid var(--line); background: var(--surface);
+  font-family: var(--font-grotesk); font-size: 0.9rem; cursor: pointer;
+}
+.choiceActive { border-color: var(--accent); color: var(--accent); }
+.choicePrice { font-size: 0.78rem; color: var(--muted); }
+
+.linePrice {
+  font-family: var(--font-grotesk); font-weight: 600; font-size: 1.1rem; color: var(--ink);
+  padding-top: var(--space-sm); border-top: 1px solid var(--line);
+}
+.qrRow { display: flex; align-items: flex-start; gap: var(--space-sm); }
+.qrNote { margin: 0; font-size: 0.82rem; color: var(--muted); }
+.photoStatus { margin: 0; font-family: var(--font-grotesk); font-size: 0.9rem; color: var(--accent); }
+
+.summary {
+  display: flex; flex-direction: column; gap: var(--space-xs);
+  padding: var(--space-md); border: 1px solid var(--line); background: var(--surface);
+}
+.summaryTitle { font-family: var(--font-serif-ko); font-size: 1.2rem; color: var(--ink); }
+.summaryRow { display: flex; justify-content: space-between; gap: var(--space-sm); font-size: 0.92rem; color: var(--grey); }
+
+.nav { display: flex; justify-content: space-between; gap: var(--space-sm); margin-top: var(--space-md); }
+.navGroup { display: flex; gap: var(--space-sm); }
+.back {
+  font-family: var(--font-grotesk); font-weight: 600; font-size: 0.78rem; letter-spacing: 0.08em;
+  background: transparent; border: 1px solid var(--line); color: var(--ink);
+  padding: 1.05em 2.2em; cursor: pointer;
+}
+
+/* cart */
+.cart { padding: var(--space-lg) 0; max-width: 720px; }
+.cartLine {
+  display: flex; flex-direction: column; gap: var(--space-xs);
+  padding: var(--space-md) 0; border-bottom: 1px solid var(--line);
+}
+.cartLineTitle { font-family: var(--font-serif-ko); font-size: 1.25rem; color: var(--ink); }
+.cartLineMeta { font-size: 0.9rem; color: var(--grey); }
+.cartTotals {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--line);
+}
+.grandTotal { font-family: var(--font-grotesk); font-weight: 700; font-size: 1.3rem; color: var(--ink); }
+.empty { display: flex; flex-direction: column; align-items: center; gap: var(--space-md); padding: var(--space-xl) 0; color: var(--grey); }
+.qrTag { margin: var(--space-sm) 0 0; font-size: 0.82rem; color: var(--muted); }
