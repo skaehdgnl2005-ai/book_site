@@ -1,7 +1,7 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import {
   emptyCart, lineTotalWon, grandTotalWon, addLine, removeLine, setQrAddon,
-  orderName, toCheckoutSummary, QR_ADDON_WON, type CartLine,
+  orderName, toCheckoutSummary, QR_ADDON_WON, loadCart, saveCart, type CartLine,
 } from "../../src/lib/cart";
 
 const line = (id: string, label: string, won: number): CartLine => ({
@@ -53,5 +53,59 @@ describe("cart model", () => {
     const c = emptyCart();
     addLine(c, line("a", "돌", 43000));
     expect(c.lines).toHaveLength(0);
+  });
+});
+
+// ── localStorage stub ────────────────────────────────────────────────────────
+
+function stubLocalStorage(initial: Record<string, string> = {}) {
+  const store = new Map(Object.entries(initial));
+  (globalThis as unknown as { window?: unknown }).window = {
+    localStorage: {
+      getItem: (k: string) => store.get(k) ?? null,
+      setItem: (k: string, v: string) => void store.set(k, v),
+      removeItem: (k: string) => void store.delete(k),
+    },
+  };
+  return store;
+}
+
+const STORAGE_KEY = "gpms.cart.v1";
+
+describe("cart persistence (localStorage)", () => {
+  afterEach(() => {
+    delete (globalThis as unknown as { window?: unknown }).window;
+  });
+
+  it("round-trips a cart with lines and qrVideoAddon through save/load", () => {
+    stubLocalStorage();
+    const original = setQrAddon(addLine(emptyCart(), line("r1", "돌", 43000)), true);
+    saveCart(original);
+    const restored = loadCart();
+    expect(restored.lines).toHaveLength(1);
+    expect(restored.lines[0].id).toBe("r1");
+    expect(restored.qrVideoAddon).toBe(true);
+  });
+
+  it("returns emptyCart() when stored value is malformed JSON", () => {
+    stubLocalStorage({ [STORAGE_KEY]: "{ not json" });
+    expect(loadCart()).toEqual(emptyCart());
+  });
+
+  it("returns emptyCart() when lines is not an array", () => {
+    stubLocalStorage({ [STORAGE_KEY]: '{"lines":"x"}' });
+    expect(loadCart()).toEqual(emptyCart());
+  });
+
+  it("drops malformed lines but keeps valid ones", () => {
+    const validLine = line("v1", "생일", 49000);
+    const seeded = JSON.stringify({
+      lines: [validLine, null, { unitPriceWon: "oops" }],
+      qrVideoAddon: false,
+    });
+    stubLocalStorage({ [STORAGE_KEY]: seeded });
+    const result = loadCart();
+    expect(result.lines).toHaveLength(1);
+    expect(result.lines[0].id).toBe("v1");
   });
 });

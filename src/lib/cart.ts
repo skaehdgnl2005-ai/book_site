@@ -36,8 +36,8 @@ export function lineTotalWon(line: CartLine): number {
 }
 
 export function grandTotalWon(cart: Cart): number {
-  const lines = cart.lines.reduce((sum, l) => sum + lineTotalWon(l), 0);
-  return lines + (cart.qrVideoAddon ? QR_ADDON_WON : 0);
+  const lineSum = cart.lines.reduce((sum, l) => sum + lineTotalWon(l), 0);
+  return lineSum + (cart.qrVideoAddon ? QR_ADDON_WON : 0);
 }
 
 export function addLine(cart: Cart, line: CartLine): Cart {
@@ -67,6 +67,22 @@ export function toCheckoutSummary(cart: Cart): {
 }
 
 // ── client persistence (SSR-safe: empty cart on the server) ──
+
+function isValidLine(l: unknown): l is CartLine {
+  if (!l || typeof l !== "object") return false;
+  const x = l as Record<string, unknown>;
+  return (
+    typeof x.id === "string" &&
+    typeof x.templateKey === "string" &&
+    typeof x.templateLabel === "string" &&
+    (x.coverType === "SOFT" || x.coverType === "HARD") &&
+    typeof x.unitPriceWon === "number" &&
+    Number.isFinite(x.unitPriceWon) &&
+    !!x.personalization &&
+    typeof x.personalization === "object"
+  );
+}
+
 export function loadCart(): Cart {
   if (typeof window === "undefined") return emptyCart();
   try {
@@ -74,7 +90,8 @@ export function loadCart(): Cart {
     if (!raw) return emptyCart();
     const parsed = JSON.parse(raw) as Partial<Cart>;
     if (!parsed || !Array.isArray(parsed.lines)) return emptyCart();
-    return { lines: parsed.lines as CartLine[], qrVideoAddon: Boolean(parsed.qrVideoAddon) };
+    const lines = (parsed.lines as unknown[]).filter(isValidLine);
+    return { lines, qrVideoAddon: Boolean(parsed.qrVideoAddon) };
   } catch {
     return emptyCart();
   }
