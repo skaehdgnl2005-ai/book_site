@@ -1,0 +1,22 @@
+/* order confirmation — Atelier Sans. Tokens only (R6: no box-shadow; R7: no pure white/black). */
+.order { padding: var(--space-lg) 0; max-width: 720px; }
+.meta { margin: 0; font-family: var(--font-grotesk); font-size: 0.85rem; letter-spacing: 0.04em; color: var(--muted); }
+.statusRow { margin: var(--space-xs) 0 var(--space-md); font-size: 0.92rem; color: var(--grey); }
+.status { font-family: var(--font-grotesk); font-weight: 700; letter-spacing: 0.06em; color: var(--accent); }
+
+.items { list-style: none; margin: 0; padding: 0; }
+.item {
+  display: flex; flex-direction: column; gap: var(--space-xs);
+  padding: var(--space-md) 0; border-bottom: 1px solid var(--line);
+}
+.itemTitle { font-family: var(--font-serif-ko); font-size: 1.25rem; color: var(--ink); }
+.itemMeta { font-size: 0.9rem; color: var(--grey); }
+.itemPrice { font-family: var(--font-grotesk); font-weight: 600; font-size: 1rem; color: var(--ink); }
+
+.totals {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--line);
+}
+.grandTotal { font-family: var(--font-grotesk); font-weight: 700; font-size: 1.3rem; color: var(--ink); }
+.qrTag { margin: var(--space-sm) 0 0; font-size: 0.82rem; color: var(--muted); }
+.note { margin: var(--space-md) 0 0; font-size: 0.9rem; color: var(--grey); }
