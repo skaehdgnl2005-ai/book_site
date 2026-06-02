@@ -8,6 +8,14 @@ import {
   type TemplateExtraVar,
 } from "../../src/app/_components/catalog/templates";
 import { ENTRY_TEMPLATES } from "../../prisma/seed";
+import type { TemplateExtraVar as SeedExtraVar } from "../../prisma/seed";
+// Compile-time parity: the catalog's local TemplateExtraVar union must equal the seed's
+// union EXACTLY (bidirectional assignability), independent of whether a new member is yet
+// used by any template row — guards the deliberate type copy directly, not just via data.
+const _extraVarParityForward: SeedExtraVar = null as unknown as TemplateExtraVar;
+const _extraVarParityBackward: TemplateExtraVar = null as unknown as SeedExtraVar;
+void _extraVarParityForward;
+void _extraVarParityBackward;
 
 // Catalog data access for the category pages (F005 기념일 / F006 첫 순간들).
 //
@@ -175,7 +183,7 @@ describe("catalog extraVar — drift guard vs prisma/seed.ts (no DATABASE_URL)",
     }
   });
 
-  it("the mirror's set of extraVar values equals the seed's set (catches a new enum member)", () => {
+  it("the mirror's set of extraVar values equals the seed's set (catches a new enum member ONCE a template uses it)", () => {
     const seedSet = new Set(ENTRY_TEMPLATES.map((t) => t.extraVar));
     const mirrorSet = new Set<TemplateExtraVar>();
     // pull the mirror via getTemplateByKey for each seed key
