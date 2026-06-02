@@ -1,0 +1,169 @@
+/* 마이페이지 (F017/F018) — Atelier Sans tokens only (globals.css :root). Depth = tone steps +
+   1px --line hairlines (no box-shadow, R6); radius 0; no pure white/black (R7). */
+
+.panel {
+  border-top: 1px solid var(--line);
+  padding: var(--space-lg) 0;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  max-width: 30rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  font-family: var(--font-grotesk);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.input {
+  width: 100%;
+  padding: 0.85em 1em;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-color: var(--accent);
+}
+
+.meta {
+  margin: 0 0 var(--space-xs);
+  font-family: var(--font-grotesk);
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+.statusRow {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--grey);
+}
+.status {
+  font-family: var(--font-grotesk);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+
+.items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--grid-row);
+}
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  padding: var(--space-lg) var(--space-md);
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.itemTitle {
+  margin: 0;
+  font-family: var(--font-serif-ko); /* serif reserved for the KO book title */
+  font-size: 1.3rem;
+  line-height: 1.4;
+  color: var(--ink);
+}
+.itemMeta {
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  color: var(--grey);
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  padding-top: var(--space-md);
+  border-top: 1px solid var(--line);
+}
+.controlLabel {
+  margin: 0;
+  font-family: var(--font-grotesk);
+  font-size: 0.74rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.controlRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.textarea {
+  width: 100%;
+  padding: 0.85em 1em;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.7;
+  resize: vertical;
+}
+.textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-color: var(--accent);
+}
+
+.photoStatus {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--accent);
+}
+.savedNote {
+  font-family: var(--font-grotesk);
+  font-size: 0.78rem;
+  letter-spacing: 0.06em;
+  color: var(--accent);
+}
+.note {
+  margin: 0;
+  font-size: 0.98rem;
+  line-height: 1.75;
+  color: var(--grey);
+}
+.error {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--accent);
+}
+
+.qrSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-top: var(--grid-row);
+  padding: var(--space-lg) var(--space-md);
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+.qrNote {
+  margin: 0 0 var(--space-xs);
+  font-size: 0.9rem;
+  color: var(--grey);
+}

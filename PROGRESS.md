@@ -3,22 +3,28 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- Next action (single): **TRACK-CHECKOUT (F012–F016, F034) DONE + passing** (this work) — the entry-line
-  buyer flow is now end-to-end: `/cart` 결제하기 → `/checkout` buyer step → Toss **(test)** payment → **PAID**
-  (sync confirm + async signature-verified webhook, idempotent via `ProcessedWebhook`) → `/orders/[id]`
-  confirmation; failure/cancel handled (cart preserved). **F035 completed** (checkout 375px). Next in the buyer
-  flow: **TRACK-MYPAGE (F017/F018)** — post-pay finishing (photo upload if skipped, dedication, QR video reveal
-  if the add-on was chosen); it reads orders (production Prisma seam) + the F029 asset path. Prompts: `docs/SESSION_PROMPTS.md`.
+- Next action (single): **TRACK-MYPAGE (F017, F018) DONE + passing** (this work) — the entry-line buyer flow is
+  now complete end-to-end through **post-pay finishing**: `/mypage` order# + email lookup (verified vs
+  `order.buyerEmail`) → HMAC-signed, expiring, httpOnly per-order capability cookie → `/mypage/[orderId]`
+  (status + child-photo upload if skipped at checkout · dedication prefilled via the cookie-gated `no-store`
+  `/state` route · QR video upload revealed only when `Order.qrVideoAddon`). Access gate runs BEFORE any order
+  lookup (no existence oracle); writes re-verify the cookie + require PAID; uploads drive the REAL F029
+  `assets.ts` path (realizing F029's `e2e_via`). Finishing data lives in a mypage-owned hermetic store (Prisma
+  seam). Decisions/seams: **ADR-0014**. **Next pick (buyer flow complete): TRACK-POLISH** — top `passes:false`
+  product features are **F036** (perf p95<2s home/category) and **F037** (a11y: heading order/labels/alt);
+  harness extras **F039** (ops metrics), **F040** (entry-line eval), **F042** (worker≠checker protocol doc).
+  Prompts: `docs/SESSION_PROMPTS.md` (Wave 3 / TRACK-POLISH). Note: mypage routes are not yet wired into the
+  global Nav (F002-owned, import-only — like the custom/content routes; reachable post-pay via the order link).
 - **TRACK-CHECKOUT decisions (ADR-0013 — read before mypage):** order persistence is a hermetic `globalThis`
   store + `ProcessedWebhook` ledger under `src/app/api/payments/_lib/` (Prisma adapter is the documented prod
   seam; hermetic items key by `templateKey`, prod resolves `templateKey`→`Template.id`). Amount is recomputed
   server-side from authoritative `Template` prices; `clearCart()` runs client-side ONLY after PAID. `/orders/[id]`
   renders NO PII (sequential ids, unauthenticated). The real Toss browser-SDK + boot-required `TOSS_WEBHOOK_SECRET`
   are flagged production seams (create route 503s in production).
-- Broken / not done: Mypage (F017/F018) unbuilt; 맞춤 제작 (F020–F023) **merged + passing**
-  (custom routes not yet wired into the global Nav — F002-owned/import-only; follow-up like content). F009 stores only the
-  access-controlled photo descriptor — durable byte storage + the `Asset` DB row are deferred to mypage/checkout
-  (no object-storage backend wired yet, backstage). Content pages static + not Nav-wired; real assets/founder-story/
+- Broken / not done: **Mypage (F017/F018) DONE + passing** (this work). 맞춤 제작 (F020–F023) **merged + passing**
+  (custom routes not yet wired into the global Nav — F002-owned/import-only; follow-up like content). F009 +
+  mypage store still hold only the access-controlled photo/QR **descriptor** — durable object-storage of the
+  bytes + the real `Asset`/`Personalization` DB rows remain a named backstage seam (ADR-0011/0014). Content pages static + not Nav-wired; real assets/founder-story/
   후기/전화·이메일/배송/환불 await maker input (code-flagged TODOs). A11y aria-live/aria-invalid + cart-line list
   semantics deferred to F037.
 - **Follow-ups (TRACK-CAT, latent — no DB exists yet; tracked not silent, from the adversarial review):**
@@ -37,13 +43,13 @@
 
 ## Current verified state   ← single source of truth
 - Last green `pnpm check`: **2026-06-02** (lint + typecheck + **125 unit** + 0 constraint violations, incl.
-  R4/R5/R8 invariants) — verified on `feat/checkout` (prior 98 + **27 new webhook/checkout-domain**).
-- E2E (`pnpm test:e2e`): **58 passed** (home 2 + content 11 + category 4 + order/cart 18 + custom 11 +
-  **checkout 12** [checkout-start 3 + checkout-success 2 + order-confirm 4 + checkout-failed 2 + checkout-cancel 1])
+  R4/R5/R8 invariants) — verified on `feat/mypage` (mypage adds no unit tests; its crypto branches are E2E-tested).
+- E2E (`pnpm test:e2e`): **71 passed** (home 2 + content 11 + category 4 + order/cart 18 + custom 11 +
+  checkout 12 + **mypage 13** [mypage-photo 8 + mypage-finish 5])
 - Boots via `./init.sh`: **yes** (install → check → ready, exit 0)
 - **Two honest, separate numbers** (`pnpm status`):
   - **Harness readiness** (machinery, product-agnostic): 85.2/100 → READY (see `SCORECARD.md`)
-  - **Product delivery** (그림책 제작소 store): **28 / 32 product features passing (88%)** — F001/F002 home, F003 payment, F004 DB+seed, F029 asset, F024–F028 content, F005/F006 catalog, F007–F011 + F019 order funnel, F020–F023 맞춤 제작, **F012–F016 checkout**, **F035 responsive (375px, completed)**
+  - **Product delivery** (그림책 제작소 store): **30 / 32 product features passing (94%)** — F001/F002 home, F003 payment, F004 DB+seed, F029 asset, F024–F028 content, F005/F006 catalog, F007–F011 + F019 order funnel, F020–F023 맞춤 제작, F012–F016 checkout, **F017/F018 mypage finishing**, F035 responsive (375px). Remaining: F036 perf, F037 a11y.
   - harness-track features passing: **7 / 10** (+F034 checkout/confirm explicit verification)
 - Bootstrap contract (build_guide §7): **MET** — boots, verified tests exist, AGENTS.md router, feature_list aligned.
 
@@ -52,6 +58,36 @@ Harness **INITIALIZED + review-hardened + repurposed to 그림책 제작소**. S
 feature_list/router) now reflects the real product; DESIGN.md (Atelier Sans) wired + enforced. Coding loop next.
 
 ## Session log (newest first)
+### 2026-06-02 — TRACK-MYPAGE (F017, F018) post-pay finishing (photo · dedication · QR)  [feat/mypage]
+- Built 마이페이지 post-pay finishing, completing the entry-line buyer flow end-to-end. **F017**: `/mypage` order#
+  + email lookup (verified vs `order.buyerEmail`, uniform error → no existence oracle) → an HMAC-signed, expiring,
+  httpOnly per-order capability cookie → `/mypage/[orderId]` showing status + a child-photo upload **when skipped
+  at checkout** (the REAL F029 `receiveUpload`→`storeAsset` path; opaque `storageKey`, no filename/childName in
+  DOM/URL). **F018**: dedication (헌정 문구) saved + **prefilled** via the cookie-gated `no-store` `/state` route
+  (buyer manages their own PII, guarded), and a QR video upload revealed **only** when `Order.qrVideoAddon` (full
+  canonical honesty copy + 주문-전체 label). New track-owned: `src/app/mypage/{page,[orderId]/page,[orderId]/state/route}`,
+  `mypage/_lib/{access,finishing,actions}.ts`, `_components/mypage/{MypageLookup,FinishingClient,mypage.module.css}`,
+  `tests/e2e/mypage-{photo,finish}.spec.ts` (13).
+- **Key design decisions (ADR-0014):** the checkout-owned `OrderRepo` is **read-only** (out of touch-scope); finishing
+  data lives in a **mypage-owned hermetic store** (per-item photo/dedication, per-order QR — schema-faithful;
+  Prisma seam). Access = order# + email + HMAC cookie (env-keyed, fail-closed in prod) standing in for real buyer
+  auth. The `[orderId]` page **gates BEFORE any order lookup** so a guessable id is not an existence oracle; writes
+  re-verify the cookie + require PAID. PII never enters the SSR document or logs; only the `no-store` `/state` route
+  carries the dedication.
+- **Process (brainstorm → adversarial design review → TDD → worker≠checker, ADR-0005/F042):** user-approved design
+  (prefill over write-only; per-item/per-order split; HMAC cookie) → a **PRE-build 51-agent / 6-dim design review**
+  (16/45 skeptic-verified findings folded into the spec — 2 MAJOR caught at design time: the enumeration-oracle gate
+  ordering + Next-15 `await params`/`cookies()`) → TDD (2 E2E specs RED→GREEN; crypto expiry/tamper branches tested
+  in-spec via `node:crypto`, staying in E2E scope) → a **POST-build 35-agent implementation review** (21/29 confirmed,
+  **ALL minor/nit — zero blocker/major**; fixed: bfcache reload doc-align + PII-flash clear, order-scope QR label,
+  file-input aria-labels, and real coverage for the CREATED/not-paid branch, shared-QR, QR persistence, lookup-page
+  noindex, meaningful 375px). Spec + R1–R16: `docs/superpowers/specs/2026-06-02-track-mypage-design.md`.
+- Gates: `pnpm check` green (lint+typecheck+**125 unit**+0 constraints R1–R8 incl. R4/R8) + **71 E2E** (58 prior +
+  **13 mypage**; no regressions). F017/F018 → `passing` + dated evidence (R4 holds); attempt reset. Realizes F029's
+  `e2e_via:[F009,F017,F018]` for real. Product delivery 28→**30/32** (94%). Scope deviations (read-only imports of
+  `orderRepo`/`format`/`Nav`/`Footer`; co-located `mypage/_lib`; no sibling-file edits; no `tests/unit`) ratified in ADR-0014.
+- Next: merge `feat/mypage` → master (--no-ff), re-verify; then **TRACK-POLISH** (F036 perf · F037 a11y · F039/F040/F042).
+
 ### 2026-06-02 — TRACK-CHECKOUT (F012–F016, F034) entry-line checkout → idempotent PAID  [feat/checkout]
 - Built the entry-line checkout end-to-end: `/cart` 결제하기 → `/checkout` buyer step (new `Order.buyerName/
   buyerEmail`, NOT in the cart) → `POST /api/payments/create` (amount **recomputed server-side** from

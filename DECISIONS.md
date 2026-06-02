@@ -255,3 +255,55 @@
   Toss branches deterministically); trusting the client amount; gating the test confirm; a `src/lib/checkout.ts`
   (the track grants no new `src/lib/*` file); the reviewers' suggested active-fix that falls through to the mirror
   on `active:false` (would re-activate a deactivated template — used `inactive→null` instead).
+
+## 2026-06-02 — ADR-0014 — TRACK-MYPAGE (F017, F018): post-pay finishing (photo · dedication · QR)
+- Decision: 마이페이지 lets a buyer finish a PAID order. F017 = order status + post-pay child-photo upload
+  (when skipped at checkout); F018 = dedication (헌정 문구) + QR video upload (revealed ONLY when
+  `Order.qrVideoAddon`). The checkout-owned `OrderRepo` (create/get/markPaid only, out of touch-scope) is
+  **read** via `orderRepo().get(id)`; finishing data persists in a **new mypage-owned hermetic store**
+  (`src/app/mypage/_lib/finishing.ts`, `globalThis`-backed) keyed per order — **documented Prisma seam**
+  (per-`OrderItem` photo+dedication → `Personalization`; per-`Order` QR → `Asset(kind=QR_VIDEO)`). Same
+  co-location pattern as ADR-0013's `api/payments/_lib`.
+- **Access model (D1) — no auth + guessable ids → order# + email + HMAC capability cookie.** `/mypage`
+  verifies `order# + the email paid with` against `order.buyerEmail` (uniform error → no id-existence oracle),
+  mints `${exp}.${HMAC-SHA256(secret, orderId.exp)}` and sets a `httpOnly`, `SameSite=Lax`, `Secure`(prod),
+  `path=/mypage`, per-order (`mypage_<id>`), 2h cookie. The signing key is **env-sourced** (`MYPAGE_ACCESS_SECRET`,
+  dev fallback non-prod, **fail-closed in prod**, never logged — mirrors `webhookSecret`). Verify is
+  constant-time (`timingSafeEqual`, length-guarded) + checks `now < exp`. Production replaces this stand-in with
+  real buyer-session auth (named seam).
+- **No existence oracle (D2).** `/mypage/[orderId]` verifies the cookie **BEFORE any `orderRepo().get`/`notFound`**
+  and renders ONE identical access prompt (HTTP 200) for existing AND unknown ids — unlike `/orders/[id]`'s
+  `get→notFound`-first shape — so the guessable-id route can't probe which orders exist. Every write action
+  re-verifies the cookie (`requireAccess`) AND requires `status==='PAID'` (defense in depth).
+- **PII-out-of-document (D3).** The SSR shell renders NO buyer/child PII. The dedication (PII) crosses ONLY via
+  the cookie-gated, **`no-store`** `/state` route the client fetches to prefill the editor — buyer managing
+  THEIR OWN PII is intended function, guarded by the email-gate + HMAC + `noindex` + `no-store` + a `pageshow`
+  bfcache reload. Uploads consume the filename at the boundary (opaque `storageKey`, F029), echo no PII. Durable
+  bytes stay backstage (F009/ADR-0011 precedent).
+- **Process (worker≠checker, ADR-0005/F042):** brainstorm-shaped design (user-approved: prefill over write-only;
+  per-item photo/dedication + per-order QR; HMAC cookie) → a **PRE-build 51-agent / 6-dimension adversarial
+  design review** (16/45 skeptic-verified findings folded into the spec BEFORE code — 2 MAJOR caught at design
+  time: the enumeration-oracle gate ordering + `await params`/`cookies()` in Next 15) → TDD (2 E2E specs RED →
+  GREEN) → a **POST-build 35-agent implementation review** (21/29 confirmed, **ALL minor/nit — zero
+  blocker/major**, all fixed: bfcache reload doc-align + PII-flash clear, R12 order-scope QR label, file-input
+  aria-labels, and real test-coverage for the CREATED/not-paid branch, shared-QR, QR persistence, lookup-page
+  noindex, and a meaningful 375px). Spec + R1–R16 resolutions: `docs/superpowers/specs/2026-06-02-track-mypage-design.md`.
+- **Named seams (not silent skips):** real buyer auth (the HMAC cookie stands in); durable object-storage of the
+  uploaded bytes (descriptor-only, F009); the Prisma persistence of the finishing store + the real
+  `Personalization`/`Asset` rows; `MYPAGE_ACCESS_SECRET` boot-required-in-prod validation in `env.ts`
+  (out of touch-scope, mirrors checkout's `TOSS_WEBHOOK_SECRET` follow-up); a shared cross-file QR-copy constant;
+  lookup rate-limiting; "QR per book" (would need a schema change — today per-order per the schema).
+- **Scope deviations (ratified, conflict-free — `feat/mypage` was the only active branch; all imported files are
+  merged/settled; precedent ADR-0011/0013):** read-only import of `orderRepo` (`api/payments/_lib/orders`),
+  `formatWon`/`COVER_LABEL` (`_components/order/format`), and the `Nav`/`Footer` kit; cross-cutting
+  `untrusted`/`@/lib/assets` (AGENTS #5/#6). No edit to any sibling-owned file; no `tests/unit` added (the crypto
+  expiry/tamper branches are tested in the E2E via `node:crypto`, staying in `tests/e2e/mypage-*`).
+- Gates: `pnpm check` green (lint+typecheck+**125 unit**+0 constraints R1–R8 incl. R4/R8) + **71 E2E** (58 prior +
+  **13 mypage**; no regressions). F017/F018 → `passing` + dated evidence (R4 holds). Realizes F029's
+  `e2e_via:[F009,F017,F018]` for real (the mypage uploads drive the actual `assets.ts` path).
+- Rejected: editing the checkout-owned `OrderRepo` to attach finishing data (out of scope → mypage-owned store
+  instead); write-only dedication (no echo) — user chose prefill since the editor's purpose is the buyer managing
+  their own PII, guarded; rendering the child name on mypage (data minimization — only template/cover/price/total);
+  a guessable-id-only access link with no ownership proof (the email gate closes the tampering surface); a
+  client-side `server-only` guard (non-`NEXT_PUBLIC_` secret is `undefined` in client bundles anyway, and bare
+  `server-only` breaks vitest-style resolution).
