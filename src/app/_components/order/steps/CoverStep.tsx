@@ -2,11 +2,7 @@
 import type { CatalogTemplate } from "../../catalog/templates";
 import type { Draft } from "../OrderWizard";
 import styles from "../order.module.css";
-
-/** Mirrors formatWon from templates.ts — inlined here to keep @/lib/db out of the client bundle. */
-function formatWon(won: number): string {
-  return won.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",") + "원";
-}
+import { formatWon } from "../format";
 
 export function CoverStep({
   template, draft, unitPriceWon, onPatch, onNext, onBack,
