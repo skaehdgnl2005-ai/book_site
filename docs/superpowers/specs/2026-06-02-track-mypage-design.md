@@ -91,8 +91,9 @@ This mirrors the repo's `/cart` "client view + SSR-safe shell" precedent (F011) 
 any cacheable **HTTP/CDN document** (`no-store` on the `/state` route handler, which I control; I
 do not rely on Next's default caching). The **back/forward cache (bfcache)** snapshots the live
 rendered DOM — so `<FinishingClient>` also registers a `pageshow` handler that, on
-`event.persisted` (a bfcache restore), **clears the textarea and re-fetches `/state`** (which
-re-gates on the cookie → an expired/cleared cookie shows the access path, not stale PII). Residual
+`event.persisted` (a bfcache restore), **drops the restored state and calls
+`window.location.reload()`** — forcing a fresh server-gated render (an expired/cleared cookie then
+shows the access path, not stale PII; this is stronger than a client-side re-fetch). Residual
 named seam: there is no logout/잠금 path (the httpOnly cookie can't be JS-cleared); it expires by
 the signed `exp` + 2h `Max-Age`, tied to the real-buyer-auth seam (ADR-0014). See §10 R4/R13.
 
@@ -185,8 +186,11 @@ testing those branches **in-scope** (`tests/e2e/mypage-*`).
   page gate, `/state` route, every write action's `requireAccess` (`async function requireAccess(orderId):
   Promise<boolean>`; read `(await cookies()).get(cookieName(orderId))?.value`), and the set/mint in
   `lookupOrder` (`(await cookies()).set(...)`). `pnpm typecheck` backstops a non-awaited `.get()`.
-- **R4 (MINOR · bfcache).** Implemented via the `pageshow`+`persisted` re-fetch in `<FinishingClient>`
-  (see §4). Wording in §4 corrected from "deterministically" to scope it to the HTTP/CDN document.
+- **R4 (MINOR · bfcache).** Implemented in `<FinishingClient>`: on `pageshow` with `event.persisted`,
+  `setState(null)` then `window.location.reload()` — a full server-gated re-render (stronger than a
+  client re-fetch; an expired cookie hits the access gate). §4 wording scoped to the HTTP/CDN document.
+  *Impl-review note:* the `persisted` branch is not E2E-tested (headless bfcache restore is flaky) — a
+  reasoning-level property, like R8.
 - **R5 (MINOR · noindex mechanism).** Both `mypage/page.tsx` and `mypage/[orderId]/page.tsx` set
   `export const metadata: Metadata = { title: …, robots: { index: false, follow: false } }`. **E2E** asserts
   the `noindex` robots meta is in `<head>`.
@@ -209,11 +213,14 @@ testing those branches **in-scope** (`tests/e2e/mypage-*`).
   expected in the prefilled textarea (so PII asserts target child PII specifically, not a blanket "no PII").
 - **R11 (MINOR · QR honesty copy).** The QR section renders the **full canonical** string
   `QR 영상 옵션 · 기본 미포함 · 요금 추후 안내` (leading with `기본 미포함`) under a stable testid
-  (`mypage-qr-note`); **E2E** asserts the full string. Reuses the order/cart/checkout/cover copy so it can't drift.
+  (`mypage-qr-note`); **E2E** asserts the **full exact** string, so any drift from the canonical copy
+  fails the test. *Impl-review correction:* the literal is duplicated, NOT a shared cross-file constant
+  (the canonical string lives in 4 out-of-scope files) — a shared constant is a named follow-up.
 - **R12 (MINOR · multi-item).** `<FinishingClient>` renders **one finishing card per `OrderItem`** (headed by
   `templateLabel` + `COVER_LABEL[coverType]` so two same-template books are distinguishable) + **one
-  order-level QR block** labeled as applying to the whole order. **E2E** (mypage-finish) buys a **2-book** order,
-  saves a dedication on item 0, reloads, asserts item 1's textarea stays empty (per-index isolation + shared QR).
+  order-level QR block** with an explicit "이 QR 영상은 주문 전체에 한 번 적용됩니다" label. **E2E**
+  (mypage-finish) buys a **2-book, QR-on** order, asserts exactly **one** `mypage-qr-input` (shared per order),
+  saves a dedication on item 0, reloads, and asserts item 1's textarea stays empty (per-index isolation).
 - **R13 (MINOR · prefill trade honesty).** Documented in §4 (corrected wording + named bfcache/logout seam).
 - **R14 (NIT · CSRF reasoning).** §6 states: write-side CSRF is covered by `SameSite=Lax` (no cookie on
   cross-site POST) + Next 15 Server-Action origin enforcement + per-write HMAC re-verification; `/state` is

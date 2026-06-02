@@ -46,7 +46,10 @@ export function FinishingClient({
 
   useEffect(() => {
     const onShow = (e: PageTransitionEvent) => {
-      if (e.persisted) window.location.reload(); // bfcache restore -> fresh server render + re-gate
+      if (e.persisted) {
+        setState(null); // drop any bfcache-restored PII from the DOM immediately
+        window.location.reload(); // then force a fresh server-gated render (re-checks the cookie)
+      }
     };
     window.addEventListener("pageshow", onShow);
     return () => window.removeEventListener("pageshow", onShow);
@@ -150,6 +153,7 @@ function FinishingItem({
           <input
             type="file"
             accept="image/*"
+            aria-label={`${meta.templateLabel} 아이 사진 파일 선택`}
             data-testid={`mypage-photo-input-${meta.index}`}
             onChange={onPhoto}
             disabled={photoBusy}
@@ -228,6 +232,7 @@ function QrSection({ orderId, initialOnFile }: { orderId: string; initialOnFile:
   return (
     <div className={styles.qrSection} aria-label="QR 영상">
       <p className={styles.controlLabel}>QR 영상 인사 메시지</p>
+      <p className={styles.note} data-testid="mypage-qr-scope">이 QR 영상은 주문 전체에 한 번 적용됩니다.</p>
       <p className={styles.qrNote} data-testid="mypage-qr-note">QR 영상 옵션 · 기본 미포함 · 요금 추후 안내</p>
       {onFile ? (
         <p className={styles.photoStatus} data-testid="mypage-qr-status">영상이 등록되었습니다</p>
@@ -235,6 +240,7 @@ function QrSection({ orderId, initialOnFile }: { orderId: string; initialOnFile:
         <input
           type="file"
           accept="video/*"
+          aria-label="QR 영상 파일 선택"
           data-testid="mypage-qr-input"
           onChange={onVideo}
           disabled={busy}

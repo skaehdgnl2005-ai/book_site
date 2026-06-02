@@ -54,6 +54,18 @@ async function payBirthSkippingPhoto(page: Page): Promise<string> {
   return payCart(page);
 }
 
+/** Create a CREATED (unpaid) order — checkout up to the gateway, but NEVER approve. */
+async function createUnpaidBirth(page: Page): Promise<string> {
+  await addBirthToCart(page);
+  await page.getByTestId("cart-checkout").click();
+  await page.waitForURL("**/checkout");
+  await page.getByTestId("checkout-buyer-name").fill("김부모");
+  await page.getByTestId("checkout-buyer-email").fill("parent@example.com");
+  await page.getByTestId("checkout-pay").click();
+  await page.waitForURL("**/checkout/pay**");
+  return new URL(page.url()).searchParams.get("order") ?? ""; // NOT approved -> stays CREATED
+}
+
 async function lookup(page: Page, orderId: string, email = "parent@example.com") {
   await page.goto("/mypage");
   await page.getByTestId("mypage-lookup-orderid").fill(orderId);
@@ -95,11 +107,24 @@ test.describe("mypage photo (F017)", () => {
     await expect(page.getByTestId("mypage-photo-input-0")).toHaveCount(0);
   });
 
-  test("the finishing page is noindex (R5)", async ({ page }) => {
+  test("both mypage pages are noindex (R5): the lookup page and the finishing page", async ({ page }) => {
+    await page.goto("/mypage");
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+
     const orderId = await payBirthSkippingPhoto(page);
     await lookup(page, orderId);
     await page.waitForURL(`**/mypage/${orderId}`);
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
+  });
+
+  test("an unpaid (CREATED) order: lookup succeeds but finishing is gated with an honest message", async ({ page }) => {
+    const orderId = await createUnpaidBirth(page);
+    await lookup(page, orderId);
+    await page.waitForURL(`**/mypage/${orderId}`);
+    await expect(page.getByTestId("mypage-order-status")).toHaveText("CREATED");
+    await expect(page.getByTestId("mypage-not-paid")).toBeVisible();
+    await expect(page.getByTestId("mypage-dedication-0")).toHaveCount(0); // no finishing controls
+    await expect(page.getByTestId("mypage-photo-input-0")).toHaveCount(0);
   });
 
   test("wrong email -> uniform error, no redirect, no access", async ({ page }) => {
@@ -149,6 +174,7 @@ test.describe("mypage photo (F017)", () => {
     await lookup(page, orderId);
     await page.waitForURL(`**/mypage/${orderId}`);
     await expect(page.getByTestId("mypage-order-status")).toHaveText("PAID");
+    await expect(page.getByTestId("mypage-photo-input-0")).toBeVisible(); // measure loaded controls
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth > window.innerWidth + 1,
     );

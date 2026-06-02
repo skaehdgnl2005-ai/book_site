@@ -37,9 +37,9 @@ async function payBirth(page: Page, opts: { qrOn?: boolean } = {}): Promise<stri
   return payCart(page);
 }
 
-async function payTwoBirths(page: Page): Promise<string> {
+async function payTwoBirths(page: Page, opts: { qrOn?: boolean } = {}): Promise<string> {
   await addBirthToCart(page); // book 1 -> /cart
-  await addBirthToCart(page); // book 2 -> /cart (cart now has 2 lines; localStorage persists)
+  await addBirthToCart(page, { qrOn: opts.qrOn }); // book 2; QR is order-level (last add-to-cart wins)
   return payCart(page);
 }
 
@@ -77,6 +77,11 @@ test.describe("mypage finishing (F018)", () => {
     await expect(page.getByTestId("mypage-qr-input")).toBeVisible();
     await page.getByTestId("mypage-qr-input").setInputFiles(MP4);
     await expect(page.getByTestId("mypage-qr-status")).toHaveText("영상이 등록되었습니다");
+
+    // Persists across reload (hermetic finishing store; mirrors the photo persistence path).
+    await page.reload();
+    await expect(page.getByTestId("mypage-qr-status")).toHaveText("영상이 등록되었습니다");
+    await expect(page.getByTestId("mypage-qr-input")).toHaveCount(0);
   });
 
   test("QR add-on OFF -> the QR section is absent (not just hidden)", async ({ page }) => {
@@ -88,12 +93,14 @@ test.describe("mypage finishing (F018)", () => {
   });
 
   test("R12: per-item dedication isolation in a 2-book order (per-order QR shared)", async ({ page }) => {
-    const orderId = await payTwoBirths(page);
+    const orderId = await payTwoBirths(page, { qrOn: true });
     await lookup(page, orderId);
 
     // Two finishing cards, one per OrderItem.
     await expect(page.getByTestId("mypage-dedication-0")).toBeVisible();
     await expect(page.getByTestId("mypage-dedication-1")).toBeVisible();
+    // Per-order QR: exactly ONE shared QR control for the whole 2-item order (not one per book).
+    await expect(page.getByTestId("mypage-qr-input")).toHaveCount(1);
 
     await page.getByTestId("mypage-dedication-0").fill("헌정0");
     await page.getByTestId("mypage-dedication-save-0").click();
@@ -108,6 +115,9 @@ test.describe("mypage finishing (F018)", () => {
     await page.setViewportSize({ width: 375, height: 800 });
     const orderId = await payBirth(page, { qrOn: true });
     await lookup(page, orderId);
+    // Measure the fully-loaded finishing controls, not the SSR/loading shell.
+    await expect(page.getByTestId("mypage-dedication-0")).toBeVisible();
+    await expect(page.getByTestId("mypage-qr-input")).toBeVisible();
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth > window.innerWidth + 1,
     );
