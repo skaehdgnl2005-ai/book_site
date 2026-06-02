@@ -163,3 +163,36 @@
 - Rejected: server-persisted draft orders (breaks the hermetic no-DB E2E gate the suite relies on); a second
   order-local `extraVar` mirror (drift risk — extended the one catalog SoR instead, guarded by a seed-parity
   unit test); inventing a QR price (brief states none — flagged 0 + TODO rather than fabricate).
+## 2026-06-01 — ADR-0012 — F020–F023: 맞춤 제작 intake (hermetic store + sandbox payment + REQUESTED≠확정)
+- Decision: the custom track is self-contained — `src/lib/customRequest.ts` (domain core) + `src/app/custom/**`
+  + `src/app/api/custom/**` — importing only `@/lib/payments` (+ `@/lib/guardrails.untrusted()`, a cross-cutting
+  safety primitive required project-wide by AGENTS #6, as the content track also did). One shared **6-group
+  의뢰서** (`CUSTOM_FORM_GROUPS`) is the single source of truth both paths normalize into via `buildCustomForm`,
+  so production input is homogeneous regardless of path (F023).
+- **D1 — Persistence = in-memory repository on `globalThis`** (mirrors the `db.ts` singleton): the hermetic store
+  the dev server + Playwright run against (ADR-0002 keeps the verifiable path DB-independent; Playwright boots
+  only `pnpm dev`). The `CustomRequest`/`Consultation` Prisma models already exist; a production deploy swaps a
+  Prisma adapter behind the same `customRequestStore` surface — an explicit, documented seam, not a silent skip
+  (parallels how F003/F004 documented their hermetic seams).
+- **D2 — WRITTEN payment via the provider-agnostic `PaymentProvider`** (createCheckout + confirm). Outside
+  production `customTossProvider()` uses an **injectable sandbox transport** (ADR-0010) so the flow is hermetic
+  and test/sandbox-only (ADR-0004); the stub is **impossible when `APP_ENV === "production"`** (→ `tossFromEnv`,
+  real fetch). A non-PAID confirm never marks the request SUBMITTED, and the confirmation page gates its
+  completion copy on `rec.status` so an unpaid request never shows a phantom "결제 완료" (the one real finding
+  the worker≠checker review caught — now fixed + regression-tested).
+- **D3 — PHONE booking stores a Consultation REQUESTED with NO approval gate and NO payment.** The brief's
+  irreversible action is 상담 예약 **확정** (the operator creating a real customer-facing appointment) =
+  `requireApproval("consultation.book")`, a backstage step. A customer's REQUESTED slot is a wish pending
+  confirmation — free, pay-after-call (web-brief §4); gating it would block the buyer flow and misread intent.
+- Verification: 16 unit + 11 E2E green; `pnpm check` clean (R1–R8). Worker≠checker review (ADR-0005/F042):
+  5 dimensions → each finding skeptic-verified; 1 real finding fixed (status-gated confirmation copy), 2 dismissed
+  (a confirm-route hardening nit — the store's `markSubmitted` guard already prevents state corruption; and a
+  double-counted heading concern). Forms are hydration-safe (uncontrolled inputs + FormData + mounted-gated
+  submit, the ContactForm pattern) so Playwright never acts before React attaches handlers.
+- Scope note: photo/QR Asset upload (외형 사진) is text-only in the written form — real upload is F029/mypage
+  scope (deferred, not dropped). Diagnosed + worked around an env trap: Playwright's `webServer` (`pnpm dev`,
+  url :3000, reuseExistingServer) spawns a SECOND `next dev` in the worktree when :3000 is free, clobbering
+  `.next` (ENOENT / static-asset 400 / hydration failures); running one dev server on :3000 that Playwright
+  reuses is the fix. The production build (`next build`) compiles all routes cleanly.
+- Rejected: a real DB / real Toss round-trip in the verifiable path (flaky, non-hermetic — ADR-0002/0010);
+  gating REQUESTED on approval (misreads the brief); controlled inputs (reset on hydration → flaky E2E).

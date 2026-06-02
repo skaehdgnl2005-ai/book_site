@@ -6,8 +6,8 @@
 - Next action (single): **TRACK-ORDER (F007–F011, F019) merged + passing** — the entry-line pre-pay funnel is
   live (`/order/[templateKey]` client wizard 정보→사진→커버&옵션→확인 → `/cart`), DB-free via the pure
   `src/lib/cart.ts` model. Next in the buyer flow: **TRACK-CHECKOUT (F012–F016)** — precondition F003 (Toss) +
-  F011 (cart) merged; it `import`s `src/lib/cart` + `src/lib/payments`. **TRACK-CUSTOM (F020–F023)** parallel-OK
-  (precondition F003). Prompts: `docs/SESSION_PROMPTS.md`.
+  F011 (cart) merged; it `import`s `src/lib/cart` + `src/lib/payments`. **TRACK-CUSTOM (F020–F023)** is now
+  **merged + passing** (this merge). Prompts: `docs/SESSION_PROMPTS.md`.
 - **TRACK-CHECKOUT handoff (from ADR-0011 — read before starting F012):** (1) buyer identity
   (`Order.buyerName/buyerEmail`) is a NEW `/checkout` step, NOT in the cart; map buyerName→`customerName`+`Order.buyerName`.
   (2) **Recompute the order amount server-side** from authoritative `Template` prices — the client
@@ -15,7 +15,8 @@
   (+ revalidate active/price) at order-creation — needs a seeded DB at checkout. (4) Call `clearCart()` ONLY after
   F013 PAID, never on checkout start (that's what preserves F016's cart on cancel).
 - Broken / not done: **checkout from F012 onward not built** — `/cart`'s 결제하기 CTA is honestly disabled
-  (준비중) until TRACK-CHECKOUT lands. Mypage (F017/F018) + 맞춤 제작 (F020–F023) unbuilt. F009 stores only the
+  (준비중) until TRACK-CHECKOUT lands. Mypage (F017/F018) unbuilt; 맞춤 제작 (F020–F023) **merged + passing**
+  (custom routes not yet wired into the global Nav — F002-owned/import-only; follow-up like content). F009 stores only the
   access-controlled photo descriptor — durable byte storage + the `Asset` DB row are deferred to mypage/checkout
   (no object-storage backend wired yet, backstage). Content pages static + not Nav-wired; real assets/founder-story/
   후기/전화·이메일/배송/환불 await maker input (code-flagged TODOs). A11y aria-live/aria-invalid + cart-line list
@@ -35,14 +36,14 @@
   `docs/SAFETY.md`/`CONSTRAINTS.md`/`ARCHITECTURE.md` + `eval/golden` still say "Stripe". `.env.example` is on Toss.
 
 ## Current verified state   ← single source of truth
-- Last green `pnpm check`: **2026-06-02** (lint + typecheck + **82 unit** + 0 constraint violations, incl.
-  R4/R5/R8 invariants) — verified on `feat/order` after the TRACK-ORDER funnel build.
-- E2E (`pnpm test:e2e`): **35 passed** (home 2 + content 11 + category 4 + **order/cart 18** [order-start 5 +
-  order-form 4 + order-photo 3 + order-cover 1 + order-qr-addon 1 + cart 4])
+- Last green `pnpm check`: **2026-06-02** (lint + typecheck + **98 unit** + 0 constraint violations, incl.
+  R4/R5/R8 invariants) — verified on `master` after the TRACK-CUSTOM merge (TRACK-ORDER 82 + custom 16).
+- E2E (`pnpm test:e2e`): **46 passed** (home 2 + content 11 + category 4 + order/cart 18 + **custom 11**
+  [custom-landing 4 + custom-written 4 + custom-phone 3])
 - Boots via `./init.sh`: **yes** (install → check → ready, exit 0)
 - **Two honest, separate numbers** (`pnpm status`):
   - **Harness readiness** (machinery, product-agnostic): 85.2/100 → READY (see `SCORECARD.md`)
-  - **Product delivery** (그림책 제작소 store): **18 / 32 product features passing (~56%)** — F001/F002 home, F003 payment, F004 DB+seed, F029 asset, F024–F028 content, F005/F006 catalog, **F007–F011 + F019 order funnel**
+  - **Product delivery** (그림책 제작소 store): **22 / 32 product features passing (~69%)** — F001/F002 home, F003 payment, F004 DB+seed, F029 asset, F024–F028 content, F005/F006 catalog, F007–F011 + F019 order funnel, **F020–F023 맞춤 제작**
   - harness-track features passing: 6 / 10 (F030/F031 evidence refreshed Stripe→Toss)
 - Bootstrap contract (build_guide §7): **MET** — boots, verified tests exist, AGENTS.md router, feature_list aligned.
 
@@ -76,6 +77,26 @@ feature_list/router) now reflects the real product; DESIGN.md (Atelier Sans) wir
   + cart-line list semantics → F037. Scope deviations (templates.ts edit, /cart route, new unit tests) ratified in ADR-0011.
 - Next: **TRACK-CHECKOUT (F012–F016)** — imports `src/lib/cart` + `src/lib/payments`; read the cart.ts handoff notes
   above (buyer identity, server-side amount recompute, templateKey→id, clearCart-after-PAID).
+
+### 2026-06-02 — TRACK-CUSTOM (F020–F023) 맞춤 제작 intake — merged into master  [feat/custom]
+- Built the full 맞춤 제작 intake on an isolated `feat/custom` worktree (the main checkout held a concurrent
+  track's WIP; per the runbook, each track gets its own worktree): **F020** `/custom` landing (two path cards →
+  /custom/phone & /custom/written, 119,000원); **F021** WRITTEN (6-group 의뢰서 → Toss **test** pay → SUBMITTED);
+  **F022** PHONE (server-computed booking calendar → Consultation **REQUESTED**, pay-after-call); **F023** the
+  shared 6-group `CUSTOM_FORM_GROUPS` both paths normalize into → identical `CustomRequest.form` shape. Decisions
+  in **ADR-0012** (D1 hermetic globalThis store, Prisma is the documented production seam; D2 PaymentProvider +
+  injectable sandbox transport, impossible when APP_ENV=production; D3 REQUESTED ≠ the irreversible operator-side
+  예약 확정 → no approval gate). Imports only `@/lib/payments` (+ `untrusted()`); input tagged at the boundary.
+- TDD per feature; hydration-safe forms (uncontrolled + FormData + mounted-gated submit, the ContactForm pattern).
+  **Worker≠checker review** (5-dim adversarial workflow, each finding skeptic-verified): **1 real bug fixed** — the
+  confirmation page claimed "테스트 결제 완료" for any WRITTEN record without checking `rec.status`, so an unpaid
+  PENDING_PAYMENT request showed a phantom payment-success (spec §5); now status-gated + a regression E2E. **2
+  dismissed** (a confirm-route hardening nit; a double-counted heading). Env trap diagnosed: Playwright's webServer
+  spawns a 2nd `next dev` in the worktree when :3000 is free, clobbering `.next` — fix is one dev server on :3000
+  that Playwright reuses; `next build` compiles all routes cleanly.
+- Merged `feat/custom` → master (--no-ff). Reconciled DECISIONS (ADR-0011 = TRACK-ORDER → renumbered mine to
+  **ADR-0012**) + PROGRESS; `feature_list.json` auto-merged (disjoint entries). Docs:
+  `docs/superpowers/specs|plans/2026-06-01-custom-track*`.
 
 ### 2026-06-01 — TRACK-CAT (F005 기념일 / F006 첫 순간들) catalog category pages  [feat/category]
 - Built the two entry-line category pages as a DB-backed template card grid. New track-owned kit under
