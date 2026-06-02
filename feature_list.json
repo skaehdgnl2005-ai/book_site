@@ -152,9 +152,9 @@
       "description": "Checkout creates a TossPayments (test) payment and redirects to the Toss flow",
       "steps": ["From cart, click 결제하기", "Server creates a Toss test payment (our tossOrderId)", "Redirect to Toss test payment page"],
       "verification": "pnpm test:e2e -- checkout-start.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-02 Playwright checkout-start.spec.ts: 3 passed — /cart 결제하기 → /checkout buyer step → POST /api/payments/create creates a CREATED order (amount RECOMPUTED server-side from authoritative Template prices via getTemplateByKey; the client unit/grand totals are ignored) → redirect to the sandbox Toss (test) pay page showing 탄생 / 43,000원; 375px no-overflow. Hermetic globalThis order store (Prisma production seam documented). pnpm check green (lint+typecheck+125 unit+0 constraints R1–R8) + 58 E2E. Worker≠checker IMPL review: production checkout now fails fast with a 503 (no silent 404 to the prod-notFound pay page)."
     },
     {
       "id": "F013",
@@ -164,9 +164,9 @@
       "description": "Toss SUCCESS path: confirm + webhook mark the order PAID (signature-verified, idempotent)",
       "steps": ["Approve a Toss test payment", "Confirm endpoint verifies + marks PAID", "Webhook re-delivery is a no-op (ProcessedWebhook)"],
       "verification": "pnpm test -- webhook.test.ts && pnpm test:e2e -- checkout-success.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-02 vitest webhook.test.ts: 27 passed — verifyWebhookSignature (RAW-body HMAC-SHA256, constant-time: valid / one-byte-mutated / wrong-secret / missing / malformed); confirmPayment (PAID / 402-FAILED leaves CREATED / 404) with the SERVER-authoritative amount; processWebhook (DONE→PAID, bad-sig 401 no state change, redelivery of the same eventId is a strict no-op via the ProcessedWebhook ledger, non-DONE ack, unknown-order ack); markPaid idempotent (keeps the first paymentKey). Playwright checkout-success.spec.ts: 2 passed (approve → /orders/[id] PAID; persists on reload — server-side store). Sync confirm + async webhook both converge PAID idempotently. The webhook reads req.text() BEFORE any parse. pnpm check green + 58 E2E. Worker≠checker review recorded (ADR-0013)."
     },
     {
       "id": "F014",
@@ -176,9 +176,9 @@
       "description": "Order confirmation page shows the order summary (items, cover, total, status PAID)",
       "steps": ["After a successful test payment", "Land on /orders/:id", "See items, totals, status PAID"],
       "verification": "pnpm test:e2e -- order-confirm.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-02 Playwright order-confirm.spec.ts: 4 passed — /orders/[id] shows each item (template label + cover label + unit price), grand total and status PAID; a hard-cover order reflects 49,000원; an unknown id → 404 (notFound); 375px no-overflow. Renders NO PII: order ids are sequential + the route is unauthenticated, so buyer/child name/email are NEVER rendered (stored server-side for fulfillment only). Copy is status-gated — a CREATED (unpaid) order shows 결제 대기, never a phantom completion. pnpm check green + 58 E2E."
     },
     {
       "id": "F015",
@@ -188,9 +188,9 @@
       "description": "Toss FAILURE path handled (declined/failed → clear message, no PAID order created)",
       "steps": ["Trigger a Toss test failure", "See a clear failure message", "No PAID order exists"],
       "verification": "pnpm test:e2e -- checkout-failed.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-02 Playwright checkout-failed.spec.ts: 2 passed — 결제 실패 → /checkout/failed shows a clear message; the order stays CREATED (asserted via /orders/[id] status=CREATED) so NO PAID order exists; the failure page links back to /cart with the item still present. confirmPayment's non-PAID branch returns 402 and leaves CREATED (webhook.test.ts). pnpm check green + 58 E2E."
     },
     {
       "id": "F016",
@@ -200,9 +200,9 @@
       "description": "Toss CANCEL path handled (user cancels → return to cart, cart preserved)",
       "steps": ["Start checkout then cancel at Toss", "Return to /cart", "Cart still has the items"],
       "verification": "pnpm test:e2e -- checkout-cancel.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-02 Playwright checkout-cancel.spec.ts: 1 passed — 취소 → /cart with the cart line AND the 43,000원 grand total preserved. clearCart() runs client-side (PaySandbox) ONLY after a PAID confirm — never on checkout start, cancel, or failure — which is what preserves the cart here. pnpm check green + 58 E2E."
     },
     {
       "id": "F017",
@@ -418,9 +418,9 @@
       "description": "Checkout / order-confirm / custom-submit require explicit verification before passes:true",
       "steps": ["Implement F012-F014", "Their E2E green", "Worker≠checker review recorded"],
       "verification": "pnpm test:e2e -- checkout-success.spec.ts (+ review pass)",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-02 Worker≠checker review recorded for the checkout chain F012–F014 (ADR-0005/F042 protocol). PRE-build: a 33-agent / 6-lens adversarial DESIGN review (19 skeptic-verified findings folded into the spec before any code — notably RAW-body-first webhook HMAC + client-side clearCart-after-PAID + server-computed payUrl). POST-build: a 12-agent IMPLEMENTATION review (4 skeptic-verified findings fixed: production-checkout 503 gate, getTemplateByKey active-row rejection, tightened email regex, all re-verified). checkout-success.spec.ts green + pnpm check green + 58 E2E. Decision recorded: NO requireApproval('order.confirm') gate on the buyer's test confirm (sandbox/reversible; real-money irreversibility is gated at env+adapter — live keys refused at boot, toss.charge.live/refund.live in IRREVERSIBLE_ACTIONS). Full record: PROGRESS + DECISIONS ADR-0013."
     },
     {
       "id": "F035",
@@ -430,9 +430,9 @@
       "description": "Mobile-first responsive: no horizontal overflow at 375px on home/category/order",
       "steps": ["Set viewport 375px", "Load home/category/order", "scrollWidth <= innerWidth"],
       "verification": "pnpm test:e2e -- home.spec.ts (responsive) + category/order",
-      "state": "in_progress",
-      "passes": false,
-      "evidence": "Home + category (anniversary/first-moments) + the order funnel (order-start + order-cover + cart specs) verified 375px no-overflow green (scrollWidth ≤ innerWidth + 1, the proven category check shape). Checkout 375px (F012–F016) still pending TRACK-CHECKOUT before F035 can flip to passing — ADVANCED, not completed, by TRACK-ORDER."
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-02 Playwright 375px no-overflow GREEN across home + category (anniversary/first-moments) + order funnel (order-start/order-cover/cart) + CHECKOUT (checkout-start /checkout + order-confirm /orders/[id]) — scrollWidth ≤ innerWidth + 1 (the proven category check shape). The checkout 375px coverage that TRACK-ORDER explicitly deferred to TRACK-CHECKOUT is now in, so F035 is COMPLETED (was in_progress/ADVANCED). pnpm check green + 58 E2E passed."
     },
     {
       "id": "F036",

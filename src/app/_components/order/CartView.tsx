@@ -52,7 +52,7 @@ export function CartView() {
                   <span>총 결제 금액</span>
                   <span className={styles.grandTotal} data-testid="cart-grand-total">{formatWon(grandTotalWon(cart))}</span>
                 </div>
-                <button className="cta" type="button" data-testid="cart-checkout" disabled>결제하기 (준비중)</button>
+                <Link className="cta" href="/checkout" data-testid="cart-checkout">결제하기</Link>
               </>
             ))}
         </section>

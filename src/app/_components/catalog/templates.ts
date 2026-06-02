@@ -91,6 +91,7 @@ type TemplateRow = {
   hardPriceWon: number;
   heroImageUrl: string | null;
   sortOrder: number;
+  active?: boolean;
 };
 
 /** Minimal Prisma delegate surface we depend on — a generated client satisfies it. */
@@ -171,8 +172,10 @@ export async function getTemplateByKey(key: string): Promise<CatalogTemplate | n
       const row = await (((await getDb()).template) as TemplateDelegate).findUnique({
         where: { key },
       });
-      if (row) return mapRow(row);
-      // null row (migrated-but-unseeded) deliberately falls through to the mirror.
+      // DB is authoritative: a deactivated (active:false) row REJECTS resolution — no order for
+      // a withdrawn product (mirrors getTemplatesByCategory's `active:true` filter). A null row
+      // (migrated-but-unseeded) deliberately falls through to the mirror.
+      if (row) return row.active === false ? null : mapRow(row);
     } catch {
       // No generated client / unreachable DB (hermetic CI/E2E) — use the seed mirror.
     }
