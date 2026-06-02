@@ -432,7 +432,7 @@
       "verification": "pnpm test:e2e -- home.spec.ts (responsive) + category/order",
       "state": "passing",
       "passes": true,
-      "evidence": "2026-06-02 Playwright 375px no-overflow GREEN across home + category (anniversary/first-moments) + order funnel (order-start/order-cover/cart) + CHECKOUT (checkout-start /checkout + order-confirm /orders/[id]) — scrollWidth ≤ innerWidth + 1 (the proven category check shape). The checkout 375px coverage that TRACK-ORDER explicitly deferred to TRACK-CHECKOUT is now in, so F035 is COMPLETED (was in_progress/ADVANCED). pnpm check green + 58 E2E passed."
+      "evidence": "2026-06-02 Playwright 375px no-overflow GREEN across home + category (anniversary/first-moments) + order funnel (order-start/order-cover/cart) + CHECKOUT (checkout-start /checkout + order-confirm /orders/[id]) — scrollWidth ≤ innerWidth + 1 (the proven category check shape). The checkout 375px coverage that TRACK-ORDER explicitly deferred to TRACK-CHECKOUT is now in, so F035 is COMPLETED (was in_progress/ADVANCED). pnpm check green + 58 E2E passed. 2026-06-02 TRACK-MYPAGE extended the 375px sweep to the post-pay finishing surface (mypage-photo + mypage-finish each assert scrollWidth ≤ innerWidth + 1 on the fully-loaded controls) — beyond F035's original home/category/order/checkout scope; full E2E now 71 passed."
     },
     {
       "id": "F036",
