@@ -16,10 +16,20 @@
 
 export type CatalogCategory = "ANNIVERSARY" | "FIRST_MOMENT";
 
+/** Mirrors prisma/seed.ts TemplateExtraVar. Kept in sync by the catalog drift-guard unit test. */
+export type TemplateExtraVar =
+  | "NONE"
+  | "BIRTHDATE"
+  | "AGE"
+  | "SCHOOL"
+  | "FIRST_WORD"
+  | "SIBLING_GENDER";
+
 /** The fields a TemplateCard needs — a view model over the `Template` row / seed. */
 export type CatalogTemplate = {
   key: string;
   category: CatalogCategory;
+  extraVar: TemplateExtraVar;
   label: string;
   blurb: string;
   softPriceWon: number;
@@ -36,10 +46,12 @@ const t = (
   key: string,
   label: string,
   blurb: string,
+  extraVar: TemplateExtraVar,
   sortOrder: number,
 ): CatalogTemplate => ({
   category,
   key,
+  extraVar,
   label,
   blurb,
   softPriceWon: SOFT_PRICE_WON,
@@ -50,14 +62,14 @@ const t = (
 
 /** Canonical entry catalogue — mirrors prisma/seed.ts ENTRY_TEMPLATES (brief product_lines.entry). */
 const CATALOG: readonly CatalogTemplate[] = [
-  t("ANNIVERSARY", "birth", "탄생", "세상에 처음 온 그날의 설렘을 한 권에 담아.", 1),
-  t("ANNIVERSARY", "hundred_days", "백일", "백 일의 기다림 끝에 만난 작은 기적의 기록.", 2),
-  t("ANNIVERSARY", "first_birthday", "돌", "첫 번째 생일, 가장 빛나는 하루의 이야기.", 3),
-  t("ANNIVERSARY", "birthday", "생일", "해마다 자라는 아이를 위한 단 하나의 생일 책.", 4),
-  t("ANNIVERSARY", "admission", "입학", "새로운 시작 앞에 선 아이에게 건네는 응원.", 5),
-  t("FIRST_MOMENT", "first_steps", "첫 걸음마", "처음 내디딘 한 걸음, 그 용기를 오래 간직하다.", 6),
-  t("FIRST_MOMENT", "first_word", "첫 말", "아이가 처음 부른 그 한마디로 시작되는 이야기.", 7),
-  t("FIRST_MOMENT", "became_sibling", "형아 된 날", "동생을 맞이한 날, 한 뼘 더 자란 마음.", 8),
+  t("ANNIVERSARY", "birth", "탄생", "세상에 처음 온 그날의 설렘을 한 권에 담아.", "BIRTHDATE", 1),
+  t("ANNIVERSARY", "hundred_days", "백일", "백 일의 기다림 끝에 만난 작은 기적의 기록.", "NONE", 2),
+  t("ANNIVERSARY", "first_birthday", "돌", "첫 번째 생일, 가장 빛나는 하루의 이야기.", "NONE", 3),
+  t("ANNIVERSARY", "birthday", "생일", "해마다 자라는 아이를 위한 단 하나의 생일 책.", "AGE", 4),
+  t("ANNIVERSARY", "admission", "입학", "새로운 시작 앞에 선 아이에게 건네는 응원.", "SCHOOL", 5),
+  t("FIRST_MOMENT", "first_steps", "첫 걸음마", "처음 내디딘 한 걸음, 그 용기를 오래 간직하다.", "NONE", 6),
+  t("FIRST_MOMENT", "first_word", "첫 말", "아이가 처음 부른 그 한마디로 시작되는 이야기.", "FIRST_WORD", 7),
+  t("FIRST_MOMENT", "became_sibling", "형아 된 날", "동생을 맞이한 날, 한 뼘 더 자란 마음.", "SIBLING_GENDER", 8),
 ];
 
 const bySortOrder = (a: CatalogTemplate, b: CatalogTemplate) => a.sortOrder - b.sortOrder;
@@ -68,24 +80,41 @@ function fromCatalog(category: CatalogCategory): CatalogTemplate[] {
     .sort(bySortOrder);
 }
 
+/** A Template row as the DB/mirror exposes it. extraVar optional → defaults to NONE on map. */
+type TemplateRow = {
+  key: string;
+  category: CatalogCategory;
+  label: string;
+  blurb: string;
+  extraVar?: TemplateExtraVar | null;
+  softPriceWon: number;
+  hardPriceWon: number;
+  heroImageUrl: string | null;
+  sortOrder: number;
+};
+
 /** Minimal Prisma delegate surface we depend on — a generated client satisfies it. */
 type TemplateDelegate = {
   findMany(args: {
     where: { category: CatalogCategory; active: boolean };
     orderBy: { sortOrder: "asc" };
-  }): Promise<
-    Array<{
-      key: string;
-      category: CatalogCategory;
-      label: string;
-      blurb: string;
-      softPriceWon: number;
-      hardPriceWon: number;
-      heroImageUrl: string | null;
-      sortOrder: number;
-    }>
-  >;
+  }): Promise<TemplateRow[]>;
+  findUnique(args: { where: { key: string } }): Promise<TemplateRow | null>;
 };
+
+function mapRow(r: TemplateRow): CatalogTemplate {
+  return {
+    key: r.key,
+    category: r.category,
+    extraVar: r.extraVar ?? "NONE",
+    label: r.label,
+    blurb: r.blurb,
+    softPriceWon: r.softPriceWon,
+    hardPriceWon: r.hardPriceWon,
+    heroImageUrl: r.heroImageUrl ?? null,
+    sortOrder: r.sortOrder,
+  };
+}
 
 /**
  * Read active templates for a category from a Prisma-like client, mapped to the view
@@ -101,16 +130,7 @@ export async function readTemplatesFromDb(
     where: { category, active: true },
     orderBy: { sortOrder: "asc" },
   });
-  return rows.map((r) => ({
-    key: r.key,
-    category: r.category,
-    label: r.label,
-    blurb: r.blurb,
-    softPriceWon: r.softPriceWon,
-    hardPriceWon: r.hardPriceWon,
-    heroImageUrl: r.heroImageUrl ?? null,
-    sortOrder: r.sortOrder,
-  }));
+  return rows.map(mapRow);
 }
 
 /**
@@ -136,6 +156,28 @@ export async function getTemplatesByCategory(
     }
   }
   return fromCatalog(category);
+}
+
+/**
+ * Resolve a single template by its unique key. Mirrors getTemplatesByCategory's hermetic
+ * fallback: optional live-DB read (dynamic @/lib/db import, inside try/catch), else the
+ * seed mirror. Returns null only when the key is absent from BOTH — the route maps that
+ * to notFound(). Keeps @prisma/client out of the hermetic render path.
+ */
+export async function getTemplateByKey(key: string): Promise<CatalogTemplate | null> {
+  if (process.env.DATABASE_URL) {
+    try {
+      const { getDb } = await import("@/lib/db");
+      const row = await (((await getDb()).template) as TemplateDelegate).findUnique({
+        where: { key },
+      });
+      if (row) return mapRow(row);
+      // null row (migrated-but-unseeded) deliberately falls through to the mirror.
+    } catch {
+      // No generated client / unreachable DB (hermetic CI/E2E) — use the seed mirror.
+    }
+  }
+  return CATALOG.find((x) => x.key === key) ?? null;
 }
 
 /** Format KRW won as an integer with thousands separators (no minor unit). */

@@ -124,3 +124,42 @@
 - Rejected: a sync-only or async-only interface baked to Toss's exact shape (loses provider-agnosticism);
   hitting the real Toss API in tests (flaky, non-hermetic); removing the unused `stripe` npm dep now
   (package.json is TRACK-DB's this wave; trivial follow-up).
+
+## 2026-06-02 — ADR-0011 — TRACK-ORDER (F007–F011, F019): client wizard + pure cart, review-hardened
+- Decision: the entry-line funnel is a **client-side stepped wizard** at `/order/[templateKey]` (정보 →
+  사진 → 커버&옵션 → 확인) backed by a **pure `src/lib/cart.ts`** model persisted to `localStorage`;
+  **DB-free until checkout**. `extraVar` is resolved via the **extended catalog loader** — threaded through
+  the live-DB seam (`TemplateDelegate` + `mapRow ?? "NONE"`) AND the seed mirror, with `getTemplateByKey`
+  reusing the hermetic DB-or-mirror fallback. QR is a **flag-only** toggle priced via a single
+  `QR_ADDON_WON = 0` constant (the brief lists QR as a paid add-on but states no price; the schema has no
+  QR price field), surfaced honestly as "기본 미포함 · 요금 추후 안내".
+- Designed brainstorm-first; **hardened by a 32-agent adversarial design review** (0 blockers; 6 confirmed
+  majors folded in: extraVar must thread the DB seam not just the mirror, `getTemplateByKey` hermetic
+  fallback, photo server-action robustness, `clearCart()`-after-PAID for F016, honest photo-durability
+  deferral, seed-parity drift guard) + per-task two-stage subagent review + an independent whole-implementation
+  worker≠checker pass (ACCEPT). Spec/plan: `docs/superpowers/specs|plans/2026-06-02-track-order-funnel*`.
+- **Scope deviations from the literal track file-list (ratified, conflict-free — TRACK-CAT already merged,
+  no concurrent writer; precedent ADR-0010):** (a) extended `src/app/_components/catalog/templates.ts`
+  (added `extraVar` end-to-end + `getTemplateByKey`); (b) created `src/app/cart/` (the checkout features
+  F012/F016 reference `/cart` explicitly); (c) added `tests/unit/{cart,order-personalization,format}.test.ts`
+  + extended `tests/unit/catalog.test.ts`.
+- **Implementation deviation discovered during the build (justified):** client components cannot value-import
+  `formatWon`/labels from `templates.ts` — its dynamic `import("@/lib/db")` drags `@prisma/client` into the
+  browser bundle (`.prisma/client/index-browser` not found, no `prisma generate`). So a client-safe twin
+  `src/app/_components/order/format.ts` holds `formatWon` + `COVER_LABEL`; a unit test pins the twin to the
+  catalog copy to prevent drift. Type-only imports from `templates.ts` remain safe (erased at build).
+- **Child PII in `localStorage`:** the cart holds `childName`/`childGender`/`extraVar` device-locally — within
+  the brief's PII rules (the forbidden surfaces are logs/traces/E2E fixtures, not the buyer's own device); the
+  photo descriptor is non-PII (opaque key). `clearCart()` is the PAID-only hook (called after F013, never on
+  checkout start → preserves F016's cart). E2E asserts no child-name / photo-filename in DOM/URL.
+- **Handoff to TRACK-CHECKOUT (F012+):** buyer identity (`Order.buyerName/buyerEmail`) is checkout's step,
+  NOT the cart; the order amount MUST be recomputed server-side from authoritative `Template` prices (the
+  client `grandTotalWon`/`toCheckoutSummary.amountWon` are display-only/untrusted); `templateKey`→`Template.id`
+  resolution + DB seeding are checkout's job. `clearCart()` only after PAID.
+- **Honest deferrals (not silent):** F009 stores the access-controlled descriptor only — durable byte storage
+  + the `Asset` DB row land at mypage (F017)/checkout (no object-storage backend wired yet, backstage). Real
+  QR pricing pending the maker. **A11y:** error `aria-live`/`aria-invalid`/`aria-describedby` and cart-line
+  list semantics are deferred to F037 (the dedicated a11y feature) — form controls ARE label-associated.
+- Rejected: server-persisted draft orders (breaks the hermetic no-DB E2E gate the suite relies on); a second
+  order-local `extraVar` mirror (drift risk — extended the one catalog SoR instead, guarded by a seed-parity
+  unit test); inventing a QR price (brief states none — flagged 0 + TODO rather than fabricate).

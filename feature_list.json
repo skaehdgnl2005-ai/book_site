@@ -92,9 +92,9 @@
       "description": "Template select starts the order flow; the template's extra variable (0~1) is resolved for the form",
       "steps": ["Click a template card", "Land on its order step", "Correct extra-var field is requested per template"],
       "verification": "pnpm test:e2e -- order-start.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-02 Playwright order-start.spec.ts: 5 passed — /order/<key> resolves the template via the extended catalog getTemplateByKey (extraVar threaded through the live-DB seam + seed mirror, hermetic fallback); the correct extra-var field is requested per template (생년월일 birth, none 백일, 동생 성별 became_sibling), unknown key → 404. pnpm check green (82 unit incl. catalog drift + compile-time enum-parity guards, R1–R8 0); full E2E 35 passed. Independent worker≠checker review ACCEPT (F042/ADR-0005)."
     },
     {
       "id": "F008",
@@ -104,9 +104,9 @@
       "description": "Pre-pay minimal form: 공통 필수 2개 (아동 이름·성별) + 템플릿 변수 0~1, validated; fields kept minimal to prevent drop-off",
       "steps": ["Enter 이름 + 성별", "Enter the template extra var if any", "Invalid/empty required fields block progress with clear errors"],
       "verification": "pnpm test:e2e -- order-form.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-02 Playwright order-form.spec.ts: 4 passed — 아동 이름·성별 + the template var validated; empty/invalid required fields block 다음 with clear errors; a NONE-template (백일) validates with just 이름·성별; became_sibling renders two DISTINCT gender labels (우리 아이 / 새로 태어난 동생). Pure validator order-personalization.test.ts 10 passed — all input untrusted()-wrapped, strict YYYY-MM-DD + digit-only AGE shape, switch exhaustiveness guard. pnpm check green; worker≠checker ACCEPT (F042)."
     },
     {
       "id": "F009",
@@ -116,9 +116,9 @@
       "description": "Optional child-photo upload with skip ('나중에 올리기') that NEVER blocks payment",
       "steps": ["Offer '지금 올리기' or '건너뛰기'", "Skipping proceeds to checkout", "Uploading stores an access-controlled Asset (not inline)"],
       "verification": "pnpm test:e2e -- order-photo.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-02 Playwright order-photo.spec.ts: 3 passed — 건너뛰기 NEVER blocks (proceeds to cover); uploading stores an access-controlled Asset DESCRIPTOR via the F029 path (receiveUpload(untrusted) → storeAsset CHILD_PHOTO → opaque storageKey), with filename/child-name never in DOM/URL; an unsupported file → friendly typed error and skip still proceeds. Honest scope (ADR-0011): durable object-storage of bytes + the Asset DB row are deferred to mypage (F017)/checkout — pre-pay produces only the safe descriptor. Transitively exercises F029 (its e2e_via). pnpm check green; worker≠checker ACCEPT (F042)."
     },
     {
       "id": "F010",
@@ -128,9 +128,9 @@
       "description": "Cover selection (소프트 43,000원 / 하드 49,000원) reflected in the price (KRW won)",
       "steps": ["Choose 소프트 or 하드", "Line price updates to 43,000 / 49,000원", "Selected cover carries into the cart"],
       "verification": "pnpm test:e2e -- order-cover.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-02 Playwright order-cover.spec.ts: 1 passed — 소프트 43,000원 / 하드 49,000원 selection reflected live in the line price (order-line-price, formatWon). Selected cover carries into the cart (verified via cart.spec.ts hard-cover → 49,000원 grand total). pnpm check green; worker≠checker ACCEPT (F042)."
     },
     {
       "id": "F011",
@@ -140,9 +140,9 @@
       "description": "Cart: add a personalized item; see line totals + grand total in won",
       "steps": ["Add a configured book to cart", "Cart shows template, cover, personalization summary", "Line + grand totals correct (KRW)"],
       "verification": "pnpm test:e2e -- cart.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-02 Playwright cart.spec.ts: 4 passed — a configured book shows its line (template/cover/personalization summary) + the correct grand total in 원; soft → 43,000원, hard → 49,000원; an honest empty state on direct /cart navigation; 375px no-overflow. Pure cart model cart.test.ts 10 passed (line + grand totals incl. ≥2 lines / orderName '외 N건' / removeLine, toCheckoutSummary, untrusted-localStorage line-shape guard + persistence). /cart is a client view (SSR-safe ready-gated shell, no hydration flash); the 결제하기 CTA is honestly disabled (준비중) until TRACK-CHECKOUT (F012). pnpm check green; worker≠checker ACCEPT (F042)."
     },
     {
       "id": "F012",
@@ -236,9 +236,9 @@
       "description": "QR video message add-on selectable at order (optional, default off; flagged on the order)",
       "steps": ["Toggle QR 영상 옵션", "Order reflects qrVideoAddon", "Mypage exposes the upload only when on"],
       "verification": "pnpm test:e2e -- order-qr-addon.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-02 Playwright order-qr-addon.spec.ts: 1 passed — QR 영상 옵션 toggle default OFF; toggling ON flags cart.qrVideoAddon (order-level, matches schema Order.qrVideoAddon) and shows the honest note '기본 미포함 · 요금 추후 안내'; the grand total is unchanged (+0원) via the named QR_ADDON_WON=0 constant (the brief lists QR as a paid add-on but states no price and the schema has no QR price field — interim deferral recorded in ADR-0011). The cart surfaces the flag as a cart-qr line; the mypage upload reveal (F018) is a later track. pnpm check green; worker≠checker ACCEPT (F042)."
     },
     {
       "id": "F020",
@@ -431,7 +431,7 @@
       "verification": "pnpm test:e2e -- home.spec.ts (responsive) + category/order",
       "state": "in_progress",
       "passes": false,
-      "evidence": "Home + category (anniversary/first-moments) verified (E2E 375px no-overflow green, incl. cards at 1-col mobile); order/checkout pending those features."
+      "evidence": "Home + category (anniversary/first-moments) + the order funnel (order-start + order-cover + cart specs) verified 375px no-overflow green (scrollWidth ≤ innerWidth + 1, the proven category check shape). Checkout 375px (F012–F016) still pending TRACK-CHECKOUT before F035 can flip to passing — ADVANCED, not completed, by TRACK-ORDER."
     },
     {
       "id": "F036",
