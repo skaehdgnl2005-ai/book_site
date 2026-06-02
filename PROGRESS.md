@@ -3,13 +3,23 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- Next action (single): **TRACK-CAT (F005/F006) merged to `master` + passing** — catalog category pages live
-  (기념일 5 + 첫 순간들 3, DB-backed with a hermetic seed-mirror). Next in the buyer-flow funnel: **TRACK-ORDER
-  (F007–F011, F019)** — precondition F004+F029 (both merged); stateful funnel → build in ONE session, sequential.
-  **TRACK-CUSTOM (F020–F023)** can run in parallel (precondition F003 merged). Prompts: `docs/SESSION_PROMPTS.md`.
-- Broken / not done: buyer-flow funnel from **F007 (order)** onward not built yet (catalog F005/F006 now done).
-  Category cards link to /order/<templateKey> which 404s until TRACK-ORDER lands (documented contract). Content
-  pages static + not Nav-wired; real assets/founder-story/후기/전화·이메일/배송/환불 await maker input (code-flagged TODOs).
+- Next action (single): **TRACK-ORDER (F007–F011, F019) merged + passing** — the entry-line pre-pay funnel is
+  live (`/order/[templateKey]` client wizard 정보→사진→커버&옵션→확인 → `/cart`), DB-free via the pure
+  `src/lib/cart.ts` model. Next in the buyer flow: **TRACK-CHECKOUT (F012–F016)** — precondition F003 (Toss) +
+  F011 (cart) merged; it `import`s `src/lib/cart` + `src/lib/payments`. **TRACK-CUSTOM (F020–F023)** parallel-OK
+  (precondition F003). Prompts: `docs/SESSION_PROMPTS.md`.
+- **TRACK-CHECKOUT handoff (from ADR-0011 — read before starting F012):** (1) buyer identity
+  (`Order.buyerName/buyerEmail`) is a NEW `/checkout` step, NOT in the cart; map buyerName→`customerName`+`Order.buyerName`.
+  (2) **Recompute the order amount server-side** from authoritative `Template` prices — the client
+  `grandTotalWon`/`toCheckoutSummary.amountWon` are display-only/untrusted. (3) Resolve `templateKey`→`Template.id`
+  (+ revalidate active/price) at order-creation — needs a seeded DB at checkout. (4) Call `clearCart()` ONLY after
+  F013 PAID, never on checkout start (that's what preserves F016's cart on cancel).
+- Broken / not done: **checkout from F012 onward not built** — `/cart`'s 결제하기 CTA is honestly disabled
+  (준비중) until TRACK-CHECKOUT lands. Mypage (F017/F018) + 맞춤 제작 (F020–F023) unbuilt. F009 stores only the
+  access-controlled photo descriptor — durable byte storage + the `Asset` DB row are deferred to mypage/checkout
+  (no object-storage backend wired yet, backstage). Content pages static + not Nav-wired; real assets/founder-story/
+  후기/전화·이메일/배송/환불 await maker input (code-flagged TODOs). A11y aria-live/aria-invalid + cart-line list
+  semantics deferred to F037.
 - **Follow-ups (TRACK-CAT, latent — no DB exists yet; tracked not silent, from the adversarial review):**
   (1) the live-DB branch of `getTemplatesByCategory` is exercised only by the injected-fake unit test, never by a
   gate (no Postgres in CI); (2) the `rows.length>0` guard falls back to the seed mirror on an empty-but-valid DB
@@ -25,14 +35,14 @@
   `docs/SAFETY.md`/`CONSTRAINTS.md`/`ARCHITECTURE.md` + `eval/golden` still say "Stripe". `.env.example` is on Toss.
 
 ## Current verified state   ← single source of truth
-- Last green `pnpm check`: **2026-06-01** (lint + typecheck + **54 unit** + 0 constraint violations, incl.
-  R4/R5/R8 invariants) — verified on the integrated `master` after the TRACK-CAT (F005/F006) merge.
-- E2E (`pnpm test:e2e`): **17 passed** (home 2 + content 11 [brand-story/gallery/reviews/faq + contact×3, each + 375px]
-  + category 4 [anniversary 2 + first-moments 2])
+- Last green `pnpm check`: **2026-06-02** (lint + typecheck + **82 unit** + 0 constraint violations, incl.
+  R4/R5/R8 invariants) — verified on `feat/order` after the TRACK-ORDER funnel build.
+- E2E (`pnpm test:e2e`): **35 passed** (home 2 + content 11 + category 4 + **order/cart 18** [order-start 5 +
+  order-form 4 + order-photo 3 + order-cover 1 + order-qr-addon 1 + cart 4])
 - Boots via `./init.sh`: **yes** (install → check → ready, exit 0)
 - **Two honest, separate numbers** (`pnpm status`):
   - **Harness readiness** (machinery, product-agnostic): 85.2/100 → READY (see `SCORECARD.md`)
-  - **Product delivery** (그림책 제작소 store): **12 / 32 product features passing (~38%)** — F001/F002 home, F003 payment, F004 DB+seed, F029 asset, F024–F028 content, **F005/F006 catalog**
+  - **Product delivery** (그림책 제작소 store): **18 / 32 product features passing (~56%)** — F001/F002 home, F003 payment, F004 DB+seed, F029 asset, F024–F028 content, F005/F006 catalog, **F007–F011 + F019 order funnel**
   - harness-track features passing: 6 / 10 (F030/F031 evidence refreshed Stripe→Toss)
 - Bootstrap contract (build_guide §7): **MET** — boots, verified tests exist, AGENTS.md router, feature_list aligned.
 
@@ -41,6 +51,32 @@ Harness **INITIALIZED + review-hardened + repurposed to 그림책 제작소**. S
 feature_list/router) now reflects the real product; DESIGN.md (Atelier Sans) wired + enforced. Coding loop next.
 
 ## Session log (newest first)
+### 2026-06-02 — TRACK-ORDER (F007–F011, F019) entry-line order funnel  [feat/order]
+- Built the full pre-pay funnel: `/order/[templateKey]` server route (hermetic `getTemplateByKey`, `notFound()` on
+  unknown key) → client `OrderWizard` (`useReducer`) with 4 steps — **정보**(F008 validated form) → **사진**(F009
+  optional, skip never blocks) → **커버&옵션**(F010 cover price + F019 QR toggle) → **확인**(F011) → `/cart`. New
+  track-owned files: `src/lib/cart.ts` (pure model + localStorage adapter, zero upward imports), `src/app/_components/
+  order/*` (OrderWizard, InfoStep/PhotoStep/CoverStep/ReviewStep, `personalization.ts` validator, `photo-action.ts`
+  server action, `format.ts` client-safe formatWon+COVER_LABEL, CartView, order.module.css), `src/app/cart/page.tsx`.
+- **Process: brainstorm → adversarial design review → plan → subagent-driven TDD.** Design hardened by a **32-agent
+  adversarial review** (0 blockers; 6 majors folded in). Implemented via **subagent-driven-development**: a fresh
+  implementer per task + two-stage (spec-compliance then code-quality) independent review per task, then an independent
+  **whole-implementation worker≠checker pass → ACCEPT** (F042/ADR-0005). ADR-0011 records the decisions + deviations.
+- **Key correctness wins from review (in the code, not just the spec):** `extraVar` threaded through the live-DB seam
+  (`TemplateDelegate`+`mapRow`), not just the seed mirror, + a compile-time catalog↔seed enum-parity guard;
+  `getTemplateByKey` reuses the hermetic DB-or-mirror fallback; photo upload is exception-safe + PII-safe (filename
+  never in DOM/URL); `loadCart` filters untrusted/malformed persisted lines. **Bundling fix:** client components
+  can't value-import `templates.ts` (its dynamic `@/lib/db` breaks the browser bundle) → client-safe `format.ts` twin
+  (pinned to the catalog copy by a unit test).
+- Gates: `pnpm check` green (lint+typecheck+**82 unit**+constraints R1–R8 0) + **35 E2E passed** (17 prior, no
+  regressions; +18 order/cart). F007–F011/F019 → `passing` + dated evidence (R4 holds). **F035 advanced, not flipped**
+  (order+cart 375px green; checkout 375px still pending → stays `in_progress`). Product delivery 12→**18/32** (~56%).
+- Honesty-first deferrals (named, not silent): F009 stores only the access-controlled descriptor (durable bytes/Asset
+  row → mypage F017/checkout); QR +0원 via `QR_ADDON_WON` constant (brief states no price); a11y aria-live/aria-invalid
+  + cart-line list semantics → F037. Scope deviations (templates.ts edit, /cart route, new unit tests) ratified in ADR-0011.
+- Next: **TRACK-CHECKOUT (F012–F016)** — imports `src/lib/cart` + `src/lib/payments`; read the cart.ts handoff notes
+  above (buyer identity, server-side amount recompute, templateKey→id, clearCart-after-PAID).
+
 ### 2026-06-01 — TRACK-CAT (F005 기념일 / F006 첫 순간들) catalog category pages  [feat/category]
 - Built the two entry-line category pages as a DB-backed template card grid. New track-owned kit under
   `src/app/_components/catalog/`: `templates.ts` (data loader + canonical catalogue + `formatWon`),
