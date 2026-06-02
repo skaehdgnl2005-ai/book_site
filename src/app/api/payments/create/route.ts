@@ -30,7 +30,7 @@ export async function POST(req: Request): Promise<Response> {
   const built = await buildOrderDraft(untrusted(body).value, getTemplateByKey);
   if (!built.ok) return NextResponse.json({ errors: built.errors }, { status: built.status });
 
-  const order = orderRepo().create(built.draft);
+  const order = await orderRepo().create(built.draft);
   const origin = new URL(req.url).origin;
 
   // createCheckout returns only public, non-secret fields; orderName is PII-free.

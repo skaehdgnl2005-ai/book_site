@@ -366,3 +366,55 @@
   fabricating a pending eval step for appearances (S10 is a genuine documented seam); measuring F036 against a
   production build (E2E runs `next dev`; warm steady-state is the honest in-harness proxy); gold-plating ARIA
   beyond the one real announced-error gap (TDD: no production code without a failing test).
+
+## 2026-06-02 — ADR-0016 — Seam closure: durable DB persistence + Supabase Storage + QR option B
+**Context.** Post-"feature-complete" (all 42 passing), the maker asked to close the documented persistence seams.
+Decisions made WITH the maker: DB host = **Supabase**; E2E stays **hermetic**; uploaded **photo bytes** get durable
+storage; **QR video = option B** (not stored web-side). The maker then became unavailable → the rest (plan →
+implement → adversarial review → commit) was completed autonomously.
+- **DB persistence (orders / finishing / custom).** Prisma adapters now sit behind the SAME surfaces the in-memory
+  stores exposed (`OrderRepo`/`WebhookLedger`, `FinishingStore`, `customRequestStore`), selected by a factory gate on
+  `process.env.DATABASE_URL`. **Writes do NOT silently fall back** (unlike the catalog *read* path / ADR-0002): with a
+  DB configured we use Prisma and let errors propagate — a silent in-memory fallback would create an order that
+  vanishes on restart. In-memory is used ONLY when no `DATABASE_URL` (the hermetic `pnpm check` + Playwright path).
+  Supabase config: pooled `DATABASE_URL` (pgbouncer :6543) for runtime + `DIRECT_URL` (session pooler :5432) for
+  migrations (`directUrl` added to `schema.prisma`; `DIRECT_URL` to env).
+- **Schema migrations (Supabase).** `OrderItem.position Int` (0-based; **stable mypage-finishing item addressing** —
+  without it DB row order is unspecified and a 2-book order could attach a dedication to the wrong book) +
+  `@@unique([orderId, position])`; `CustomStatus.PENDING_PAYMENT` (the WRITTEN pre-payment state). Pure mapping
+  helpers (`buildOrderCreateData`/`mapOrderRow`) carry the logic + are unit-tested without a DB; the thin Prisma
+  orchestration is integration-verified.
+- **Photo bytes → Supabase Storage.** New `src/lib/storage.ts` (`storageConfig`/`putObject`) PUTs bytes to the private
+  bucket via the Storage REST API with the **`service_role`** key — **server-only**, never `NEXT_PUBLIC`,
+  `redact()`-covered. Env-gated: unconfigured ⇒ `putObject` is a **no-op** (descriptor-only, hermetic E2E unaffected);
+  configured ⇒ real PUT, errors surface. Wired into both upload paths (`order/photo-action.ts` pre-pay +
+  `mypage/_lib/actions.ts`). `next.config` `serverActions.bodySizeLimit: 25mb` (default 1MB rejects real photos; QR
+  video is no longer uploaded so this need only fit photos). **LIVE byte round-trip is UNVERIFIED** pending the
+  `SUPABASE_SERVICE_ROLE_KEY` (maker unavailable to paste it) → recorded honestly as **eval S11 PENDING**; code is
+  complete + unit-tested + gated.
+- **QR option B.** The order keeps the `qrVideoAddon` flag end-to-end; mypage shows an honest **backstage notice**
+  (영상은 제작팀이 카카오톡·이메일로 따로 안내), **no web upload**. Removed `uploadQrVideo` +
+  `FinishingStore.getQrVideo/setQrVideo`. Rationale: an optional, unpriced add-on doesn't warrant self-serve
+  large-video infra, and a personal backstage hand-off fits a handmade keepsake. F018 + `mypage-finish.spec.ts`
+  re-spec'd (faithful: still asserts the flag-gated notice + per-order scope, not a vacuous deletion).
+- **tz-faithful consultation slot.** Slots are tz-naive wall-clock strings; stored as UTC (`+":00Z"`) + sliced back so
+  the displayed value round-trips exactly. The slot is untrusted → `validatePhoneInput` now rejects any non-16-char
+  shape (a seconds-bearing value would be tz-shifted; a malformed one would throw on the DateTime write).
+- **Verification.** `pnpm check` green (lint + typecheck + **145 unit** + constraints R1–R8 0); **92 hermetic E2E**
+  (in-memory; `.env.local` moved aside so Next doesn't load the DB env); a gated live-Supabase integration test
+  (`tests/unit/persistence-integration.test.ts`, `skipIf(!DATABASE_URL)`) **4/4** incl. **restart-survival** (a fresh
+  PrismaClient reads committed rows); `pnpm eval` **0.909** (S10 Postgres-persistence PASS; S11 object-storage bytes
+  PENDING). Throwaway raw-`node` proofs were run + deleted during dev; the gated vitest test is the durable artifact.
+- **Process — independent worker≠checker (ADR-0005/F042).** 4 parallel refute-by-default sub-agents
+  (adapter-correctness / hermetic-safety / security-PII / async-completeness). **3 Major fixed:** (1) untrusted slot
+  format → boundary validation; (2) `setPhoto` one-to-one `photoAsset` collision (reachable via the server action when
+  a checkout photo exists; backends diverged) → `upsert` (overwrite, matches in-memory); (3) `redact()` was blind to
+  both `service_role` shapes (JWT `eyJ….eyJ….sig` + `sb_secret_…`) → patterns + tests. **4 Minor/latent fixed:**
+  `putObject` storageKey path-traversal guard; `finishing.ts` `@/lib/db`→relative (vitest has no `@/` resolver);
+  `@@unique([orderId,position])`; stale E2E header comment. **1 noted, not fixed:** confirm vs webhook write different
+  `tossPaymentKey` values — **pre-existing** (unchanged `checkout.ts`), idempotency holds via the `CREATED`-guard, out
+  of this scope.
+- Rejected / deferred: storing QR video bytes at all (option B); a separate restricted Storage key vs `service_role`
+  (deferred — server-only + private bucket acceptable, flagged); raising Storage beyond Supabase free 50MB (QR-B
+  removes the large-file need); claiming eval 1.0 (S11 genuinely unverified without the key — honest PENDING over a
+  vanity number).

@@ -84,7 +84,7 @@ async function paidOrder() {
   const repo = createOrderRepo();
   const built = await buildOrderDraft(payload(), resolver);
   if (!built.ok) throw new Error("fixture draft should be ok");
-  return { repo, order: repo.create(built.draft) };
+  return { repo, order: await repo.create(built.draft) };
 }
 
 // ── F013: webhook signature verification (raw body, HMAC-SHA256, constant-time) ──
@@ -202,22 +202,22 @@ describe("orderRepo.markPaid", () => {
 
   it("marks a CREATED order PAID and stores the payment key", async () => {
     const { repo, order } = await paidOrder();
-    const paid = repo.markPaid(order.id, "pk_1");
+    const paid = await repo.markPaid(order.id, "pk_1");
     expect(paid?.status).toBe("PAID");
     expect(paid?.tossPaymentKey).toBe("pk_1");
   });
 
   it("is idempotent: a second markPaid keeps the FIRST key (no overwrite)", async () => {
     const { repo, order } = await paidOrder();
-    repo.markPaid(order.id, "pk_1");
-    const again = repo.markPaid(order.id, "pk_2");
+    await repo.markPaid(order.id, "pk_1");
+    const again = await repo.markPaid(order.id, "pk_2");
     expect(again?.status).toBe("PAID");
     expect(again?.tossPaymentKey).toBe("pk_1"); // defensive against replay
   });
 
   it("returns undefined for an unknown order id", async () => {
     const { repo } = await paidOrder();
-    expect(repo.markPaid("ord_nope", "pk")).toBeUndefined();
+    expect(await repo.markPaid("ord_nope", "pk")).toBeUndefined();
   });
 });
 
@@ -229,14 +229,14 @@ describe("confirmPayment", () => {
     const res = await confirmPayment(repo, stubProvider("PAID", captured), { orderId: order.id, paymentKey: "pk_abc" });
     expect(res.status).toBe(200);
     expect(captured.input?.amount).toBe(order.amountWon); // authoritative
-    expect(repo.get(order.id)?.status).toBe("PAID");
+    expect((await repo.get(order.id))?.status).toBe("PAID");
   });
 
   it("leaves the order CREATED and returns 402 when the gateway does not approve", async () => {
     const { repo, order } = await paidOrder();
     const res = await confirmPayment(repo, stubProvider("FAILED"), { orderId: order.id, paymentKey: "pk_x" });
     expect(res.status).toBe(402);
-    expect(repo.get(order.id)?.status).toBe("CREATED"); // F015: no PAID order
+    expect((await repo.get(order.id))?.status).toBe("CREATED"); // F015: no PAID order
   });
 
   it("returns 404 for an unknown order id", async () => {
@@ -254,7 +254,7 @@ describe("processWebhook", () => {
     const body = JSON.stringify({ eventId: "evt_a", orderId: order.id, status: "DONE" });
     const res = await processWebhook(body, sign(body), SECRET, repo, ledger);
     expect(res.status).toBe(200);
-    expect(repo.get(order.id)?.status).toBe("PAID");
+    expect((await repo.get(order.id))?.status).toBe("PAID");
   });
 
   it("rejects an invalid signature (401) and leaves the order CREATED", async () => {
@@ -263,7 +263,7 @@ describe("processWebhook", () => {
     const body = JSON.stringify({ eventId: "evt_b", orderId: order.id, status: "DONE" });
     const res = await processWebhook(body, sign(body, "attacker"), SECRET, repo, ledger);
     expect(res.status).toBe(401);
-    expect(repo.get(order.id)?.status).toBe("CREATED");
+    expect((await repo.get(order.id))?.status).toBe("CREATED");
   });
 
   it("is a no-op on redelivery of the same eventId (cannot be flipped by a forged later event)", async () => {
@@ -271,13 +271,13 @@ describe("processWebhook", () => {
     const ledger = createWebhookLedger();
     const first = JSON.stringify({ eventId: "evt_c", orderId: order.id, status: "DONE" });
     await processWebhook(first, sign(first), SECRET, repo, ledger);
-    expect(repo.get(order.id)?.status).toBe("PAID");
+    expect((await repo.get(order.id))?.status).toBe("PAID");
 
     // Same eventId, but a forged CANCELED payload + valid signature.
     const replay = JSON.stringify({ eventId: "evt_c", orderId: order.id, status: "CANCELED" });
     const res = await processWebhook(replay, sign(replay), SECRET, repo, ledger);
     expect(res.status).toBe(200);
-    expect(repo.get(order.id)?.status).toBe("PAID"); // dedupe short-circuits before any state change
+    expect((await repo.get(order.id))?.status).toBe("PAID"); // dedupe short-circuits before any state change
   });
 
   it("acknowledges a non-DONE event without marking PAID", async () => {
@@ -286,7 +286,7 @@ describe("processWebhook", () => {
     const body = JSON.stringify({ eventId: "evt_d", orderId: order.id, status: "CANCELED" });
     const res = await processWebhook(body, sign(body), SECRET, repo, ledger);
     expect(res.status).toBe(200);
-    expect(repo.get(order.id)?.status).toBe("CREATED");
+    expect((await repo.get(order.id))?.status).toBe("CREATED");
   });
 
   it("acknowledges (no crash) an event for an unknown order", async () => {

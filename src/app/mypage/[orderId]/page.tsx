@@ -51,7 +51,7 @@ export default async function MypageOrderPage({ params }: { params: Promise<{ or
     );
   }
 
-  const order = orderRepo().get(orderId);
+  const order = await orderRepo().get(orderId);
   if (!order) notFound();
   const paid = order.status === "PAID";
 

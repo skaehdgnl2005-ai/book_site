@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { untrusted } from "@/lib/guardrails";
 import { receiveUpload, storeAsset, type AssetKind } from "@/lib/assets";
+import { putObject } from "@/lib/storage";
 import { orderRepo } from "@/app/api/payments/_lib/orders";
 import { ACCESS_TTL_MS, cookieName, mintAccess, verifyAccess } from "./access";
 import { finishingStore } from "./finishing";
@@ -39,7 +40,7 @@ export async function lookupOrder(_prev: LookupState, formData: FormData): Promi
     email: String(formData.get("email") ?? ""),
   }).value;
 
-  const order = orderRepo().get(input.orderId);
+  const order = await orderRepo().get(input.orderId);
   if (!order || normalizeEmail(order.buyerEmail) !== normalizeEmail(input.email)) {
     return { error: "주문번호와 이메일을 다시 확인해 주세요." }; // uniform: unknown id OR email mismatch
   }
@@ -79,7 +80,12 @@ async function storeUpload(
   const bytes = new Uint8Array(await file.arrayBuffer());
   // Trust boundary (E4): wrap before storeAsset; filename is consumed here and never persisted/echoed.
   const upload = receiveUpload({ filename: file.name, contentType: file.type, bytes });
-  const stored = storeAsset(kind, upload);
+  const stored = storeAsset(kind, upload); // throws on bad type → caller's catch (format message)
+  try {
+    await putObject(stored.storageKey, stored.contentType, bytes);
+  } catch {
+    return { ok: false, error: "파일을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요." };
+  }
   return {
     ok: true,
     descriptor: { storageKey: stored.storageKey, contentType: stored.contentType, byteSize: stored.byteSize },
@@ -89,45 +95,29 @@ async function storeUpload(
 /** F017 — store the (post-pay) child photo for an item via the F029 path. Returns no PII. */
 export async function uploadFinishingPhoto(orderId: string, index: number, formData: FormData): Promise<ActionResult> {
   if (!(await requireAccess(orderId))) return DENIED;
-  const order = orderRepo().get(orderId);
+  const order = await orderRepo().get(orderId);
   if (!order || order.status !== "PAID") return NOT_PAID;
   if (!Number.isInteger(index) || index < 0 || index >= order.items.length) return BAD_ITEM;
   try {
     const res = await storeUpload("CHILD_PHOTO", formData.get("file"));
     if (!res.ok) return res;
-    finishingStore().setPhoto(orderId, index, res.descriptor);
+    await finishingStore().setPhoto(orderId, index, res.descriptor);
     return { ok: true };
   } catch {
     return { ok: false, error: "지원하지 않는 형식입니다. JPG·PNG·WEBP·HEIC 이미지를 올려 주세요." };
   }
 }
 
-/** F018 — store the QR video for the order. Only meaningful when the QR add-on was chosen. */
-export async function uploadQrVideo(orderId: string, formData: FormData): Promise<ActionResult> {
-  if (!(await requireAccess(orderId))) return DENIED;
-  const order = orderRepo().get(orderId);
-  if (!order || order.status !== "PAID") return NOT_PAID;
-  if (!order.qrVideoAddon) return { ok: false, error: "QR 영상 옵션이 선택되지 않은 주문입니다." };
-  try {
-    const res = await storeUpload("QR_VIDEO", formData.get("file"));
-    if (!res.ok) return res;
-    finishingStore().setQrVideo(orderId, res.descriptor);
-    return { ok: true };
-  } catch {
-    return { ok: false, error: "지원하지 않는 형식입니다. MP4·MOV·WEBM 영상을 올려 주세요." };
-  }
-}
-
 /** F018 — save the dedication for an item. PII — never logged. */
 export async function saveDedication(orderId: string, index: number, text: string): Promise<ActionResult> {
   if (!(await requireAccess(orderId))) return DENIED;
-  const order = orderRepo().get(orderId);
+  const order = await orderRepo().get(orderId);
   if (!order || order.status !== "PAID") return NOT_PAID;
   if (!Number.isInteger(index) || index < 0 || index >= order.items.length) return BAD_ITEM;
   const value = untrusted(typeof text === "string" ? text : "").value.trim();
   if (value.length > MAX_DEDICATION) {
     return { ok: false, error: `헌정 문구는 ${MAX_DEDICATION}자 이내로 입력해 주세요.` };
   }
-  finishingStore().setDedication(orderId, index, value);
+  await finishingStore().setDedication(orderId, index, value);
   return { ok: true };
 }

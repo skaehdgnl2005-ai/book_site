@@ -25,7 +25,7 @@ export async function POST(req: Request): Promise<Response> {
   const v = validateWrittenInput(untrusted(body).value);
   if (!v.ok) return NextResponse.json({ errors: v.errors }, { status: 400 });
 
-  const rec = customRequestStore.create(buildWrittenIntake(v.value));
+  const rec = await customRequestStore.create(buildWrittenIntake(v.value));
   const origin = new URL(req.url).origin;
   const checkout = customTossProvider().createCheckout({
     orderId: rec.id,

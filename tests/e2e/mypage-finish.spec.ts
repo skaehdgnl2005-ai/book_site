@@ -1,10 +1,10 @@
 import { test, expect, type Page } from "@playwright/test";
 
-// F018 — 마이페이지 마무리: dedication (헌정 문구) + QR video upload.
-// The QR upload control is revealed ONLY when the order's QR add-on was chosen (Order.qrVideoAddon).
-// Dedication is prefilled (buyer manages their OWN PII) and persists; the QR upload drives the real
-// src/lib/assets QR_VIDEO path. Per-item dedication / per-order QR (schema-faithful) is exercised
-// by the multi-book isolation test (R12).
+// F018 — 마이페이지 마무리: dedication (헌정 문구) + QR add-on handling.
+// Dedication is prefilled (buyer manages their OWN PII) and persists. QR (option B / ADR-0016): the
+// order carries the qrVideoAddon flag and, when set, mypage shows a BACKSTAGE NOTICE (mypage-qr-backstage)
+// — there is NO web upload; the studio receives the video separately. Per-item dedication / per-order
+// QR scope (schema-faithful) is exercised by the multi-book isolation test (R12).
 
 async function addBirthToCart(page: Page, opts: { qrOn?: boolean } = {}) {
   await page.goto("/order/birth");
@@ -51,8 +51,6 @@ async function lookup(page: Page, orderId: string, email = "parent@example.com")
   await page.waitForURL(`**/mypage/${orderId}`);
 }
 
-const MP4 = { name: "qr.mp4", mimeType: "video/mp4", buffer: Buffer.from("fake-mp4-bytes-nonempty") };
-
 test.describe("mypage finishing (F018)", () => {
   test("dedication saves and prefills on reload (buyer-authored PII shown by design)", async ({ page }) => {
     const orderId = await payBirth(page, { qrOn: true });
@@ -69,18 +67,13 @@ test.describe("mypage finishing (F018)", () => {
     await expect(page.getByTestId("mypage-dedication-0")).toHaveValue("테스트 헌정");
   });
 
-  test("QR add-on ON -> upload control + full honesty copy; real video upload registers (R11/R15)", async ({ page }) => {
+  test("QR add-on ON -> backstage notice shown, no web upload (option B / ADR-0016)", async ({ page }) => {
     const orderId = await payBirth(page, { qrOn: true });
     await lookup(page, orderId);
 
     await expect(page.getByTestId("mypage-qr-note")).toHaveText("QR 영상 옵션 · 기본 미포함 · 요금 추후 안내");
-    await expect(page.getByTestId("mypage-qr-input")).toBeVisible();
-    await page.getByTestId("mypage-qr-input").setInputFiles(MP4);
-    await expect(page.getByTestId("mypage-qr-status")).toHaveText("영상이 등록되었습니다");
-
-    // Persists across reload (hermetic finishing store; mirrors the photo persistence path).
-    await page.reload();
-    await expect(page.getByTestId("mypage-qr-status")).toHaveText("영상이 등록되었습니다");
+    await expect(page.getByTestId("mypage-qr-backstage")).toBeVisible();
+    // Option B: the studio receives the video backstage — the web app has NO upload control.
     await expect(page.getByTestId("mypage-qr-input")).toHaveCount(0);
   });
 
@@ -99,8 +92,8 @@ test.describe("mypage finishing (F018)", () => {
     // Two finishing cards, one per OrderItem.
     await expect(page.getByTestId("mypage-dedication-0")).toBeVisible();
     await expect(page.getByTestId("mypage-dedication-1")).toBeVisible();
-    // Per-order QR: exactly ONE shared QR control for the whole 2-item order (not one per book).
-    await expect(page.getByTestId("mypage-qr-input")).toHaveCount(1);
+    // Per-order QR: exactly ONE shared QR notice for the whole 2-item order (not one per book).
+    await expect(page.getByTestId("mypage-qr-backstage")).toHaveCount(1);
 
     await page.getByTestId("mypage-dedication-0").fill("헌정0");
     await page.getByTestId("mypage-dedication-save-0").click();
@@ -117,7 +110,7 @@ test.describe("mypage finishing (F018)", () => {
     await lookup(page, orderId);
     // Measure the fully-loaded finishing controls, not the SSR/loading shell.
     await expect(page.getByTestId("mypage-dedication-0")).toBeVisible();
-    await expect(page.getByTestId("mypage-qr-input")).toBeVisible();
+    await expect(page.getByTestId("mypage-qr-backstage")).toBeVisible();
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth > window.innerWidth + 1,
     );

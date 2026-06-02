@@ -13,8 +13,11 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Runtime uses the pooled (pgbouncer) connection; migrations need a direct/session
+  // connection (advisory locks + DDL are unsupported through transaction-mode pgbouncer).
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ── Catalog: a Template IS the entry-line product (선택 = 상품 선택) ───────────────
@@ -68,7 +71,10 @@ model OrderItem {
   templateId    String
   coverType     CoverType // SOFT(43000) | HARD(49000)
   unitPriceWon  Int
+  position      Int             @default(0) // 0-based index within the order (stable item addressing for mypage finishing)
   personalization Personalization?
+
+  @@unique([orderId, position]) // enforce the invariant: at most one item per position within an order
 }
 
 // Per-book personalization: minimal at pre-pay; finished post-pay in mypage.
@@ -181,6 +187,7 @@ enum CustomPath {
 }
 
 enum CustomStatus {
+  PENDING_PAYMENT // WRITTEN path: created before its (test) payment settles → SUBMITTED
   SUBMITTED
   IN_REVIEW
   IN_PRODUCTION

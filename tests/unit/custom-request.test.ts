@@ -108,6 +108,11 @@ describe("validatePhoneInput (untrusted)", () => {
     expect(validatePhoneInput(42).ok).toBe(false);
   });
 
+  it("rejects a malformed slot shape (untrusted → prevents a tz-shifted / Invalid DB write)", () => {
+    expect(validatePhoneInput({ slot: "2026-06-08T10:00:00", name: "n", phone: "p", memo: "" }).ok).toBe(false); // 19-char (seconds)
+    expect(validatePhoneInput({ slot: "garbage", name: "n", phone: "p", memo: "" }).ok).toBe(false);
+  });
+
   it("accepts a slot + name + phone, memo optional", () => {
     const r = validatePhoneInput({ slot: "2026-06-08T10:00", name: "김부모", phone: "010-1234-5678", memo: "" });
     expect(r.ok).toBe(true);
@@ -151,27 +156,27 @@ describe("customRequestStore — hermetic in-memory repository", () => {
   const draft = () =>
     buildWrittenIntake({ contactName: "김부모", contactPhone: "010", answers: { protagonist: { name: "서연" } } });
 
-  it("create → get round-trips with a unique cr_ id + createdAt", () => {
-    const rec = customRequestStore.create(draft());
+  it("create → get round-trips with a unique cr_ id + createdAt", async () => {
+    const rec = await customRequestStore.create(draft());
     expect(rec.id).toMatch(/^cr_/);
     expect(rec.createdAt).toBeTruthy();
-    expect(customRequestStore.get(rec.id)?.contactName).toBe("김부모");
+    expect((await customRequestStore.get(rec.id))?.contactName).toBe("김부모");
   });
 
-  it("markSubmitted flips PENDING_PAYMENT → SUBMITTED", () => {
-    const rec = customRequestStore.create(draft());
+  it("markSubmitted flips PENDING_PAYMENT → SUBMITTED", async () => {
+    const rec = await customRequestStore.create(draft());
     expect(rec.status).toBe("PENDING_PAYMENT");
-    expect(customRequestStore.markSubmitted(rec.id)?.status).toBe("SUBMITTED");
+    expect((await customRequestStore.markSubmitted(rec.id))?.status).toBe("SUBMITTED");
   });
 
-  it("unknown id → undefined for get and markSubmitted", () => {
-    expect(customRequestStore.get("cr_nope")).toBeUndefined();
-    expect(customRequestStore.markSubmitted("cr_nope")).toBeUndefined();
+  it("unknown id → undefined for get and markSubmitted", async () => {
+    expect(await customRequestStore.get("cr_nope")).toBeUndefined();
+    expect(await customRequestStore.markSubmitted("cr_nope")).toBeUndefined();
   });
 
-  it("assigns distinct ids across creates", () => {
-    const a = customRequestStore.create(buildPhoneIntake({ slot: "s", name: "n", phone: "p", memo: "" }));
-    const b = customRequestStore.create(buildPhoneIntake({ slot: "s", name: "n", phone: "p", memo: "" }));
+  it("assigns distinct ids across creates", async () => {
+    const a = await customRequestStore.create(buildPhoneIntake({ slot: "s", name: "n", phone: "p", memo: "" }));
+    const b = await customRequestStore.create(buildPhoneIntake({ slot: "s", name: "n", phone: "p", memo: "" }));
     expect(a.id).not.toBe(b.id);
   });
 });

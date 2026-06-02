@@ -21,7 +21,7 @@ export default async function CustomCompletePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const rec = customRequestStore.get(id);
+  const rec = await customRequestStore.get(id);
 
   if (!rec) {
     return (

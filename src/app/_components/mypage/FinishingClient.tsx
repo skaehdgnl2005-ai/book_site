@@ -1,11 +1,11 @@
 "use client";
 import { useCallback, useEffect, useState, type ChangeEvent } from "react";
-import { saveDedication, uploadFinishingPhoto, uploadQrVideo } from "@/app/mypage/_lib/actions";
+import { saveDedication, uploadFinishingPhoto } from "@/app/mypage/_lib/actions";
 import styles from "./mypage.module.css";
 
 type ItemMeta = { index: number; templateLabel: string; coverLabel: string; unitPriceText: string };
 type StateItem = { index: number; dedication: string; photoOnFile: boolean };
-type FinishingState = { status: string; items: StateItem[]; qrOnFile: boolean };
+type FinishingState = { status: string; items: StateItem[] };
 
 /**
  * F017/F018 — the post-pay finishing panel (client). The SSR shell carries only non-PII item meta;
@@ -80,7 +80,7 @@ export function FinishingClient({
           return <FinishingItem key={item.index} orderId={orderId} meta={item} initial={s} />;
         })}
       </ul>
-      {qrAddon ? <QrSection orderId={orderId} initialOnFile={state.qrOnFile} /> : null}
+      {qrAddon ? <QrSection /> : null}
     </section>
   );
 }
@@ -204,49 +204,19 @@ function FinishingItem({
   );
 }
 
-function QrSection({ orderId, initialOnFile }: { orderId: string; initialOnFile: boolean }) {
-  const [onFile, setOnFile] = useState(initialOnFile);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const onVideo = async (e: ChangeEvent<HTMLInputElement>) => {
-    const input = e.target;
-    const file = input.files?.[0];
-    if (!file) return;
-    setBusy(true);
-    setError(null);
-    try {
-      const fd = new FormData();
-      fd.set("file", file);
-      const res = await uploadQrVideo(orderId, fd);
-      if (res.ok) setOnFile(true);
-      else setError(res.error);
-    } catch {
-      setError("영상을 올리지 못했습니다. 잠시 후 다시 시도해 주세요.");
-    } finally {
-      setBusy(false);
-      input.value = "";
-    }
-  };
-
+/**
+ * QR 영상 옵션 안내 (option B / ADR-0016). The studio collects the video backstage — the web app
+ * never receives or stores the file. So this is an honest notice, not an upload control.
+ */
+function QrSection() {
   return (
     <div className={styles.qrSection} aria-label="QR 영상">
       <p className={styles.controlLabel}>QR 영상 인사 메시지</p>
       <p className={styles.note} data-testid="mypage-qr-scope">이 QR 영상은 주문 전체에 한 번 적용됩니다.</p>
       <p className={styles.qrNote} data-testid="mypage-qr-note">QR 영상 옵션 · 기본 미포함 · 요금 추후 안내</p>
-      {onFile ? (
-        <p className={styles.photoStatus} data-testid="mypage-qr-status">영상이 등록되었습니다</p>
-      ) : (
-        <input
-          type="file"
-          accept="video/*"
-          aria-label="QR 영상 파일 선택"
-          data-testid="mypage-qr-input"
-          onChange={onVideo}
-          disabled={busy}
-        />
-      )}
-      {error ? <p className={styles.error} role="alert" data-testid="mypage-qr-error">{error}</p> : null}
+      <p className={styles.note} data-testid="mypage-qr-backstage">
+        영상은 제작팀이 카카오톡·이메일로 따로 안내드려 받습니다. 여기서 업로드하지 않으셔도 됩니다.
+      </p>
     </div>
   );
 }

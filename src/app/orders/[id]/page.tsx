@@ -17,7 +17,7 @@ export const metadata: Metadata = { title: "주문 확인 · 그림책 제작소
  */
 export default async function OrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const order = orderRepo().get(id);
+  const order = await orderRepo().get(id);
   if (!order) notFound();
   const paid = order.status === "PAID";
 

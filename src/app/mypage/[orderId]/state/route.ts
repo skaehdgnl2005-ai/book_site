@@ -22,22 +22,21 @@ export async function GET(
   if (!verifyAccess(orderId, token)) {
     return NextResponse.json({ error: "접근 권한이 없습니다." }, { status: 401, headers: NO_STORE });
   }
-  const order = orderRepo().get(orderId);
+  const order = await orderRepo().get(orderId);
   if (!order) {
     return NextResponse.json({ error: "주문을 찾을 수 없습니다." }, { status: 404, headers: NO_STORE });
   }
   const store = finishingStore();
-  const items = order.items.map((it, index) => {
-    const fin = store.getItem(orderId, index);
-    return {
-      index,
-      dedication: fin.dedication ?? "",
-      // "on file" = attached at checkout OR uploaded here in mypage.
-      photoOnFile: it.photo != null || fin.photo != null,
-    };
-  });
-  return NextResponse.json(
-    { status: order.status, items, qrOnFile: store.getQrVideo(orderId) != null },
-    { headers: NO_STORE },
+  const items = await Promise.all(
+    order.items.map(async (it, index) => {
+      const fin = await store.getItem(orderId, index);
+      return {
+        index,
+        dedication: fin.dedication ?? "",
+        // "on file" = attached at checkout OR uploaded here in mypage.
+        photoOnFile: it.photo != null || fin.photo != null,
+      };
+    }),
   );
+  return NextResponse.json({ status: order.status, items }, { headers: NO_STORE });
 }

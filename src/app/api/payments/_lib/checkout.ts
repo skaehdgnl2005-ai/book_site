@@ -138,13 +138,13 @@ export async function confirmPayment(
 ): Promise<{ status: number; body: Record<string, unknown> }> {
   const orderId = asString(input.orderId);
   const paymentKey = asString(input.paymentKey);
-  const order = repo.get(orderId);
+  const order = await repo.get(orderId);
   if (!order) return { status: 404, body: { errors: ["주문을 찾을 수 없습니다."] } };
   if (!paymentKey) return { status: 400, body: { errors: ["결제 정보가 없습니다."] } };
 
   const conf = await provider.confirm({ paymentKey, orderId: order.id, amount: order.amountWon });
   if (conf.status !== "PAID") return { status: 402, body: { status: conf.status } }; // F015: no PAID order
-  const paid = repo.markPaid(order.id, conf.paymentKey);
+  const paid = await repo.markPaid(order.id, conf.paymentKey);
   return { status: 200, body: { status: "PAID", orderId: paid?.id ?? order.id } };
 }
 
@@ -172,13 +172,13 @@ export async function processWebhook(
   // Dedupe BEFORE any state change so a redelivery (even a forged later payload) is a
   // strict no-op. Hermetic store is single-process; the prod Prisma seam uses the
   // ProcessedWebhook @id unique constraint as the atomic gate (insert-first).
-  if (ledger.seen(eventId)) return { status: 200, body: { duplicate: true } };
-  ledger.record(eventId);
+  if (await ledger.seen(eventId)) return { status: 200, body: { duplicate: true } };
+  await ledger.record(eventId);
 
   if (event.status !== "DONE") return { status: 200, body: { status: "IGNORED" } };
-  const order = repo.get(orderId);
+  const order = await repo.get(orderId);
   if (!order) return { status: 200, body: { status: "UNKNOWN_ORDER" } };
-  repo.markPaid(order.id, `webhook:${eventId}`);
+  await repo.markPaid(order.id, `webhook:${eventId}`);
   return { status: 200, body: { status: "PAID", orderId: order.id } };
 }
 

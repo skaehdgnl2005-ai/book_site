@@ -3,7 +3,13 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- Next action (single): **TRACK-POLISH (F036, F037, F039, F040, F042) DONE + passing** (this work) — the cross-cutting
+- Next action (single): **ADR-0016 seam closure DONE** — durable DB persistence (Supabase Prisma adapters behind the
+  orders/finishing/custom surfaces, gated on `DATABASE_URL`, no silent write-fallback), photo bytes → Supabase Storage
+  (`src/lib/storage.ts`, env-gated), QR **option B** (flag + backstage notice, no web upload). Gates: `pnpm check` 145
+  unit + 92 hermetic E2E + gated live-Supabase integration **4/4 (restart-survival)** + `pnpm eval` 0.909.
+  **⤷ ONE maker step remains:** create a **PRIVATE `assets` Storage bucket** + paste `SUPABASE_SERVICE_ROLE_KEY` into
+  `.env.local` → then photo-byte storage is live and **eval S11** is verifiable (`set -a; . .env.local; set +a;
+  pnpm exec vitest run persistence-integration`). Prior work: **TRACK-POLISH (F036, F037, F039, F040, F042) DONE + passing** — the cross-cutting
   polish track closes the entry line. **F036** perf budget (`perf.spec.ts`: p95<2s on home + both categories, measured
   WARM steady-state via Navigation Timing, ~580–680ms / ≈3× headroom, each route's p95 emitted as a `kind:"metric"`
   trace). **F037** a11y (`a11y.spec.ts`: a hermetic in-browser DOM audit over 14 pages + a teeth self-test; found+fixed
@@ -45,10 +51,14 @@
   `docs/SAFETY.md`/`CONSTRAINTS.md`/`ARCHITECTURE.md` + `eval/golden` still say "Stripe". `.env.example` is on Toss.
 
 ## Current verified state   ← single source of truth
-- Last green `pnpm check`: **2026-06-02** (lint + typecheck + **131 unit** + 0 constraint violations, incl.
-  R4/R5/R8 invariants) — verified on `feat/polish` (TRACK-POLISH adds `metrics.test.ts` +6; F036/F037 are E2E-tested).
-- E2E (`pnpm test:e2e`): **92 passed** (71 prior + **3 perf** [perf.spec.ts] + **18 a11y** [a11y.spec.ts])
-- Eval (`pnpm eval`): `task_success_rate` **0.9** — 9 entry-line steps pass; 1 durable-persistence seam reported **pending** (honest, not success).
+- Last green `pnpm check`: **2026-06-02** (lint + typecheck + **145 unit** + 0 constraint violations, incl.
+  R4/R5/R8 invariants) — incl. ADR-0016 (DB persistence + storage + QR-B). The live-Supabase integration test
+  (`persistence-integration.test.ts`) is **gated `skipIf(!DATABASE_URL)`** → skipped in hermetic check.
+- E2E (`pnpm test:e2e`): **92 passed** (hermetic / in-memory; run with `.env.local` moved aside so Next doesn't load the DB env).
+- Live-Supabase integration (`set -a; . .env.local; set +a; pnpm exec vitest run persistence-integration`): **4/4** —
+  orders / finishing / custom round-trip AND **survive a restart** (fresh PrismaClient reads committed rows); self-cleans.
+- Eval (`pnpm eval`): `task_success_rate` **0.909** — S1–S10 pass (incl. S10 durable **Postgres** persistence, now wired);
+  S11 (durable object-storage of upload **bytes**) reported **pending** — code complete + gated, live verify needs `SUPABASE_SERVICE_ROLE_KEY`.
 - Boots via `./init.sh`: **yes** (install → check → ready, exit 0)
 - **Two honest, separate numbers** (`pnpm status`):
   - **Harness readiness** (machinery, product-agnostic): 85.2/100 → READY (see `SCORECARD.md`)
@@ -61,6 +71,30 @@ Harness **INITIALIZED + review-hardened + repurposed to 그림책 제작소**. S
 feature_list/router) now reflects the real product; DESIGN.md (Atelier Sans) wired + enforced. Coding loop next.
 
 ## Session log (newest first)
+### 2026-06-02 — ADR-0016 seam closure: durable DB persistence + Supabase Storage + QR option B  [master]
+- Post-"feature-complete" work, maker-directed (DB=Supabase, E2E hermetic, photo bytes durable, QR=option B), then
+  finished autonomously (maker unavailable) plan→implement→adversarial-review→commit. **Full record: DECISIONS ADR-0016.**
+- **DB persistence.** Prisma adapters behind the existing `OrderRepo`/`WebhookLedger` (`api/payments/_lib/orders.ts`),
+  `FinishingStore` (`mypage/_lib/finishing.ts`), `customRequestStore` (`lib/customRequest.ts`) surfaces, gated on
+  `DATABASE_URL`. **Writes never silently fall back** to in-memory (would lose data on restart); in-memory only when no
+  DB (hermetic). Sync→async refactor of those surfaces + every consumer (`checkout.ts`, the payment/custom routes, the
+  order/mypage pages, `state/route.ts`) awaited; `webhook.test.ts`/`custom-request.test.ts` updated. Supabase: pooled
+  `DATABASE_URL` :6543 + `DIRECT_URL` :5432 (migrations). Migrations applied: `OrderItem.position` + `@@unique`,
+  `CustomStatus.PENDING_PAYMENT`.
+- **Photo bytes → Supabase Storage** (`src/lib/storage.ts`, TDD): `putObject` server-only `service_role` PUT, env-gated
+  (unconfigured ⇒ no-op descriptor-only ⇒ hermetic E2E unaffected). Wired into pre-pay (`photo-action.ts`) + mypage
+  (`actions.ts`). `next.config` `serverActions.bodySizeLimit:25mb`. **S11 byte round-trip UNVERIFIED** pending the
+  `SUPABASE_SERVICE_ROLE_KEY` (placeholder in `.env.local`).
+- **QR option B**: order keeps the `qrVideoAddon` flag; mypage shows a backstage notice, **no web upload**
+  (`uploadQrVideo` + `FinishingStore` QR methods removed). F018 + `mypage-finish.spec.ts` re-spec'd.
+- **worker≠checker** (4 refute-by-default sub-agents): **3 Major + 4 Minor/latent fixed** (slot boundary-validation;
+  `setPhoto` upsert vs one-to-one collision; `redact()` now covers `service_role` JWT/`sb_secret_`; storageKey
+  path-guard; finishing relative-import; `@@unique` invariant; stale comment). 1 pre-existing key-nondeterminism noted.
+- **Gates:** `pnpm check` green (lint+typecheck+**145 unit**+constraints R1–R8 0); **92 hermetic E2E**; gated live-Supabase
+  integration test (`persistence-integration.test.ts`) **4/4 incl. restart-survival**; `pnpm eval` **0.909** (S10 Postgres
+  PASS, S11 bytes PENDING). **One remaining maker step:** paste `SUPABASE_SERVICE_ROLE_KEY` into `.env.local` (create a
+  PRIVATE `assets` bucket) → then byte storage is live + S11 verifiable.
+
 ### 2026-06-02 — TRACK-POLISH (F036, F037, F039, F040, F042) cross-cutting polish + eval  [feat/polish]
 - Closed the entry line with the cross-cutting polish track (F035 375px was already done). Each feature TDD
   (test-first, watched RED→GREEN), then ONE independent worker≠checker review before any `passes:true`.

@@ -27,6 +27,10 @@ describe("env contract (G-ERR / E3)", () => {
     expect(redact("key test_ck_abc123 end")).toContain("test_ck_***");
     // Legacy Stripe key shapes stay redacted too (defence-in-depth branch in env.ts).
     expect(redact("key sk_live_DEADBEEF end")).toContain("sk_live_***");
+    // Supabase service_role secrets (new sb_secret_ + legacy JWT) — added with the storage feature.
+    expect(redact("key sb_secret_ABC123xyz end")).toContain("sb_secret_***");
+    expect(redact("key sb_secret_ABC123xyz end")).not.toContain("ABC123xyz");
+    expect(redact("tok eyJhbGci.eyJzdWIi.SflKxsignature end")).toContain("eyJ***.***.***");
     expect(redact("mail a@b.com")).toContain("***@***");
   });
 });

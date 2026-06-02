@@ -21,6 +21,6 @@ export async function POST(req: Request): Promise<Response> {
   const v = validatePhoneInput(untrusted(body).value);
   if (!v.ok) return NextResponse.json({ errors: v.errors }, { status: 400 });
 
-  const rec = customRequestStore.create(buildPhoneIntake(v.value));
+  const rec = await customRequestStore.create(buildPhoneIntake(v.value));
   return NextResponse.json({ id: rec.id });
 }

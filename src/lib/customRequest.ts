@@ -19,6 +19,7 @@ import {
   type PaymentProvider,
   type TossTransport,
 } from "./payments";
+import type { Db } from "./db";
 
 /** 맞춤 제작 price — 119,000 KRW won (integer, no minor unit). */
 export const CUSTOM_PRICE_WON = 119000;
@@ -221,7 +222,11 @@ export function validatePhoneInput(input: unknown): ValidationResult<PhoneInput>
   const memo = coerceStr(obj.memo);
 
   const errors: string[] = [];
+  // Slot must be the exact 16-char wall-clock shape the picker emits. It is untrusted (a client can
+  // POST anything) and is later stored in a DateTime column — a malformed/seconds-bearing value would
+  // be timezone-shifted or rejected by the DB. Reject it at the boundary so the round-trip is exact.
   if (!slot) errors.push("상담 희망 시간을 선택해 주세요.");
+  else if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(slot)) errors.push("상담 희망 시간 형식이 올바르지 않습니다.");
   if (!name) errors.push("이름을 입력해 주세요.");
   if (!phone) errors.push("연락처를 입력해 주세요.");
   if (errors.length) return { ok: false, errors };
@@ -260,36 +265,134 @@ export function buildPhoneIntake(input: PhoneInput): CustomRequestDraft {
   };
 }
 
-// ── in-memory repository (hermetic; production swaps a Prisma adapter — D1) ──────
-interface CustomStore {
+// ── repository: in-memory (hermetic) OR Prisma (when DATABASE_URL is set) ────────
+// 맞춤 제작 is the highest-value product (119,000원) — a lost request is a lost order, so the
+// store persists to the CustomRequest/Consultation tables whenever a DB is configured. One async
+// surface; the in-memory backend is the hermetic path for pnpm check + Playwright (ADR-0002).
+interface CustomBackend {
+  create(draft: CustomRequestDraft): Promise<StoredCustomRequest>;
+  get(id: string): Promise<StoredCustomRequest | undefined>;
+  markSubmitted(id: string): Promise<StoredCustomRequest | undefined>;
+}
+
+interface MemStore {
   map: Map<string, StoredCustomRequest>;
   seq: number;
 }
 
-const globalForCustom = globalThis as unknown as { __customRequestStore?: CustomStore };
-
-function store(): CustomStore {
-  return (globalForCustom.__customRequestStore ??= { map: new Map(), seq: 0 });
+function createInMemoryBackend(): CustomBackend {
+  const s: MemStore = { map: new Map(), seq: 0 };
+  return {
+    async create(draft) {
+      const id = `cr_${(++s.seq).toString(36).padStart(4, "0")}`;
+      const rec: StoredCustomRequest = { ...draft, id, createdAt: new Date().toISOString() };
+      s.map.set(id, rec);
+      return rec;
+    },
+    async get(id) {
+      return s.map.get(id);
+    },
+    async markSubmitted(id) {
+      const rec = s.map.get(id);
+      if (!rec) return undefined;
+      if (rec.status === "PENDING_PAYMENT") rec.status = "SUBMITTED";
+      return rec;
+    },
+  };
 }
 
+// Slots are tz-naive wall-clock strings ("YYYY-MM-DDTHH:MM"); store as UTC so the displayed
+// value round-trips exactly (no timezone shift), and slice back to the same 16-char shape.
+function slotToDate(slot: string): Date {
+  return new Date(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(slot) ? `${slot}:00Z` : slot);
+}
+function dateToSlot(d: Date): string {
+  return d.toISOString().slice(0, 16);
+}
+
+type CustomDelegate = {
+  create(args: { data: unknown; include: { consultation: true } }): Promise<CustomRow>;
+  findUnique(args: { where: { id: string }; include: { consultation: true } }): Promise<CustomRow | null>;
+  updateMany(args: { where: { id: string; status: "PENDING_PAYMENT" }; data: { status: "SUBMITTED" } }): Promise<{ count: number }>;
+};
+type CustomRow = {
+  id: string;
+  path: CustomPath;
+  status: CustomStatus;
+  form: unknown;
+  contactName: string;
+  contactPhone: string;
+  createdAt: Date | string;
+  consultation: { requestedSlot: Date | string; status: ConsultationStatus; note: string | null } | null;
+};
+
+function mapCustomRow(row: CustomRow): StoredCustomRequest {
+  return {
+    id: row.id,
+    path: row.path,
+    status: row.status,
+    form: row.form as CustomForm,
+    contactName: row.contactName,
+    contactPhone: row.contactPhone,
+    amountWon: CUSTOM_PRICE_WON, // fixed price (no column); recomputed on read
+    consultation: row.consultation
+      ? {
+          requestedSlot: typeof row.consultation.requestedSlot === "string" ? row.consultation.requestedSlot : dateToSlot(row.consultation.requestedSlot),
+          status: row.consultation.status,
+          note: row.consultation.note ?? "",
+        }
+      : undefined,
+    createdAt: typeof row.createdAt === "string" ? row.createdAt : row.createdAt.toISOString(),
+  };
+}
+
+export function createPrismaBackend(getDb: () => Promise<Db>): CustomBackend {
+  return {
+    async create(draft) {
+      const db = await getDb();
+      const row = await (db.customRequest as CustomDelegate).create({
+        data: {
+          path: draft.path,
+          status: draft.status,
+          form: draft.form,
+          contactName: draft.contactName,
+          contactPhone: draft.contactPhone,
+          consultation: draft.consultation
+            ? { create: { requestedSlot: slotToDate(draft.consultation.requestedSlot), status: draft.consultation.status, note: draft.consultation.note } }
+            : undefined,
+        },
+        include: { consultation: true },
+      });
+      return mapCustomRow(row);
+    },
+    async get(id) {
+      const db = await getDb();
+      const row = await (db.customRequest as CustomDelegate).findUnique({ where: { id }, include: { consultation: true } });
+      return row ? mapCustomRow(row) : undefined;
+    },
+    async markSubmitted(id) {
+      const db = await getDb();
+      await (db.customRequest as CustomDelegate).updateMany({ where: { id, status: "PENDING_PAYMENT" }, data: { status: "SUBMITTED" } });
+      const row = await (db.customRequest as CustomDelegate).findUnique({ where: { id }, include: { consultation: true } });
+      return row ? mapCustomRow(row) : undefined;
+    },
+  };
+}
+
+const g = globalThis as unknown as { __customMem?: CustomBackend; __customDb?: CustomBackend };
+const getDbLazy = (): Promise<Db> => import("./db").then((m) => m.getDb());
+
+function backend(): CustomBackend {
+  if (process.env.DATABASE_URL) return (g.__customDb ??= createPrismaBackend(getDbLazy));
+  return (g.__customMem ??= createInMemoryBackend());
+}
+
+/** Repository surface (async). Production persists to Prisma; hermetic runs use the in-memory backend. */
 export const customRequestStore = {
-  create(draft: CustomRequestDraft): StoredCustomRequest {
-    const s = store();
-    const id = `cr_${(++s.seq).toString(36).padStart(4, "0")}`;
-    const rec: StoredCustomRequest = { ...draft, id, createdAt: new Date().toISOString() };
-    s.map.set(id, rec);
-    return rec;
-  },
-  get(id: string): StoredCustomRequest | undefined {
-    return store().map.get(id);
-  },
+  create: (draft: CustomRequestDraft): Promise<StoredCustomRequest> => backend().create(draft),
+  get: (id: string): Promise<StoredCustomRequest | undefined> => backend().get(id),
   /** Settle a WRITTEN request once its (test) payment is PAID. */
-  markSubmitted(id: string): StoredCustomRequest | undefined {
-    const rec = store().map.get(id);
-    if (!rec) return undefined;
-    if (rec.status === "PENDING_PAYMENT") rec.status = "SUBMITTED";
-    return rec;
-  },
+  markSubmitted: (id: string): Promise<StoredCustomRequest | undefined> => backend().markSubmitted(id),
 };
 
 /**

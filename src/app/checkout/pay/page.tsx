@@ -23,7 +23,7 @@ export default async function PayPage({
 }) {
   if (process.env.APP_ENV === "production") notFound();
   const { order: orderId } = await searchParams;
-  const order = orderId ? orderRepo().get(orderId) : undefined;
+  const order = orderId ? await orderRepo().get(orderId) : undefined;
   if (!order || order.status !== "CREATED") notFound();
 
   return (
