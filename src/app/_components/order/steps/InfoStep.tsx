@@ -35,18 +35,22 @@ export function InfoStep({
       <label className={styles.field}>
         <span className={styles.label}>아이 이름</span>
         <input className={styles.input} data-testid="order-name-input" value={draft.childName}
+          aria-invalid={errors.childName ? true : undefined}
+          aria-describedby={errors.childName ? "order-error-childName" : undefined}
           onChange={(e) => onPatch({ childName: e.target.value })} />
       </label>
-      {errors.childName && <p className={styles.error} data-testid="order-error-childName">{errors.childName}</p>}
+      {errors.childName && <p className={styles.error} role="alert" id="order-error-childName" data-testid="order-error-childName">{errors.childName}</p>}
 
-      <fieldset className={styles.field}>
+      <fieldset className={styles.field}
+        aria-invalid={errors.childGender ? true : undefined}
+        aria-describedby={errors.childGender ? "order-error-childGender" : undefined}>
         <legend className={styles.label}>{childGenderLabel}</legend>
         <label><input type="radio" name="childGender" data-testid="order-gender-male"
           checked={draft.childGender === "MALE"} onChange={() => onPatch({ childGender: "MALE" })} /> 남아</label>
         <label><input type="radio" name="childGender" data-testid="order-gender-female"
           checked={draft.childGender === "FEMALE"} onChange={() => onPatch({ childGender: "FEMALE" })} /> 여아</label>
       </fieldset>
-      {errors.childGender && <p className={styles.error} data-testid="order-error-childGender">{errors.childGender}</p>}
+      {errors.childGender && <p className={styles.error} role="alert" id="order-error-childGender" data-testid="order-error-childGender">{errors.childGender}</p>}
 
       {spec && (
         spec.inputType === "gender" ? (
@@ -62,11 +66,13 @@ export function InfoStep({
             <span className={styles.label} data-testid="order-extravar-label">{spec.label}</span>
             <input className={styles.input} data-testid="order-extravar-input"
               type={spec.inputType === "date" ? "date" : spec.inputType === "number" ? "number" : "text"}
+              aria-invalid={errors.extraVar ? true : undefined}
+              aria-describedby={errors.extraVar ? "order-error-extraVar" : undefined}
               value={draft.extraVarValue} onChange={(e) => onPatch({ extraVarValue: e.target.value })} />
           </label>
         )
       )}
-      {errors.extraVar && <p className={styles.error} data-testid="order-error-extraVar">{errors.extraVar}</p>}
+      {errors.extraVar && <p className={styles.error} role="alert" id="order-error-extraVar" data-testid="order-error-extraVar">{errors.extraVar}</p>}
 
       <button className="cta" type="button" data-testid="order-next" onClick={submit}>다음</button>
     </div>

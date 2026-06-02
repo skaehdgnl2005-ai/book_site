@@ -1,13 +1,17 @@
 {
   "name": "purchase-flow",
-  "optimal_steps": 6,
-  "description": "Canonical buyer journey, graded as features land. Holdout variants live in eval/holdout/ and are never used to tune (G4).",
+  "optimal_steps": 9,
+  "description": "Canonical 그림책 제작소 ENTRY-LINE buyer journey (기념일/첫 순간들): home → category → configure → cart → TossPayments (test) → PAID confirmation → mypage finishing. Graded as features land; each step names the real E2E/integration check that grades it. Unbuilt steps (e.g. durable fulfillment persistence) report as PENDING, never success. Holdout variants live in eval/holdout/ and are never used to tune (G4).",
   "steps": [
-    { "id": "S1", "desc": "Home renders featured region", "verify": "e2e: home featured", "impl": true, "feature": "F001" },
-    { "id": "S2", "desc": "Open a book detail page", "verify": "e2e: book detail", "impl": false, "feature": "F003" },
-    { "id": "S3", "desc": "Add the book to cart", "verify": "e2e: add to cart", "impl": false, "feature": "F004" },
-    { "id": "S4", "desc": "Checkout via Stripe test mode", "verify": "e2e: checkout success", "impl": false, "feature": "F006" },
-    { "id": "S5", "desc": "Order confirmation is shown", "verify": "e2e: order confirm", "impl": false, "feature": "F008" },
-    { "id": "S6", "desc": "Order appears in order history", "verify": "e2e: order history", "impl": false, "feature": "F011" }
+    { "id": "S1", "desc": "Home renders the brand hero + 3-category featured region", "verify": "e2e: home.spec.ts", "impl": true, "feature": "F002" },
+    { "id": "S2", "desc": "Open the 기념일 category and see the seeded template cards", "verify": "e2e: category-anniversary.spec.ts", "impl": true, "feature": "F005" },
+    { "id": "S3", "desc": "Configure a book: 이름·성별 + the template variable, validated", "verify": "e2e: order-form.spec.ts", "impl": true, "feature": "F008" },
+    { "id": "S4", "desc": "Skip the optional child photo (never blocks payment)", "verify": "e2e: order-photo.spec.ts", "impl": true, "feature": "F009" },
+    { "id": "S5", "desc": "Choose a cover (소프트 43,000 / 하드 49,000원); line price reflects it", "verify": "e2e: order-cover.spec.ts", "impl": true, "feature": "F010" },
+    { "id": "S6", "desc": "Cart shows the personalized line + grand total in won", "verify": "e2e: cart.spec.ts", "impl": true, "feature": "F011" },
+    { "id": "S7", "desc": "Checkout via TossPayments (test/sandbox) → order marked PAID (idempotent)", "verify": "e2e: checkout-success.spec.ts", "impl": true, "feature": "F013" },
+    { "id": "S8", "desc": "Order confirmation shows items, total, status PAID (no PII)", "verify": "e2e: order-confirm.spec.ts", "impl": true, "feature": "F014" },
+    { "id": "S9", "desc": "Mypage finishing: dedication saved + prefilled, photo upload if skipped", "verify": "e2e: mypage-finish.spec.ts", "impl": true, "feature": "F017" },
+    { "id": "S10", "desc": "Paid order + uploaded photo persist to durable storage (Postgres/Asset) across restart", "verify": "integration: Prisma/object-storage persistence", "impl": false, "feature": "seam: durable fulfillment (ADR-0013/0014)" }
   ]
 }

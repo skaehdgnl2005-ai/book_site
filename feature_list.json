@@ -442,9 +442,9 @@
       "description": "p95 page load < 2s on home & category (perf budget H3)",
       "steps": ["Measure home/category load", "p95 < 2000ms", "Track in observability"],
       "verification": "pnpm test:e2e -- perf.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-02 Playwright perf.spec.ts: 3 passed — p95 page load < 2000ms on / + /anniversary + /first-moments, measured as Navigation-Timing duration over 20 WARM loads (2 unmeasured warmups absorb next-dev on-demand compile; nearest-rank p95 drops only the single worst sample). Observed p95 ~580-680ms (~3x headroom). Each route's p95 emitted as a kind:metric trace line via the real observability.emit() — ties perf into the F039 stream / OBSERVABILITY.md H3 budget. Honest scope: the budget targets steady-state serve latency (production proxy); warmups are off-clock so every MEASURED load is fully-compiled — a genuinely >2s page recurs on warm loads and fails the assertion (real teeth). pnpm check green + 92 E2E (71 prior + 3 perf + 18 a11y, no regressions). Independent worker!=checker review (sub-agent, refute-by-default): ACCEPT, 0 findings (ADR-0015)."
     },
     {
       "id": "F037",
@@ -454,9 +454,9 @@
       "description": "Basic a11y: heading order, form labels, alt text on covers/sample images",
       "steps": ["Headings ordered", "Inputs have labels", "Images have alt"],
       "verification": "pnpm test:e2e -- a11y.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-02 Playwright a11y.spec.ts: 18 passed — a hand-rolled in-browser DOM audit (no axe dependency -> keeps pnpm check hermetic + dep-pinned) across 14 user-facing pages asserts heading order (first heading h1, no descending level skips), every form control has an accessible name (label[for] / wrapping <label> / aria-label / aria-labelledby / title), and every <img> carries alt. A 'teeth' self-test feeds a deliberately-broken fixture and asserts the audit flags heading-skip + control-without-label + img-without-alt (so the clean-page assertions are demonstrably non-vacuous). The page sweep sees only each route's INITIAL render, so a wizard deep-step audit walks /order/birth (info->photo->cover) and found + fixed 2 REAL defects: (1) PhotoStep's file input had NO accessible name (its label was a bare <p>) -> aria-labelledby to the now-id'd label; (2) the order wizard was the ONLY form whose validation errors were not announced (every other form already used role=alert) -> role=alert + id on the error <p>s + aria-invalid/aria-describedby on the inputs (InfoStep/PhotoStep). Additive ARIA only (every data-testid preserved) -> order specs still 13/13, no regression. pnpm check green + 92 E2E. Independent worker!=checker review: ACCEPT, 0 findings (ADR-0015)."
     },
     {
       "id": "F038",
@@ -478,9 +478,9 @@
       "description": "Ops metrics: latency, error rate, tool-call failure rate collected",
       "steps": ["traced() records durationMs + ok", "Aggregate per session", "Surface error/failure rates"],
       "verification": "pnpm test -- metrics.test.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-02 vitest metrics.test.ts: 6 passed — src/lib/metrics.ts (collectMetrics / collectMetricsBySession / createCollector) derives ops metrics from the trace stream so they never diverge from what happened. Per OBSERVABILITY.md H2: error rate = error events / all events; tool-call failure rate = failed tool calls / tool calls, where a tool call is a traced() outcome (kind:tool ok:true OR kind:error ok:false carrying a durationMs) — the only reading that is non-trivial given traced() never emits tool+ok:false; latency p50/p95/max (nearest-rank, null-safe on empty). createCollector plugs into traced()'s sink, parsing each ALREADY-REDACTED emit() line, so secrets/PII can't reach metrics (proven by a test that throws an email inside an error and asserts ***@*** + no raw address). Tests pin exact values (toolCalls=3, errorRate=1/5, failureRate=1/3, p50=200, p95=300, per-session 0.5/0). pnpm check green (131 unit). Harness track (R8 exempt; no E2E surface). Independent worker!=checker review: ACCEPT, 0 findings (ADR-0015)."
     },
     {
       "id": "F040",
@@ -490,9 +490,9 @@
       "description": "Entry-line purchase-flow eval runs end-to-end and reports task_success_rate (pending steps reported honestly)",
       "steps": ["Run pnpm eval", "Graded steps reported", "Pending steps reported as pending, not success"],
       "verification": "pnpm eval",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-02 pnpm eval runs end-to-end -> task_success_rate 0.9 (9 pass / 1 pending). eval/golden/purchase-flow.json re-pointed from the Stripe-era flow to the real Toss ENTRY-LINE journey (home -> 기념일 category -> configure 이름/성별/var -> photo skip -> cover -> cart -> TossPayments test -> PAID confirm -> mypage finishing): S1-S9 map to the real passing features + their ACTUAL E2E specs (home/category-anniversary/order-form/order-photo/order-cover/cart/checkout-success/order-confirm/mypage-finish), impl:true; S10 (durable Postgres/Asset persistence across a server restart) is a genuine documented seam -> impl:false, reported PENDING not success (honest). eval/holdout/ UNTOUCHED (F041 boundary, G4 — verified git diff empty). Harness track. Independent worker!=checker review: ACCEPT, holdout unmodified + pending-never-counted-as-pass confirmed (ADR-0015)."
     },
     {
       "id": "F041",
@@ -514,9 +514,9 @@
       "description": "Independent worker≠checker review pass before marking features done",
       "steps": ["Implementer finishes", "Separate review pass judges Accept/Revise/Block", "Recorded in PROGRESS/DECISIONS"],
       "verification": "review: docs/EVAL.md worker/checker protocol followed",
-      "state": "not_started",
-      "passes": false,
-      "evidence": null
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-02 docs/WORKER_CHECKER.md — a real worker!=checker protocol (roles: worker does not self-certify; 3-tier independence; refute-by-default stance; Accept/Revise/Block verdicts; 6 review dimensions; recording-before-passes:true tied to R4). docs/EVAL.md now links it and the stale 'Worker != checker (F032)' reference is corrected to F042. APPLIED to shipped features THIS session: an independent worker!=checker review (4 parallel adversarial sub-agents, refute-by-default, barred from pnpm test:e2e to avoid port races since the suite was already green) gated F036/F037/F039/F040 -> ALL ACCEPT, 0 blocker/major/minor code findings; verdicts + dismissed suspicions recorded in PROGRESS + DECISIONS ADR-0015. Verification 'review: ... protocol followed' satisfied (precedent F041, also a review:-verified doc/policy feature). Harness track. pnpm check green (R1-R8 0 violations incl. R4)."
     }
   ]
 }
