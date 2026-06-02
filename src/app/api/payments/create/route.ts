@@ -14,6 +14,12 @@ export const dynamic = "force-dynamic";
  * `payUrl` is computed here: outside production it drives the hermetic sandbox stand-in.
  */
 export async function POST(req: Request): Promise<Response> {
+  // Production checkout drives the REAL Toss SDK flow — a documented seam, not wired here.
+  // Fail fast + honest rather than returning the sandbox payUrl that the prod pay page 404s.
+  if (process.env.APP_ENV === "production") {
+    return NextResponse.json({ errors: ["결제 기능이 아직 준비되지 않았습니다."] }, { status: 503 });
+  }
+
   let body: unknown;
   try {
     body = await req.json();

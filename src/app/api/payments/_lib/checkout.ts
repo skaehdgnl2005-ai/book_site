@@ -51,7 +51,7 @@ export type TemplateResolver = (
 
 type DraftResult = { ok: true; draft: OrderDraft } | { ok: false; status: number; errors: string[] };
 
-const EMAIL_RE = /^\S+@\S+\.\S+$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function asString(v: unknown): string {
   return typeof v === "string" ? v : "";

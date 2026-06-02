@@ -171,8 +171,10 @@ describe("buildOrderDraft (server price recompute)", () => {
   });
 
   it("rejects an invalid buyer email (400)", async () => {
-    const r = await buildOrderDraft(payload({ buyerEmail: "notanemail" }), resolver);
-    expect(r.ok).toBe(false);
+    for (const bad of ["notanemail", "a@@b.com", "a@b.com@", "a@b", "a b@c.com"]) {
+      const r = await buildOrderDraft(payload({ buyerEmail: bad }), resolver);
+      expect(r.ok, `expected "${bad}" to be rejected`).toBe(false);
+    }
   });
 
   it("rejects an invalid coverType (400)", async () => {

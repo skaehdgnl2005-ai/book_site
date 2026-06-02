@@ -196,3 +196,62 @@
   reuses is the fix. The production build (`next build`) compiles all routes cleanly.
 - Rejected: a real DB / real Toss round-trip in the verifiable path (flaky, non-hermetic — ADR-0002/0010);
   gating REQUESTED on approval (misreads the brief); controlled inputs (reset on hydration → flaky E2E).
+
+## 2026-06-02 — ADR-0013 — TRACK-CHECKOUT (F012–F016, F034): entry-line checkout → idempotent PAID
+- Decision: the entry-line checkout turns the localStorage cart into a server `Order` and drives a
+  TossPayments **(test)** payment to **PAID** via TWO idempotent paths — a synchronous confirm (buyer
+  returns from the gateway) and an async webhook — both calling an idempotent `markPaid`. DB-free /
+  hermetic by default (ADR-0002): a `globalThis` Order store + `ProcessedWebhook` ledger under
+  `src/app/api/payments/_lib/` (a Next.js private folder — kept there, NOT in `src/lib/checkout.ts`,
+  because the track's explicit "Touch ONLY" list grants the three app dirs + "import src/lib/cart +
+  src/lib/payments only", unlike TRACK-CUSTOM whose prompt granted `src/lib/customRequest.ts`). The
+  production Prisma adapter swaps behind the same `OrderRepo`/`WebhookLedger` surfaces — a documented seam.
+- **Hermetic Toss-redirect stand-in (D1):** real Toss opens a hosted window; the hermetic E2E (one
+  `pnpm dev`, no DB, no network) cannot. So outside production the create route returns
+  `payUrl=/checkout/pay?order=<id>` — an internal page that stands in for Toss's hosted page with the three
+  outcome branches (승인/실패/취소), making F013/F015/F016 deterministically E2E-testable. The real Toss
+  browser-SDK path is **not built** (unverifiable hermetically → would be a silent half-done claim); it is a
+  documented seam, and `/api/payments/create` **fails fast with a 503** when `APP_ENV==="production"` so it
+  never returns a sandbox URL the prod pay page would 404 (impl-review blocker, fixed).
+- **Anti-tampering (D2):** the order amount is **recomputed server-side** from authoritative `Template`
+  prices (`getTemplateByKey`) — the client `unitPriceWon`/`grandTotal` are display-only/untrusted (ADR-0011
+  handoff). `orderName` is a PII-free product summary. The confirm amount is the server-held `order.amountWon`,
+  never a client value. Per the impl review, `getTemplateByKey` now also **rejects a deactivated (active:false)
+  DB row** (→null→400), mirroring `getTemplatesByCategory`'s filter, so a withdrawn product can't be ordered.
+- **Webhook auth (D3):** signature is verified as **HMAC-SHA256 over the RAW request body** (`req.text()`
+  BEFORE any `JSON.parse` — parsing first would hash the wrong bytes), constant-time + length-guarded; a
+  provider-agnostic seam the production Toss adapter maps its real scheme onto. Idempotency via the
+  `ProcessedWebhook` ledger keyed by `eventId` (dedupe BEFORE any state change → redelivery, even a forged
+  later payload, is a strict no-op). The webhook secret falls back to a test value outside production and is
+  required (401 if absent) in production.
+- **PII (D4):** order ids are sequential/guessable and `/orders/[id]` is unauthenticated, so the confirmation
+  page renders **NO PII** (no buyer/child name or email — only id, status, labels, covers, prices, total);
+  PII is stored server-side for fulfillment and never logged/traced/in a URL. `clearCart()` runs **client-side
+  in `PaySandbox` ONLY after PAID** (it's `window.localStorage`; a server redirect would bypass it) — which is
+  exactly what preserves the cart on cancel/failure (F016/F015).
+- **Approval-gate decision (D5):** NO `requireApproval("order.confirm")` on the buyer's TEST confirm — it's
+  sandbox/reversible; real-money irreversibility is gated at env (live keys refused at boot) + adapter
+  (`toss.charge.live`/`toss.refund.live`). `order.confirm`/`fulfillment.trigger` stay reserved for the backstage
+  operator commit-to-production (out of web scope, ADR-0009). Mirrors ADR-0012 D3; R3 remains the backstop
+  (checkout calls no `.charge(`/`.refund(`). F034's gate = the recorded worker≠checker review, not a code gate.
+- **Process (worker≠checker, ADR-0005/F042):** brainstorm-shaped design → a **PRE-build 33-agent / 6-lens
+  adversarial design review** (19 skeptic-verified findings folded into the spec BEFORE coding — caught the
+  raw-body HMAC + client-side clearCart bugs at design time) → TDD (27 unit RED→GREEN, then 5 E2E specs
+  RED→GREEN) → a **POST-build 12-agent implementation review** (4 skeptic-verified findings, all fixed:
+  prod-503 gate, active-row rejection, tightened email regex; the 2 raw-body/clearCart blockers were already
+  prevented by the design review). Spec/resolutions: `docs/superpowers/specs/2026-06-02-track-checkout-design.md`.
+- **Scope deviations (ratified, conflict-free — precedent ADR-0010/0011, all on merged files w/ no concurrent
+  writer):** (a) import `getTemplateByKey` from the catalog (handoff-mandated authoritative price recompute) +
+  `formatWon`/`COVER_LABEL` from the order display kit + `untrusted()` from guardrails (AGENTS #6 cross-cutting);
+  (b) enable the `/cart` 결제하기 CTA (1 line in `CartView.tsx`) — the documented handoff point TRACK-ORDER left
+  "준비중 until TRACK-CHECKOUT"; (c) the `getTemplateByKey` active-filter (`TemplateRow.active?` + a 1-line
+  guard in the merged `templates.ts`) — also resolves PROGRESS TRACK-CAT follow-up #2 for the order-creation path.
+- Gates: `pnpm check` green (lint+typecheck+**125 unit**+0 constraints R1–R8) + **58 E2E** (46 prior + 12 new
+  checkout; no regressions). F012–F016 + F034 → `passing`; **F035 completed** (checkout 375px — the coverage
+  TRACK-ORDER deferred here). Honest deferrals (named): real Toss browser SDK + Prisma persistence + Toss's exact
+  webhook scheme are production seams; `TOSS_WEBHOOK_SECRET` boot-required-in-prod hardening (env.ts is out of
+  this track's file scope) is a flagged follow-up.
+- Rejected: inline confirm w/ a fake key + no redirect (the custom-WRITTEN shape — checkout needs all THREE
+  Toss branches deterministically); trusting the client amount; gating the test confirm; a `src/lib/checkout.ts`
+  (the track grants no new `src/lib/*` file); the reviewers' suggested active-fix that falls through to the mirror
+  on `active:false` (would re-activate a deactivated template — used `inactive→null` instead).

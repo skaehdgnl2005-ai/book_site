@@ -3,19 +3,19 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- Next action (single): **TRACK-ORDER (F007–F011, F019) merged + passing** — the entry-line pre-pay funnel is
-  live (`/order/[templateKey]` client wizard 정보→사진→커버&옵션→확인 → `/cart`), DB-free via the pure
-  `src/lib/cart.ts` model. Next in the buyer flow: **TRACK-CHECKOUT (F012–F016)** — precondition F003 (Toss) +
-  F011 (cart) merged; it `import`s `src/lib/cart` + `src/lib/payments`. **TRACK-CUSTOM (F020–F023)** is now
-  **merged + passing** (this merge). Prompts: `docs/SESSION_PROMPTS.md`.
-- **TRACK-CHECKOUT handoff (from ADR-0011 — read before starting F012):** (1) buyer identity
-  (`Order.buyerName/buyerEmail`) is a NEW `/checkout` step, NOT in the cart; map buyerName→`customerName`+`Order.buyerName`.
-  (2) **Recompute the order amount server-side** from authoritative `Template` prices — the client
-  `grandTotalWon`/`toCheckoutSummary.amountWon` are display-only/untrusted. (3) Resolve `templateKey`→`Template.id`
-  (+ revalidate active/price) at order-creation — needs a seeded DB at checkout. (4) Call `clearCart()` ONLY after
-  F013 PAID, never on checkout start (that's what preserves F016's cart on cancel).
-- Broken / not done: **checkout from F012 onward not built** — `/cart`'s 결제하기 CTA is honestly disabled
-  (준비중) until TRACK-CHECKOUT lands. Mypage (F017/F018) unbuilt; 맞춤 제작 (F020–F023) **merged + passing**
+- Next action (single): **TRACK-CHECKOUT (F012–F016, F034) DONE + passing** (this work) — the entry-line
+  buyer flow is now end-to-end: `/cart` 결제하기 → `/checkout` buyer step → Toss **(test)** payment → **PAID**
+  (sync confirm + async signature-verified webhook, idempotent via `ProcessedWebhook`) → `/orders/[id]`
+  confirmation; failure/cancel handled (cart preserved). **F035 completed** (checkout 375px). Next in the buyer
+  flow: **TRACK-MYPAGE (F017/F018)** — post-pay finishing (photo upload if skipped, dedication, QR video reveal
+  if the add-on was chosen); it reads orders (production Prisma seam) + the F029 asset path. Prompts: `docs/SESSION_PROMPTS.md`.
+- **TRACK-CHECKOUT decisions (ADR-0013 — read before mypage):** order persistence is a hermetic `globalThis`
+  store + `ProcessedWebhook` ledger under `src/app/api/payments/_lib/` (Prisma adapter is the documented prod
+  seam; hermetic items key by `templateKey`, prod resolves `templateKey`→`Template.id`). Amount is recomputed
+  server-side from authoritative `Template` prices; `clearCart()` runs client-side ONLY after PAID. `/orders/[id]`
+  renders NO PII (sequential ids, unauthenticated). The real Toss browser-SDK + boot-required `TOSS_WEBHOOK_SECRET`
+  are flagged production seams (create route 503s in production).
+- Broken / not done: Mypage (F017/F018) unbuilt; 맞춤 제작 (F020–F023) **merged + passing**
   (custom routes not yet wired into the global Nav — F002-owned/import-only; follow-up like content). F009 stores only the
   access-controlled photo descriptor — durable byte storage + the `Asset` DB row are deferred to mypage/checkout
   (no object-storage backend wired yet, backstage). Content pages static + not Nav-wired; real assets/founder-story/
@@ -36,15 +36,15 @@
   `docs/SAFETY.md`/`CONSTRAINTS.md`/`ARCHITECTURE.md` + `eval/golden` still say "Stripe". `.env.example` is on Toss.
 
 ## Current verified state   ← single source of truth
-- Last green `pnpm check`: **2026-06-02** (lint + typecheck + **98 unit** + 0 constraint violations, incl.
-  R4/R5/R8 invariants) — verified on `master` after the TRACK-CUSTOM merge (TRACK-ORDER 82 + custom 16).
-- E2E (`pnpm test:e2e`): **46 passed** (home 2 + content 11 + category 4 + order/cart 18 + **custom 11**
-  [custom-landing 4 + custom-written 4 + custom-phone 3])
+- Last green `pnpm check`: **2026-06-02** (lint + typecheck + **125 unit** + 0 constraint violations, incl.
+  R4/R5/R8 invariants) — verified on `feat/checkout` (prior 98 + **27 new webhook/checkout-domain**).
+- E2E (`pnpm test:e2e`): **58 passed** (home 2 + content 11 + category 4 + order/cart 18 + custom 11 +
+  **checkout 12** [checkout-start 3 + checkout-success 2 + order-confirm 4 + checkout-failed 2 + checkout-cancel 1])
 - Boots via `./init.sh`: **yes** (install → check → ready, exit 0)
 - **Two honest, separate numbers** (`pnpm status`):
   - **Harness readiness** (machinery, product-agnostic): 85.2/100 → READY (see `SCORECARD.md`)
-  - **Product delivery** (그림책 제작소 store): **22 / 32 product features passing (~69%)** — F001/F002 home, F003 payment, F004 DB+seed, F029 asset, F024–F028 content, F005/F006 catalog, F007–F011 + F019 order funnel, **F020–F023 맞춤 제작**
-  - harness-track features passing: 6 / 10 (F030/F031 evidence refreshed Stripe→Toss)
+  - **Product delivery** (그림책 제작소 store): **28 / 32 product features passing (88%)** — F001/F002 home, F003 payment, F004 DB+seed, F029 asset, F024–F028 content, F005/F006 catalog, F007–F011 + F019 order funnel, F020–F023 맞춤 제작, **F012–F016 checkout**, **F035 responsive (375px, completed)**
+  - harness-track features passing: **7 / 10** (+F034 checkout/confirm explicit verification)
 - Bootstrap contract (build_guide §7): **MET** — boots, verified tests exist, AGENTS.md router, feature_list aligned.
 
 ## Status
@@ -52,6 +52,36 @@ Harness **INITIALIZED + review-hardened + repurposed to 그림책 제작소**. S
 feature_list/router) now reflects the real product; DESIGN.md (Atelier Sans) wired + enforced. Coding loop next.
 
 ## Session log (newest first)
+### 2026-06-02 — TRACK-CHECKOUT (F012–F016, F034) entry-line checkout → idempotent PAID  [feat/checkout]
+- Built the entry-line checkout end-to-end: `/cart` 결제하기 → `/checkout` buyer step (new `Order.buyerName/
+  buyerEmail`, NOT in the cart) → `POST /api/payments/create` (amount **recomputed server-side** from
+  authoritative `Template` prices; client totals untrusted) → a hermetic **sandbox Toss stand-in** (`/checkout/
+  pay`, the three outcome branches) → **F013** sync `confirm` + async **webhook** (RAW-body HMAC-SHA256 before
+  any parse; idempotent via the `ProcessedWebhook` ledger) both converge **PAID** → **F014** `/orders/[id]`
+  (PII-free; status-gated copy). **F015** failure → no PAID order; **F016** cancel → cart preserved (`clearCart()`
+  client-side ONLY after PAID). New track-owned: `src/app/api/payments/{create,confirm,webhook}/route.ts` +
+  `_lib/{orders,checkout}.ts` (hermetic store + domain core; Prisma prod seam), `src/app/checkout/**`,
+  `src/app/orders/[id]/**`, `tests/unit/webhook.test.ts` (27), 5 `tests/e2e/checkout-*`+`order-confirm` specs (12).
+- **Process: brainstorm-shaped design → PRE-build adversarial review → TDD → POST-build worker≠checker (ADR-0005/
+  F042).** A **33-agent / 6-lens design review** (19 skeptic-verified findings folded into the spec BEFORE code —
+  caught the raw-body-HMAC + client-side-clearCart bugs at design time). TDD: 27 unit RED→GREEN, then 5 E2E specs
+  RED→GREEN. A **12-agent implementation review** → 4 skeptic-verified findings, all fixed + re-verified:
+  production-checkout **503 gate** (was a silent 404 seam), `getTemplateByKey` **active-row rejection**
+  (inactive→null, also closes TRACK-CAT follow-up #2 for the order path), tightened email regex.
+- **Approval-gate decision (ADR-0013 D5, mirrors ADR-0012 D3):** NO `requireApproval("order.confirm")` on the
+  buyer's TEST confirm — sandbox/reversible; real-money irreversibility stays gated at env (live keys refused at
+  boot) + adapter. F034's gate is the recorded worker≠checker review, not a code gate.
+- Gates: `pnpm check` green (lint+typecheck+**125 unit**+0 constraints R1–R8) + **58 E2E** (46 prior + 12, no
+  regressions). F012–F016 + F034 → `passing` + dated evidence (R4 holds); **F035 completed** (checkout 375px — the
+  coverage TRACK-ORDER deferred here). Product delivery 22→**28/32** (88%); harness-track 6→**7/10**.
+- **Scope deviations (ratified, conflict-free — merged files, no concurrent writer; precedent ADR-0010/0011):**
+  domain logic co-located under `api/payments/_lib/` (track grants no new `src/lib/*`); import `getTemplateByKey`
+  (price SoR) + `formatWon`/`COVER_LABEL` + `untrusted()`; enable the `/cart` CTA (TRACK-ORDER's documented handoff
+  point); the `getTemplateByKey` active-filter (1 line in merged `templates.ts`). Honest deferrals (named): real
+  Toss browser SDK + Prisma persistence + Toss's exact webhook scheme (prod seams); boot-required
+  `TOSS_WEBHOOK_SECRET` (env.ts out of file scope). Spec: `docs/superpowers/specs/2026-06-02-track-checkout-design.md`.
+- Next: merge `feat/checkout` → master (--no-ff), re-verify; then TRACK-MYPAGE (F017/F018).
+
 ### 2026-06-02 — TRACK-ORDER (F007–F011, F019) entry-line order funnel  [feat/order]
 - Built the full pre-pay funnel: `/order/[templateKey]` server route (hermetic `getTemplateByKey`, `notFound()` on
   unknown key) → client `OrderWizard` (`useReducer`) with 4 steps — **정보**(F008 validated form) → **사진**(F009
