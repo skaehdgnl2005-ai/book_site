@@ -14,7 +14,7 @@ playwright-report/
 test-results/
 *.tsbuildinfo
 
-# secrets / env (NEVER commit real secrets — Stripe TEST keys only in dev)
+# secrets / env (NEVER commit real secrets — TossPayments TEST keys only in dev)
 .env
 .env.local
 .env.*.local
