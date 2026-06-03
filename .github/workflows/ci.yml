@@ -4,7 +4,7 @@ on:
   pull_request:
 
 # Sandbox parity (G-SANDBOX): runs in an ephemeral container with TEST keys only.
-# Live Stripe credentials are never available to CI.
+# Live TossPayments credentials are never available to CI.
 jobs:
   verify:
     runs-on: ubuntu-latest
@@ -34,5 +34,5 @@ jobs:
         env:
           CI: "true"
           APP_ENV: test
-          STRIPE_SECRET_KEY: sk_test_ci_placeholder
-          NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: pk_test_ci_placeholder
+          TOSS_SECRET_KEY: test_sk_ci_placeholder
+          NEXT_PUBLIC_TOSS_CLIENT_KEY: test_ck_ci_placeholder

@@ -6,12 +6,16 @@ downgraded. Each maps to a rubric criterion.
 ## 1. Irreversible actions require human approval (E1 / G-HITL)
 These actions have real-world, non-undoable effects and are **default-deny**:
 
+> The list below mirrors `IRREVERSIBLE_ACTIONS` in `src/lib/guardrails.ts` (the executable
+> source of truth) and the tokens issued by `scripts/approve.mjs` — keep all three in sync.
+
 | Action key | Effect |
 |---|---|
-| `stripe.charge.live` / `stripe.refund.live` | Real money moves |
+| `toss.charge.live` / `toss.refund.live` | Real money moves (TossPayments live) |
 | `order.confirm` | Commits a customer order |
+| `consultation.book` | Books a 맞춤 제작 phone consultation (a real customer-facing commitment) |
 | `fulfillment.trigger` | Ships / fulfills |
-| `inventory.write.production` | Mutates prod stock |
+| `inventory.write.production` | Mutates prod stock (generic guard; the store is made-to-order) |
 | `pii.store` / `pii.send` | Persists / transmits customer PII |
 | `email.transactional.send` / `email.marketing.send` | External email |
 | `deploy.production` | Production deploy / live-key switch |
@@ -32,26 +36,28 @@ until separately approved (ADR-0004).
   service scoped to one db/user (`pnpm db:up`) — not a shared/prod instance.
 - `pnpm check` needs no DB and no secrets (ADR-0002) → safe to run anywhere.
 - Secrets only via env; `.env*` is gitignored; `.env.example` carries no real values.
-- CI uses Stripe **test** keys from secrets and never live credentials.
+- CI uses TossPayments **test** keys from secrets and never live credentials.
 
 ## 3. Input/output guardrails (E3)
 - `parseEnv()` validates config and **fails fast** with a model-readable error, never
   echoing secret values.
-- `redact()` strips Stripe keys and emails from anything heading to logs/traces.
+- `redact()` strips TossPayments/Stripe/Supabase keys, service_role JWTs, and emails from
+  anything heading to logs/traces.
 - Constraint **R2** blocks `console.*(process.env …)` (secret/PII leakage).
-- Card data is never stored by us — Stripe Checkout holds it (PCI scope minimized).
+- Card data is never stored by us — TossPayments holds it (PCI scope minimized).
 
 ## 4. Trust boundary & injection defense (E4)
-- External content — buyer input, admin uploads, **Stripe webhook payloads**, the web —
+- External content — buyer input, admin uploads, **TossPayments webhook payloads**, the web —
   is **untrusted**. Wrap it with `untrusted()` and never let it act as an instruction or
   be trusted in a security decision.
-- Stripe webhooks: verify `Stripe-Signature` against `STRIPE_WEBHOOK_SECRET` before
-  acting, and dedupe by event id (`ProcessedWebhook`) so replays are no-ops (F020).
+- TossPayments webhooks: read the **raw body first**, verify its HMAC-SHA256 signature against
+  `TOSS_WEBHOOK_SECRET` (constant-time) before acting, and dedupe by event id (`ProcessedWebhook`)
+  so replays are no-ops (F013).
 - DB access goes through Prisma (parameterized) — no string-built SQL.
 
 ## 5. Permission scope (E5)
 - Approval tokens are **per-action** (`APPROVED:order.confirm` ≠ `APPROVED:deploy.production`).
-- Stripe restricted test keys; DB user scoped to the app schema.
+- TossPayments test keys; DB user scoped to the app schema.
 - The approval CLI only *issues intent tokens* — it never performs the action itself.
 
 ## Incident posture

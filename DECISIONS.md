@@ -419,3 +419,67 @@ implement → adversarial review → commit) was completed autonomously.
   (deferred — server-only + private bucket acceptable, flagged); raising Storage beyond Supabase free 50MB (QR-B
   removes the large-file need); claiming eval 1.0 (S11 genuinely unverified without the key — honest PENDING over a
   vanity number).
+
+## 2026-06-03 — ADR-0017 — Deployment plan as `docs/DEPLOY.md`, tracked as harness feature F043
+- Decision: Author the production deploy plan/runbook as `docs/DEPLOY.md` (target **Vercel** app + **Supabase**
+  Postgres/Storage) AND track it as a **harness-track** feature **F043** verified by `review:` (precedent F041/F042),
+  not as a product feature. Scope = the planning/runbook **document**; actually closing the production seams is
+  enumerated as a future-F **checklist**, not done here. User chose both (target + track-as-F) via AskUserQuestion.
+- Why: The harness ethos is "untracked artifact = not done" — a bare doc would be the silent artifact the harness
+  exists to prevent. Harness track is **R8-exempt** (R8 gates only `track:"product"` features), so a `review:`-verified
+  doc fits exactly (same shape as F041/F042). Vercel+Supabase is the canonical Next.js 15 + Prisma + Supabase pairing
+  already chosen for DB/Storage (ADR-0016), so it is the most actionable target.
+- Honest scope the doc pins (verified file:line): prod `/api/payments/create` **503s** (real Toss browser SDK unbuilt);
+  mypage HMAC capability-cookie **≠ real buyer auth** (no session lib exists); `TOSS_WEBHOOK_SECRET` /
+  `MYPAGE_ACCESS_SECRET` **fail-closed in prod** (the latter not even in the zod schema → no boot warning); pooled
+  `DATABASE_URL`(:6543) runtime vs `DIRECT_URL`(:5432) for `prisma migrate deploy`; `prisma generate` **not wired into
+  build** (Vercel cache gotcha → use `prisma generate && next build`); **Vercel's 4.5MB Function body cap** is a
+  platform limit `bodySizeLimit:"25mb"` cannot lift (large child-photo upload = pre-launch blocker); go-live =
+  `deploy.production` approval token + live-key boot refusal.
+- Process (worker≠checker, ADR-0005/F042): a **12-agent workflow** — 6 read-only file:line fact-sheets → 1 draft →
+  a **5-dimension refute-by-default review**. env-completeness / migration-correctness / seam-accuracy = **CLEAN**;
+  vercel-specifics 1 **Major** (4.5MB body cap) + 2 Minor (Vercel runtime Node major via Project Settings not
+  `.nvmrc`; prefer build-command over `postinstall` for `prisma generate`) + 1 nit; internal-consistency 1 nit
+  (42→43 feature count). **ALL findings applied** to the doc. `pnpm check` green; constraints **R1–R8 0** (R4 holds
+  with F043 `passing`). **43/43 features passing** (product 32/32 · harness 11/11).
+- Rejected / out of scope: a **product**-track F (no buyer-facing E2E surface → would violate DoD #3 / R8); a
+  doc-only artifact with **no** feature gate (untracked, against the harness ethos); a platform-agnostic doc (less
+  actionable than the already-chosen Vercel+Supabase path). **Named, not silent:** fixing the stale
+  `docs/ARCHITECTURE.md` (Stripe/Book residue) is an existing follow-up; building the seam-closure items themselves
+  is future product work.
+
+## 2026-06-03 — ADR-0018 — Stripe→Toss residue cleanup + stray-folder removal (drift, not a feature)
+- Decision: Clear the long-standing Stripe→Toss prose/CI residue (tracked as a non-gate follow-up in
+  PROGRESS since F003/ADR-0009) and remove two stray artifacts. Not a `feature_list` item — pure drift
+  cleanup, so no new F-id; recorded here + in PROGRESS. Fixed: `.github/workflows/ci.yml` (E2E env
+  `STRIPE_*` → `TOSS_*` test placeholders + comment), removed the **dead `stripe` npm dependency**
+  (`package.json` + lockfile; grep-verified zero imports in `src/`), and re-pointed the prose docs —
+  `docs/SAFETY.md` (action-key table re-aligned to `guardrails.ts` `IRREVERSIBLE_ACTIONS`, adding the
+  previously-**missing `consultation.book`** and Toss webhook RAW-body HMAC / F013), `docs/CONSTRAINTS.md`,
+  `README.md`, and `docs/ARCHITECTURE.md` (also corrected its stale **Book/stock** data model → the real
+  **Template / Order / made-to-order** schema, and **cents → KRW won**). Updated `docs/DEPLOY.md`'s own
+  drift-notes (§7/§9/§13) so they reflect the fix instead of becoming new drift.
+- Deliberately KEPT (NOT drift): (1) the **defence-in-depth** legacy-Stripe key regex in
+  `scripts/check-constraints.mjs` R1 + `src/lib/env.ts` `redact()` (+ the asserting branch in
+  `tests/unit/smoke.test.ts`) — intentional belt-and-suspenders, documented in-code; (2) the **historical
+  ADRs** in this file (immutable record of the Stripe→Toss transition); (3) **`eval/holdout`** — reserved,
+  must never be tuned (F041 / rubric G4), so its "Cancel at Stripe" wording stays untouched (`eval/golden`
+  was already re-pointed under F040). `PRODUCT_BRIEF.md`'s "Stripe 스캐폴딩 교체" lines are product-intent
+  history → left as-is.
+- Stray folder: deleted an **empty** root folder whose literal name was a mangled Windows path
+  (`C:` + U+F03A PUA char + `devtest1srcapp_componentsordersteps` — i.e. `src/app/_components/order/steps`
+  collapsed into one name). An adversarial refute-by-default subagent + a direct check confirmed it was
+  empty, untracked by git, unreferenced by any import/tsconfig/next.config, and that the real components
+  live at `src/app/_components/order/steps/` — so deletion is inert. Removed via literal-path delete (the
+  illegal-char name is glob-unsafe). Also committed the previously-untracked `docs/DEPLOY.md` (F043).
+- Why now / why safe: the residue was cosmetic (optional/ignored env, unused dep, prose) so it never gated
+  `pnpm check`, but the **SAFETY.md action-key omission was a real accuracy bug** (a human reading it would
+  miss `consultation.book` and see non-existent `stripe.charge.live`). No `feature_list` `state/passes`
+  changed; R1–R8 unaffected (R1's regex still catches both Toss and legacy Stripe live shapes).
+- Incidental gate fix (surfaced while greening `pnpm check`): a sibling git worktree
+  (`.worktrees/preview-real-photos`, another track's WIP — NOT touched) is git-ignored via
+  `.git/info/exclude` but was **not** excluded from the repo's own tooling, so running `pnpm check`
+  from the root linted/scanned the worktree's `.next` build + source and failed. Added `.worktrees`
+  to `eslint.config.mjs` `ignores` and to the `check-constraints.mjs` `SKIP` set so root gates never
+  reach into sibling worktrees — closes a real gap in the AGENTS.md-endorsed parallel-worktree
+  workflow. With this, `pnpm check` is green (lint + typecheck + 145 unit + R1–R8 0).

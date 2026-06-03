@@ -9,6 +9,8 @@ export default tseslint.config(
   {
     ignores: [
       ".next/**",
+      ".worktrees/**", // sibling git worktrees (git-ignored via .git/info/exclude) carry their
+      // own .next build + source; running `pnpm check` from the root must not reach into them.
       "node_modules/**",
       "coverage/**",
       "playwright-report/**",

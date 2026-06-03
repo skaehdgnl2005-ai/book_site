@@ -13,6 +13,7 @@ const SKIP = new Set([
   "node_modules",
   ".next",
   ".git",
+  ".worktrees", // sibling git worktrees (git-ignored): gates run from root must not scan into them
   ".harness",
   "coverage",
   "playwright-report",

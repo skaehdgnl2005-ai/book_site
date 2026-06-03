@@ -35,9 +35,10 @@ Requires Node ≥ 20 and pnpm 10. Optional local DB: `pnpm db:up` (Docker).
 | `pnpm approve <action>` | issue a human-approval token for an irreversible action |
 
 ## Safety (payments + PII = regulated)
-Stripe runs in **test mode** only during development; a live key outside production makes
-the app refuse to boot. Irreversible actions (live charge/refund, order confirm, fulfillment,
-prod DB writes, PII send, deploy) are **default-deny** and require an explicit approval token.
+TossPayments runs in **test/sandbox mode** only during development; a live key outside
+production makes the app refuse to boot. Irreversible actions (live charge/refund, order
+confirm, consultation booking, fulfillment, prod DB writes, PII send, deploy) are
+**default-deny** and require an explicit approval token.
 See **[docs/SAFETY.md](docs/SAFETY.md)**.
 
 ## Layout

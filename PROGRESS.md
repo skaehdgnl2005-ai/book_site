@@ -3,6 +3,16 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **Latest (2026-06-03): F043 — production deploy plan & runbook DONE + passing.** `docs/DEPLOY.md` (13 sections,
+  Vercel + Supabase): topology, a prominent PRE-LAUNCH REALITY CHECK (prod payment 503s, real Toss browser SDK not
+  built, mypage HMAC ≠ real buyer auth), full env/secrets table, Supabase pooled(:6543)/direct(:5432) DB setup,
+  `prisma migrate deploy` runbook, Vercel build config (`prisma generate && next build` gotcha), private `assets`
+  Storage bucket, `deploy.production` approval-gate + live-key-boot-refusal go-live cutover, a **seam-closure
+  checklist of future F-items**, post-deploy canary, forward-only-migration rollback, and a doc-drift flag
+  (`ARCHITECTURE.md` stale). Built via a 12-agent workflow (6 file:line fact-sheets → draft → 5-dim refute-by-default
+  review; env/migration/seam-accuracy = CLEAN; vercel-specifics 1 Major [Vercel's 4.5MB Function body cap vs
+  `bodySizeLimit:25mb` → large-photo upload is a pre-launch blocker] + minors → ALL applied). Decision: **ADR-0017**.
+  **ALL 43 features now passing (product 32/32 · harness 11/11);** `pnpm check` green, `pnpm status` READY.
 - Next action (single): **ADR-0016 seam closure DONE** — durable DB persistence (Supabase Prisma adapters behind the
   orders/finishing/custom surfaces, gated on `DATABASE_URL`, no silent write-fallback), photo bytes → Supabase Storage
   (`src/lib/storage.ts`, env-gated), QR **option B** (flag + backstage notice, no web upload). Gates: `pnpm check` 145
@@ -20,7 +30,7 @@
   honestly PENDING; **holdout untouched** per F041). **F042** worker≠checker protocol doc (`docs/WORKER_CHECKER.md`)
   applied LIVE this session: 4 adversarial sub-agents reviewed F036/F037/F039/F040 → **ALL ACCEPT, 0 code findings**.
   Decisions + scope-ratification (F037 touched TRACK-ORDER's `InfoStep`/`PhotoStep`, additive ARIA only): **ADR-0015**.
-  **ALL 42 features now passing (product 32/32 · harness 10/10).** **Next pick:** no open feature work — remaining items
+  **ALL 42 features were passing as of ADR-0016 (product 32/32 · harness 10/10); F043 added 2026-06-03 → 43/43 (see top).** **Next pick:** no open feature work — remaining items
   are named backstage/production seams (durable Postgres/Asset persistence, real Toss browser SDK, real buyer auth — all
   out of web scope) + the Stripe→Toss prose/CI residue cleanup follow-up below. mypage/custom routes still not Nav-wired
   (F002-owned, import-only).
@@ -46,9 +56,15 @@
 - **Follow-up (F004):** `prisma db seed` runs the `.ts` seed via Node type-stripping, which needs
   **Node ≥ 22.6** (newer than the `>=20` engines floor; dev runtime is Node 24). Not on the `pnpm check`
   path, so no gate impact. Revisit when a track may touch deps/pins: add `tsx` or bump `.nvmrc`/`engines`.
-- **Follow-up (Stripe→Toss residue, not a gate):** `.github/workflows/ci.yml` still injects `STRIPE_*` env
-  (harmless — optional/ignored; rename rides with the checkout track F012–F016), and prose docs
-  `docs/SAFETY.md`/`CONSTRAINTS.md`/`ARCHITECTURE.md` + `eval/golden` still say "Stripe". `.env.example` is on Toss.
+- **Follow-up (Stripe→Toss residue) — DONE 2026-06-03 (ADR-0018):** cleaned up `.github/workflows/ci.yml`
+  (now `TOSS_*` test placeholders), removed the dead `stripe` npm dep (+ lockfile), and re-pointed the prose
+  docs `docs/SAFETY.md` (action-key table now == `guardrails.ts`, incl. the previously-missing
+  `consultation.book`) / `docs/CONSTRAINTS.md` / `docs/ARCHITECTURE.md` (also fixed its stale Book/stock model
+  + cents→KRW won) + `README.md`. Deliberately KEPT: the defence-in-depth legacy-Stripe regex in
+  `check-constraints.mjs`/`env.ts` (+ its `smoke.test.ts` branch), the historical ADRs in `DECISIONS.md`, and
+  `eval/holdout` (reserved — must never be tuned, F041/G4; `eval/golden` was already re-pointed under F040).
+  Also deleted an empty stray folder whose name was a mangled Windows path (subagent-verified
+  empty/untracked/unreferenced), and committed the previously-untracked `docs/DEPLOY.md` (F043).
 
 ## Current verified state   ← single source of truth
 - Last green `pnpm check`: **2026-06-02** (lint + typecheck + **145 unit** + 0 constraint violations, incl.
