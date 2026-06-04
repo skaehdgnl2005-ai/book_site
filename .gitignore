@@ -26,3 +26,5 @@ Thumbs.db
 
 # gstack browse tooling output (audit/console/network logs from headless QA)
 .gstack/
+
+.vercel
