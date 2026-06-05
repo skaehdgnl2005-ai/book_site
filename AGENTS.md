@@ -87,6 +87,12 @@ top `passes:false` item in `feature_list.json` (WIP=1) → `pnpm attempt <id>` �
 smoke. If a prior feature is broken, fix it **before** new work.
 **End:** `pnpm check` green → `git commit` (descriptive) → update `PROGRESS.md` (incl. Handoff
 section; `pnpm attempt <id> --reset` if it reached passing) → confirm `docs/clean-state-checklist.md`.
+**Tossed-in change?** Fire `/change <plain-prose request>` (`.claude/commands/change.md`) — the
+intake router that right-sizes the work: trivial tweaks stay one-line (edit → `pnpm check`), feature
+work walks WIP=1 → `attempt` → Definition-of-Done, and money/PII/fulfillment/deploy or any
+item/test/gate weakening auto-routes through `pnpm approve` (or a clean refusal). It adds no
+machinery — just orchestrates the existing rails; weakening `feature_list.json` is now hard-blocked
+by **R9** in `scripts/check-constraints.mjs`.
 
 ## Context management
 `AGENTS.md` is the router; pull deep docs just-in-time. On long tasks, checkpoint to

@@ -4,6 +4,7 @@
 // violation, so it can gate CI / `pnpm check` (G-EVAL, D4). Add rules HERE instead
 // of restating prose rules in AGENTS.md (restating dilutes signal).
 import { readdir, readFile } from "node:fs/promises";
+import { execFileSync } from "node:child_process";
 import { join, extname } from "node:path";
 import { cwd, exit, stdout } from "node:process";
 
@@ -147,6 +148,61 @@ for (const f of fl.features) {
       "R8:declare-transitive-e2e",
       `${f.id}: e2e_via names unknown feature "${dep}".`,
     );
+  }
+}
+
+// R9: feature_list.json is APPEND-ONLY. Diffed against the committed baseline (git HEAD),
+// an existing item may change ONLY state/passes/evidence — never delete/rename an item nor
+// weaken its steps/verification/track/etc. (AGENTS.md hard-constraint #2). Appending brand-new
+// ids is allowed (the backlog grows); only baseline ids are policed. This is the executable
+// teeth for the biggest otherwise-unguarded drift — e.g. "just drop F033's verification so the
+// suite goes green" or "relabel F023 track to harness to dodge R8". The baseline is read from
+// git; if unavailable (no repo / no HEAD / file absent at HEAD) the rule is SKIPPED, never
+// failed — R9 can only ADD safety, never block work on a fresh tree.
+const MUTABLE_FIELDS = new Set(["state", "passes", "evidence"]);
+let baseline = null;
+try {
+  const raw = execFileSync("git", ["show", "HEAD:feature_list.json"], {
+    cwd: ROOT,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+  baseline = JSON.parse(raw);
+} catch {
+  baseline = null; // cannot diff → skip R9 (don't fail a non-git / first-commit context).
+}
+if (baseline && Array.isArray(baseline.features)) {
+  // The spec scaffold (every top-level key except the features array) is immutable.
+  for (const k of Object.keys(baseline)) {
+    if (k === "features") continue;
+    add(
+      JSON.stringify(baseline[k]) !== JSON.stringify(fl[k]),
+      "feature_list.json",
+      "R9:append-only",
+      `top-level "${k}" changed — the feature_list spec/rules are immutable; only a feature's state/passes/evidence may change.`,
+    );
+  }
+  const current = new Map(fl.features.map((f) => [f.id, f]));
+  for (const base of baseline.features) {
+    const cur = current.get(base.id);
+    if (!cur) {
+      add(
+        true,
+        "feature_list.json",
+        "R9:append-only",
+        `${base.id} was removed or renamed — items are never deleted/renamed (append a new id instead).`,
+      );
+      continue;
+    }
+    for (const k of new Set([...Object.keys(base), ...Object.keys(cur)])) {
+      if (MUTABLE_FIELDS.has(k)) continue;
+      add(
+        JSON.stringify(base[k]) !== JSON.stringify(cur[k]),
+        "feature_list.json",
+        "R9:append-only",
+        `${base.id}: "${k}" was changed/weakened — only state/passes/evidence are editable (no false completion by weakening the spec).`,
+      );
+    }
   }
 }
 
