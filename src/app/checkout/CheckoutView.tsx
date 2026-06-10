@@ -1,11 +1,11 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Nav } from "../_components/Nav";
 import { Footer } from "../_components/Footer";
 import { formatWon, COVER_LABEL } from "../_components/order/format";
 import { loadCart, grandTotalWon, type Cart } from "@/lib/cart";
+import { requestTossPayment } from "./_lib/tossClient";
 import styles from "./checkout.module.css";
 
 /**
@@ -15,7 +15,6 @@ import styles from "./checkout.module.css";
  * server-returned payUrl (the sandbox Toss stand-in outside production).
  */
 export function CheckoutView() {
-  const router = useRouter();
   const [cart, setCart] = useState<Cart>({ lines: [], qrVideoAddon: false });
   const [ready, setReady] = useState(false);
   const [buyerName, setBuyerName] = useState("");
@@ -45,15 +44,34 @@ export function CheckoutView() {
           lines: cart.lines,
         }),
       });
-      const data = (await res.json()) as { payUrl?: string; errors?: string[] };
-      if (!res.ok || !data.payUrl) {
+      const data = (await res.json()) as {
+        orderId?: string;
+        clientKey?: string;
+        amount?: number;
+        orderName?: string;
+        successUrl?: string;
+        failUrl?: string;
+        errors?: string[];
+      };
+      if (!res.ok || !data.orderId || !data.clientKey) {
         setError(data.errors?.[0] ?? "결제를 시작할 수 없습니다.");
         setSubmitting(false);
         return;
       }
-      router.push(data.payUrl);
+      // Forward the SERVER-issued amount as-is (NOT grandTotalWon(cart)) — it must equal the
+      // confirm-time server amount or Toss rejects the payment. Opens the real hosted window.
+      await requestTossPayment({
+        orderId: data.orderId,
+        clientKey: data.clientKey,
+        amount: data.amount as number,
+        orderName: data.orderName as string,
+        successUrl: data.successUrl as string,
+        failUrl: data.failUrl as string,
+      });
+      // requestPayment redirects the browser. If it returns without redirecting, re-enable the button.
+      setSubmitting(false);
     } catch {
-      setError("결제를 시작할 수 없습니다.");
+      setError("결제창을 여는 중 오류가 발생했습니다. 다시 시도해 주세요.");
       setSubmitting(false);
     }
   }

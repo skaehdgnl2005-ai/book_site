@@ -7,19 +7,12 @@ import { orderRepo } from "../_lib/orders";
 export const dynamic = "force-dynamic";
 
 /**
- * F012 — create a TossPayments (test) payment from the cart.
- * The body is `untrusted()` at the boundary; the amount is RECOMPUTED server-side from
- * authoritative Template prices (`getTemplateByKey`) — the client totals/unit prices are
- * display-only. The order carries buyer/child PII (server-side only; never logged). The
- * `payUrl` is computed here: outside production it drives the hermetic sandbox stand-in.
+ * F012/F044 — create a TossPayments payment from the cart. The body is untrusted() at the boundary;
+ * the amount is RECOMPUTED server-side from authoritative Template prices (the client totals are
+ * display-only). The response carries ONLY public, non-secret fields the browser SDK needs
+ * (clientKey is the publishable test key); the browser opens the real Toss window via requestPayment.
  */
 export async function POST(req: Request): Promise<Response> {
-  // Production checkout drives the REAL Toss SDK flow — a documented seam, not wired here.
-  // Fail fast + honest rather than returning the sandbox payUrl that the prod pay page 404s.
-  if (process.env.APP_ENV === "production") {
-    return NextResponse.json({ errors: ["결제 기능이 아직 준비되지 않았습니다."] }, { status: 503 });
-  }
-
   let body: unknown;
   try {
     body = await req.json();
@@ -33,16 +26,20 @@ export async function POST(req: Request): Promise<Response> {
   const order = await orderRepo().create(built.draft);
   const origin = new URL(req.url).origin;
 
-  // createCheckout returns only public, non-secret fields; orderName is PII-free.
-  checkoutProvider().createCheckout({
+  const checkout = checkoutProvider().createCheckout({
     orderId: order.id,
     amount: order.amountWon,
-    orderName: order.orderName,
-    successUrl: `${origin}/orders/${order.id}`,
+    orderName: order.orderName, // PII-free product summary
+    successUrl: `${origin}/checkout/success`,
     failUrl: `${origin}/checkout/failed`,
   });
 
-  // Outside production: the sandbox stand-in page drives success/fail/cancel. In production
-  // the create route would return the real Toss-hosted URL instead (documented seam).
-  return NextResponse.json({ orderId: order.id, payUrl: `/checkout/pay?order=${order.id}` });
+  return NextResponse.json({
+    orderId: order.id,
+    clientKey: checkout.clientKey,
+    amount: checkout.amount, // server-issued; the client forwards this to requestPayment as-is
+    orderName: checkout.orderName,
+    successUrl: checkout.successUrl,
+    failUrl: checkout.failUrl,
+  });
 }
