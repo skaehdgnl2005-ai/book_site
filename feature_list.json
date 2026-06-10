@@ -529,6 +529,38 @@
       "state": "passing",
       "passes": true,
       "evidence": "2026-06-03 docs/DEPLOY.md written — 13-section production deploy plan & runbook targeting Vercel (app) + Supabase (Postgres + Storage): topology, a prominent PRE-LAUNCH REALITY CHECK (prod /api/payments/create 503s, real Toss browser SDK not built, mypage HMAC capability-cookie != real buyer auth, webhook/MYPAGE_ACCESS_SECRET fail-closed), full env/secrets table (incl. the MYPAGE_ACCESS_SECRET not-in-zod gap + service_role must-never-be-NEXT_PUBLIC), Supabase pooled(:6543 DATABASE_URL)/direct(:5432 DIRECT_URL) setup, migration runbook (prisma migrate deploy via DIRECT_URL — NOT migrate dev; idempotent seed; Node 22.6+ seed-runner caveat), Vercel build config (the 'prisma generate && next build' gotcha), private 'assets' Storage bucket, safety/go-live cutover (deploy.production approval token + live-key boot refusal), a seam-closure checklist of future F-items, post-deploy canary, rollback (forward-only migrations), and a doc-drift note (ARCHITECTURE.md stale). Process (F042/ADR-0005 worker!=checker): a 12-agent workflow — 6 read-only file:line-grounded fact-sheets + a 5-dimension refute-by-default review (env-completeness / migration-correctness / seam-accuracy = CLEAN; vercel-specifics 1 major [Vercel's 4.5MB Function body cap vs bodySizeLimit 25mb => large-photo upload is a pre-launch blocker] + 2 minor [runtime Node major set in Vercel Project Settings not .nvmrc; prefer build-command 'prisma generate && next build' over postinstall] + 1 nit; internal-consistency 1 nit [42->43 feature count]) — ALL findings applied to the doc. Verification 'review:' satisfied (precedent F041/F042, also review:-verified doc/policy features). Harness track (R8 exempt — no E2E surface). pnpm check green (typecheck + 145 unit + constraints R1-R8 0 violations)."
+    },
+    {
+      "id": "F044",
+      "category": "checkout",
+      "track": "product",
+      "priority": 1,
+      "description": "실 TossPayments 브라우저 SDK 로 결제창을 열고(prod), 성공 콜백이 주문을 PAID 로 확정",
+      "steps": [
+        "/checkout 에서 결제하기",
+        "loadTossPayments→requestPayment 로 Toss 결제창 오픈(prod: 실제 호스티드 창)",
+        "성공 콜백 → /api/payments/confirm(서버) → PAID → /orders/[id]"
+      ],
+      "verification": "pnpm test:e2e -- checkout-toss-sdk.spec.ts",
+      "state": "in_progress",
+      "passes": false,
+      "evidence": ""
+    },
+    {
+      "id": "F045",
+      "category": "checkout",
+      "track": "product",
+      "priority": 2,
+      "description": "Toss webhook 실 서명 스킴 매핑 + TOSS_WEBHOOK_SECRET boot 검증(결제 정합성 안전망)",
+      "steps": [
+        "Toss 실제 webhook 서명 스킴을 verifyWebhookSignature 에 매핑",
+        "TOSS_WEBHOOK_SECRET 부재 시 prod boot 거부",
+        "리다이렉트 전 이탈 주문도 webhook 으로 PAID 도달"
+      ],
+      "verification": "pnpm test -- webhook.test.ts",
+      "state": "not_started",
+      "passes": false,
+      "evidence": ""
     }
   ]
 }
