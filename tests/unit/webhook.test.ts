@@ -244,6 +244,20 @@ describe("confirmPayment", () => {
     const res = await confirmPayment(repo, stubProvider("PAID"), { orderId: "ord_ghost", paymentKey: "pk" });
     expect(res.status).toBe(404);
   });
+
+  it("short-circuits an already-PAID order without re-calling the gateway (reload / webhook-first safe)", async () => {
+    const { repo, order } = await paidOrder();
+    await repo.markPaid(order.id, "pk_first"); // already PAID (e.g. the webhook beat the redirect)
+    const captured: { input?: ConfirmInput } = {};
+    const res = await confirmPayment(repo, stubProvider("FAILED", captured), {
+      orderId: order.id,
+      paymentKey: "pk_second",
+    });
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("PAID");
+    expect(captured.input).toBeUndefined(); // gateway NOT re-called (real Toss would reject the used key)
+    expect((await repo.get(order.id))?.tossPaymentKey).toBe("pk_first"); // first key preserved
+  });
 });
 
 // ── F013: webhook → PAID, signature-verified, idempotent via the ledger ────────
