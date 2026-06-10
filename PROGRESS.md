@@ -12,7 +12,7 @@
   `vercel --prod`** (env vars already set in Vercel); the remaining real-window verification is a manual canary
   round-trip post-deploy (the hermetic suite cannot open the actual Toss-hosted window). **F045** (Toss webhook real
   signature scheme + `TOSS_WEBHOOK_SECRET` boot guard) is registered as the next named seam. Decision: **ADR-0019**.
-  **44/44 features passing (product 33/33 incl. F044 · harness 11/11); F045 not_started.**
+  **44/45 features passing (product 33/34 incl. F044, F045 not_started · harness 11/11); `pnpm status` product 97%.**
 - **Latest (2026-06-03): F043 — production deploy plan & runbook DONE + passing.** `docs/DEPLOY.md` (13 sections,
   Vercel + Supabase): topology, a prominent PRE-LAUNCH REALITY CHECK (prod payment 503s, real Toss browser SDK not
   built, mypage HMAC ≠ real buyer auth), full env/secrets table, Supabase pooled(:6543)/direct(:5432) DB setup,
@@ -89,7 +89,7 @@
 - Boots via `./init.sh`: **yes** (install → check → ready, exit 0)
 - **Two honest, separate numbers** (`pnpm status`):
   - **Harness readiness** (machinery, product-agnostic): 85.2/100 → READY (see `SCORECARD.md`)
-  - **Product delivery** (그림책 제작소 store): **33 / 33 product features passing (100%)** — F001/F002 home, F003 payment, F004 DB+seed, F029 asset, F024–F028 content, F005/F006 catalog, F007–F011 + F019 order funnel, F020–F023 맞춤 제작, F012–F016 checkout, F017/F018 mypage finishing, F035 responsive (375px), F036 perf (p95<2s), F037 a11y, **F044 real Toss browser SDK**. (F045 not_started)
+  - **Product delivery** (그림책 제작소 store): **33 / 34 product features passing (97%)** — F001/F002 home, F003 payment, F004 DB+seed, F029 asset, F024–F028 content, F005/F006 catalog, F007–F011 + F019 order funnel, F020–F023 맞춤 제작, F012–F016 checkout, F017/F018 mypage finishing, F035 responsive (375px), F036 perf (p95<2s), F037 a11y, **F044 real Toss browser SDK**. (**F045** webhook seam not_started → the 1 non-passing product feature)
   - harness-track features passing: **11 / 11** (+F034 checkout verification, F039 ops metrics, F040 entry-line eval, F042 worker≠checker protocol, **F043 deploy plan**).
 - Bootstrap contract (build_guide §7): **MET** — boots, verified tests exist, AGENTS.md router, feature_list aligned.
 
@@ -119,7 +119,7 @@ feature_list/router) now reflects the real product; DESIGN.md (Atelier Sans) wir
   hermeticity, R10, evidence — all reflected). An earlier app-level prod-compromise was caught in
   review and reverted; test-side fixes used instead. Decision: **ADR-0019**.
 - **Gates:** `pnpm check` green (lint + typecheck + **147 unit** + R1–R9 0 constraints); **95 hermetic
-  E2E** (no regressions); `pnpm attempt F044 --reset`. **44/44 features: product 33/33 · harness 11/11.**
+  E2E** (no regressions); `pnpm attempt F044 --reset`. **44/45 features passing: product 33/34 (97%) · harness 11/11 (F045 not_started).**
   Prod ready for `vercel --prod` redeploy; real-window canary is the remaining verification step. F045
   registered as the next named seam.
 
