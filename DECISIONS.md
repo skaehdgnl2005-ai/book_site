@@ -483,3 +483,56 @@ implement → adversarial review → commit) was completed autonomously.
   to `eslint.config.mjs` `ignores` and to the `check-constraints.mjs` `SKIP` set so root gates never
   reach into sibling worktrees — closes a real gap in the AGENTS.md-endorsed parallel-worktree
   workflow. With this, `pnpm check` is green (lint + typecheck + 145 unit + R1–R8 0).
+
+## 2026-06-08 — ADR-0019 — F044: real TossPayments browser SDK payment (prod path)
+- **Decision:** Replace the hermetic `/checkout/pay` sandbox stand-in (ADR-0013 D1) with the real
+  TossPayments browser SDK (`loadTossPayments → payment(ANONYMOUS) → requestPayment`). The production
+  503 gate on `/api/payments/create` is removed; the `Checkout` response gains `clientKey` (publishable
+  test key — not the secret key, safe to expose to the browser). A single client path now covers both
+  dev and prod: no app-level branch on `APP_ENV`, no parallel sandbox+prod code.
+- **Key sub-decisions:**
+  - **Server-issued `clientKey` + server-recomputed amount forwarded to `requestPayment`.** The client
+    never reads the key from env directly (not `NEXT_PUBLIC_`); it receives it from the server via the
+    `Checkout` response (`clientKey` field). Amount is the server's `order.amountWon`, recomputed from
+    authoritative `Template` prices (ADR-0013 D2 continuity). `orderId` carries the `ord_` prefix and
+    satisfies the Toss constraint (6–64 `[A-Za-z0-9-_]`), enforced by `createCheckout` + a unit test (R10).
+  - **Success page server-confirms idempotently with already-PAID short-circuit.** `confirmPayment`
+    checks the order's existing status before calling the Toss gateway — a reload (or a webhook arriving
+    first) that finds `status === 'PAID'` returns success immediately without a duplicate gateway call
+    (verified in `webhook.test.ts`).
+  - **Cancel → `/cart` preserves F016.** The Toss SDK `failUrl` is `/checkout/failed`; the `failed` page
+    detects `code=PAY_PROCESS_CANCELED` and redirects to `/cart` so the cart is preserved — F016's
+    "Return to /cart" contract is frozen and unchanged.
+  - **Mechanical E2E hermeticity via `webServer.env`.** `playwright.config.ts` now sets
+    `DATABASE_URL: ""` in the `webServer` environment so every E2E run forces the in-memory store,
+    regardless of what `.env.local` contains — no accidental live-Supabase pollution. All 7 checkout/mypage
+    specs migrated from the `PaySandbox` redirect pattern to `page.addInitScript` (injects
+    `window.TossPayments` before the page script runs), keeping the suite hermetic without a real hosted window.
+  - **R10 `orderId` guard.** `createCheckout` validates the `tossOrderId` against `[A-Za-z0-9-_]{6,64}`;
+    any violation throws before the order is written, preventing a Toss API rejection mid-flight.
+- **Scope / named seams (not silent):**
+  - **Webhook excluded → F045 named seam.** The Toss production webhook signature scheme mapping and the
+    `TOSS_WEBHOOK_SECRET` boot-required-in-prod guard are deferred to F045 (the webhook safety-net feature),
+    which is registered as the next named seam. The existing HMAC path continues to work in test mode.
+  - **Real hosted window opening verified by Vercel prod canary, not hermetically.** Opening the actual
+    Toss-hosted payment window requires a live browser hitting the real Toss SDK CDN; this cannot be done
+    hermetically. Post-deploy verification is a manual `vercel --prod` canary round-trip (the env vars are
+    already set in Vercel). This is the planned verification step per the design doc (§7c).
+- **Process:** brainstorm → spec (`docs/superpowers/specs/2026-06-08-f044-toss-browser-sdk-design.md`) →
+  plan → adversarial **plan-review (19 findings, all refute-by-default re-verified; 0 blocker)** →
+  subagent-driven TDD → independent **worker≠checker 6-lens implementation review (12 findings, 0 blocker;
+  majors = hermeticity strategy, R10 orderId guard, evidence completeness — all reflected)**. An earlier
+  prod-compromise (enabling a `CartView <Link>→<a>` workaround + an `ord_` id-prefix patch in the app
+  to satisfy a checkout route bug) was caught in the implementation review and reverted in favour of
+  test-side fixes — the app code stayed canonical, the E2E helpers were fixed instead.
+- **Rejected alternatives:**
+  - Parallel sandbox+prod branch (`APP_ENV` switch keeping both code paths) — two paths diverge silently;
+    the real path would never be exercised in hermetic CI.
+  - App-level window hook (`window.__tossPayments`) loaded by the client component — mixes test seam into
+    production bundle; `page.addInitScript` is test-side only and has no production footprint.
+  - Cancel-copy-on-the-failed-page (adding a "cancel" copy variant to `/checkout/failed`) — F016's frozen
+    "Return to /cart" step is the contract; the existing `code=PAY_PROCESS_CANCELED` → `/cart` redirect
+    satisfies it without new copy.
+- Gates: `pnpm check` green (lint + typecheck + **147 unit** + 0 constraints R1–R9); **95 hermetic E2E**
+  (7 checkout/mypage specs migrated to addInitScript; no regressions); `pnpm constraints` ok:true count:0.
+  **44/44 features: product 33/33 · harness 11/11.**

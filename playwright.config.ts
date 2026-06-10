@@ -20,5 +20,10 @@ export default defineConfig({
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,
+    // Hermetic E2E: force the in-memory order store even when a local .env.local sets a real
+    // DATABASE_URL (Supabase). next dev keeps a present-but-empty value over .env.local, and
+    // orders.ts treats a falsy DATABASE_URL as "no DB" → in-memory (ord_ ids) — so the suite is
+    // hermetic and never writes to the real DB. (orders.ts:356 keys off process.env.DATABASE_URL.)
+    env: { ...process.env, DATABASE_URL: "", DIRECT_URL: "" },
   },
 });

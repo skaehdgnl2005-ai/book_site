@@ -1,16 +1,25 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Nav } from "../../_components/Nav";
 import { Footer } from "../../_components/Footer";
 import styles from "../checkout.module.css";
 
+export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "결제 미완료 · 그림책 제작소" };
 
 /**
- * F015 — a Toss failure. Honest copy: the order is NOT paid and the cart is preserved, so
- * the buyer can retry. No PAID order is created (the confirm route never approved it).
+ * F015 — a Toss failure. Honest copy: NOT paid, the cart is preserved, so the buyer can retry.
+ * F016 — a user CANCEL at Toss arrives here with code=PAY_PROCESS_CANCELED; we send them back to
+ * /cart (the cart is intact — clearCart runs only after PAID), preserving the F016 contract.
  */
-export default function CheckoutFailedPage() {
+export default async function CheckoutFailedPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ code?: string }>;
+}) {
+  const { code } = await searchParams;
+  if (code === "PAY_PROCESS_CANCELED") redirect("/cart");
   return (
     <>
       <Nav />

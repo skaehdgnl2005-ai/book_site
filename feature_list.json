@@ -154,7 +154,7 @@
       "verification": "pnpm test:e2e -- checkout-start.spec.ts",
       "state": "passing",
       "passes": true,
-      "evidence": "2026-06-02 Playwright checkout-start.spec.ts: 3 passed — /cart 결제하기 → /checkout buyer step → POST /api/payments/create creates a CREATED order (amount RECOMPUTED server-side from authoritative Template prices via getTemplateByKey; the client unit/grand totals are ignored) → redirect to the sandbox Toss (test) pay page showing 탄생 / 43,000원; 375px no-overflow. Hermetic globalThis order store (Prisma production seam documented). pnpm check green (lint+typecheck+125 unit+0 constraints R1–R8) + 58 E2E. Worker≠checker IMPL review: production checkout now fails fast with a 503 (no silent 404 to the prod-notFound pay page). · ADR-0016: order now persists to Supabase Postgres (Prisma OrderRepo behind the same surface; create→get→markPaid idempotent, restart-survival verified by the gated integration test)."
+      "evidence": "2026-06-02 Playwright checkout-start.spec.ts: 3 passed — /cart 결제하기 → /checkout buyer step → POST /api/payments/create creates a CREATED order (amount RECOMPUTED server-side from authoritative Template prices via getTemplateByKey; the client unit/grand totals are ignored) → redirect to the sandbox Toss (test) pay page showing 탄생 / 43,000원; 375px no-overflow. Hermetic globalThis order store (Prisma production seam documented). pnpm check green (lint+typecheck+125 unit+0 constraints R1–R8) + 58 E2E. Worker≠checker IMPL review: production checkout now fails fast with a 503 (no silent 404 to the prod-notFound pay page). · ADR-0016: order now persists to Supabase Postgres (Prisma OrderRepo behind the same surface; create→get→markPaid idempotent, restart-survival verified by the gated integration test). · 2026-06-08 (F044): sandbox /checkout/pay stand-in 제거 → 실 Toss 브라우저 SDK 경로를 page.addInitScript 목으로 재검증(checkout-start.spec.ts 무회귀; 95 E2E green)."
     },
     {
       "id": "F013",
@@ -166,7 +166,7 @@
       "verification": "pnpm test -- webhook.test.ts && pnpm test:e2e -- checkout-success.spec.ts",
       "state": "passing",
       "passes": true,
-      "evidence": "2026-06-02 vitest webhook.test.ts: 27 passed — verifyWebhookSignature (RAW-body HMAC-SHA256, constant-time: valid / one-byte-mutated / wrong-secret / missing / malformed); confirmPayment (PAID / 402-FAILED leaves CREATED / 404) with the SERVER-authoritative amount; processWebhook (DONE→PAID, bad-sig 401 no state change, redelivery of the same eventId is a strict no-op via the ProcessedWebhook ledger, non-DONE ack, unknown-order ack); markPaid idempotent (keeps the first paymentKey). Playwright checkout-success.spec.ts: 2 passed (approve → /orders/[id] PAID; persists on reload — server-side store). Sync confirm + async webhook both converge PAID idempotently. The webhook reads req.text() BEFORE any parse. pnpm check green + 58 E2E. Worker≠checker review recorded (ADR-0013)."
+      "evidence": "2026-06-02 vitest webhook.test.ts: 27 passed — verifyWebhookSignature (RAW-body HMAC-SHA256, constant-time: valid / one-byte-mutated / wrong-secret / missing / malformed); confirmPayment (PAID / 402-FAILED leaves CREATED / 404) with the SERVER-authoritative amount; processWebhook (DONE→PAID, bad-sig 401 no state change, redelivery of the same eventId is a strict no-op via the ProcessedWebhook ledger, non-DONE ack, unknown-order ack); markPaid idempotent (keeps the first paymentKey). Playwright checkout-success.spec.ts: 2 passed (approve → /orders/[id] PAID; persists on reload — server-side store). Sync confirm + async webhook both converge PAID idempotently. The webhook reads req.text() BEFORE any parse. pnpm check green + 58 E2E. Worker≠checker review recorded (ADR-0013). · 2026-06-08 (F044): sandbox /checkout/pay stand-in 제거 → addInitScript SDK 목으로 재검증(checkout-success.spec.ts 무회귀)."
     },
     {
       "id": "F014",
@@ -178,7 +178,7 @@
       "verification": "pnpm test:e2e -- order-confirm.spec.ts",
       "state": "passing",
       "passes": true,
-      "evidence": "2026-06-02 Playwright order-confirm.spec.ts: 4 passed — /orders/[id] shows each item (template label + cover label + unit price), grand total and status PAID; a hard-cover order reflects 49,000원; an unknown id → 404 (notFound); 375px no-overflow. Renders NO PII: order ids are sequential + the route is unauthenticated, so buyer/child name/email are NEVER rendered (stored server-side for fulfillment only). Copy is status-gated — a CREATED (unpaid) order shows 결제 대기, never a phantom completion. pnpm check green + 58 E2E."
+      "evidence": "2026-06-02 Playwright order-confirm.spec.ts: 4 passed — /orders/[id] shows each item (template label + cover label + unit price), grand total and status PAID; a hard-cover order reflects 49,000원; an unknown id → 404 (notFound); 375px no-overflow. Renders NO PII: order ids are sequential + the route is unauthenticated, so buyer/child name/email are NEVER rendered (stored server-side for fulfillment only). Copy is status-gated — a CREATED (unpaid) order shows 결제 대기, never a phantom completion. pnpm check green + 58 E2E. · 2026-06-08 (F044): sandbox 제거 → addInitScript SDK 목으로 재검증(order-confirm.spec.ts 무회귀)."
     },
     {
       "id": "F015",
@@ -190,7 +190,7 @@
       "verification": "pnpm test:e2e -- checkout-failed.spec.ts",
       "state": "passing",
       "passes": true,
-      "evidence": "2026-06-02 Playwright checkout-failed.spec.ts: 2 passed — 결제 실패 → /checkout/failed shows a clear message; the order stays CREATED (asserted via /orders/[id] status=CREATED) so NO PAID order exists; the failure page links back to /cart with the item still present. confirmPayment's non-PAID branch returns 402 and leaves CREATED (webhook.test.ts). pnpm check green + 58 E2E."
+      "evidence": "2026-06-02 Playwright checkout-failed.spec.ts: 2 passed — 결제 실패 → /checkout/failed shows a clear message; the order stays CREATED (asserted via /orders/[id] status=CREATED) so NO PAID order exists; the failure page links back to /cart with the item still present. confirmPayment's non-PAID branch returns 402 and leaves CREATED (webhook.test.ts). pnpm check green + 58 E2E. · 2026-06-08 (F044): sandbox 제거 → addInitScript SDK 목으로 재검증(checkout-failed.spec.ts; 실패는 failUrl code → /checkout/failed, 주문 CREATED 유지)."
     },
     {
       "id": "F016",
@@ -202,7 +202,7 @@
       "verification": "pnpm test:e2e -- checkout-cancel.spec.ts",
       "state": "passing",
       "passes": true,
-      "evidence": "2026-06-02 Playwright checkout-cancel.spec.ts: 1 passed — 취소 → /cart with the cart line AND the 43,000원 grand total preserved. clearCart() runs client-side (PaySandbox) ONLY after a PAID confirm — never on checkout start, cancel, or failure — which is what preserves the cart here. pnpm check green + 58 E2E."
+      "evidence": "2026-06-02 Playwright checkout-cancel.spec.ts: 1 passed — 취소 → /cart with the cart line AND the 43,000원 grand total preserved. clearCart() runs client-side (PaySandbox) ONLY after a PAID confirm — never on checkout start, cancel, or failure — which is what preserves the cart here. pnpm check green + 58 E2E. · 2026-06-08 (F044): sandbox 제거 → addInitScript SDK 목으로 재검증(checkout-cancel.spec.ts); 취소는 Toss code=PAY_PROCESS_CANCELED → /cart 로 동작이 동결 steps(\"Return to /cart\")와 일치."
     },
     {
       "id": "F017",
@@ -214,7 +214,7 @@
       "verification": "pnpm test:e2e -- mypage-photo.spec.ts",
       "state": "passing",
       "passes": true,
-      "evidence": "2026-06-02 Playwright mypage-photo.spec.ts: 8 passed — order# + email lookup (verified vs order.buyerEmail) mints an HMAC-signed, expiring, httpOnly per-order capability cookie -> /mypage/[orderId]: status PAID + post-pay child-photo upload when SKIPPED at checkout, via the REAL F029 path (receiveUpload->storeAsset, opaque storageKey, NO filename/childName in DOM/URL). The access gate runs BEFORE any order lookup, so a guessable id is not an existence oracle (identical 200 access prompt for existing AND unknown ids); wrong email -> uniform error (no redirect); expired + tampered-HMAC cookies rejected (forged in-test via node:crypto); a CREATED order shows honest 결제 대기 with NO finishing controls; both mypage pages noindex; 375px no-overflow on the loaded controls. Realizes F029 e2e_via:[F009,F017,F018]. pnpm check green (lint+typecheck+125 unit+constraints R1-R8 0); full E2E 71 passed (58 prior + 13 mypage, no regressions). Process (ADR-0005/F042): brainstorm-shaped design -> 51-agent/6-dim adversarial design review (16/45 folded) -> TDD -> 35-agent worker!=checker impl review (21/29 confirmed, ALL minor/nit, fixed). Decisions/seams: ADR-0014. · ADR-0016: finishing (dedication + child-photo descriptor) now persists to Postgres (Prisma FinishingStore, OrderItem.position addressing + @@unique); child-photo bytes wired to Supabase Storage (env-gated; descriptor-only hermetic fallback) — byte round-trip LIVE-VERIFIED (upload→read-back→cleanup against the private assets bucket). Restart-survival verified; 145 unit + 92 hermetic E2E green; eval 1.0."
+      "evidence": "2026-06-02 Playwright mypage-photo.spec.ts: 8 passed — order# + email lookup (verified vs order.buyerEmail) mints an HMAC-signed, expiring, httpOnly per-order capability cookie -> /mypage/[orderId]: status PAID + post-pay child-photo upload when SKIPPED at checkout, via the REAL F029 path (receiveUpload->storeAsset, opaque storageKey, NO filename/childName in DOM/URL). The access gate runs BEFORE any order lookup, so a guessable id is not an existence oracle (identical 200 access prompt for existing AND unknown ids); wrong email -> uniform error (no redirect); expired + tampered-HMAC cookies rejected (forged in-test via node:crypto); a CREATED order shows honest 결제 대기 with NO finishing controls; both mypage pages noindex; 375px no-overflow on the loaded controls. Realizes F029 e2e_via:[F009,F017,F018]. pnpm check green (lint+typecheck+125 unit+constraints R1-R8 0); full E2E 71 passed (58 prior + 13 mypage, no regressions). Process (ADR-0005/F042): brainstorm-shaped design -> 51-agent/6-dim adversarial design review (16/45 folded) -> TDD -> 35-agent worker!=checker impl review (21/29 confirmed, ALL minor/nit, fixed). Decisions/seams: ADR-0014. · ADR-0016: finishing (dedication + child-photo descriptor) now persists to Postgres (Prisma FinishingStore, OrderItem.position addressing + @@unique); child-photo bytes wired to Supabase Storage (env-gated; descriptor-only hermetic fallback) — byte round-trip LIVE-VERIFIED (upload→read-back→cleanup against the private assets bucket). Restart-survival verified; 145 unit + 92 hermetic E2E green; eval 1.0. · 2026-06-08 (F044): 결제 도달 경로를 sandbox → addInitScript SDK 목(completePaidOrder/createUnpaidOrder)으로 이전(mypage-photo.spec.ts 무회귀)."
     },
     {
       "id": "F018",
@@ -226,7 +226,7 @@
       "verification": "pnpm test:e2e -- mypage-finish.spec.ts",
       "state": "passing",
       "passes": true,
-      "evidence": "2026-06-02 Playwright mypage-finish.spec.ts: 5 passed — dedication (헌정 문구) saved to the mypage finishing store and PREFILLED on reload via the cookie-gated, no-store /state route (buyer-authored PII shown by design, guarded by the email-gate + HMAC + noindex + no-store + a bfcache pageshow reload); QR video upload revealed ONLY when Order.qrVideoAddon (REAL storeAsset QR_VIDEO path; persists on reload) with the full canonical honesty copy 'QR 영상 옵션 · 기본 미포함 · 요금 추후 안내' + a '주문 전체에 한 번 적용' label; QR add-on OFF -> the QR section is ABSENT (not just hidden); a 2-book order -> per-item dedication isolation AND exactly ONE shared per-order QR control (R12); 375px no-overflow on loaded controls. Schema-faithful: per-OrderItem photo+dedication (Personalization), per-Order QR (Asset) — the hermetic finishing store is a documented Prisma seam (ADR-0014). pnpm check green; full E2E 71 passed. Same brainstorm -> 51-agent design review -> TDD -> 35-agent worker!=checker review process as F017. · ADR-0016: QR pivoted to OPTION B — the order keeps the qrVideoAddon flag, mypage shows an honest backstage notice (영상은 제작팀이 카카오톡·이메일로 따로 안내), and the web QR upload is REMOVED (uploadQrVideo + FinishingStore.getQrVideo/setQrVideo deleted). Per-item dedication persists to Postgres. F018 + mypage-finish.spec.ts re-spec'd (faithful: flag-gated notice + per-order scope); 92 hermetic E2E green."
+      "evidence": "2026-06-02 Playwright mypage-finish.spec.ts: 5 passed — dedication (헌정 문구) saved to the mypage finishing store and PREFILLED on reload via the cookie-gated, no-store /state route (buyer-authored PII shown by design, guarded by the email-gate + HMAC + noindex + no-store + a bfcache pageshow reload); QR video upload revealed ONLY when Order.qrVideoAddon (REAL storeAsset QR_VIDEO path; persists on reload) with the full canonical honesty copy 'QR 영상 옵션 · 기본 미포함 · 요금 추후 안내' + a '주문 전체에 한 번 적용' label; QR add-on OFF -> the QR section is ABSENT (not just hidden); a 2-book order -> per-item dedication isolation AND exactly ONE shared per-order QR control (R12); 375px no-overflow on loaded controls. Schema-faithful: per-OrderItem photo+dedication (Personalization), per-Order QR (Asset) — the hermetic finishing store is a documented Prisma seam (ADR-0014). pnpm check green; full E2E 71 passed. Same brainstorm -> 51-agent design review -> TDD -> 35-agent worker!=checker review process as F017. · ADR-0016: QR pivoted to OPTION B — the order keeps the qrVideoAddon flag, mypage shows an honest backstage notice (영상은 제작팀이 카카오톡·이메일로 따로 안내), and the web QR upload is REMOVED (uploadQrVideo + FinishingStore.getQrVideo/setQrVideo deleted). Per-item dedication persists to Postgres. F018 + mypage-finish.spec.ts re-spec'd (faithful: flag-gated notice + per-order scope); 92 hermetic E2E green. · 2026-06-08 (F044): 결제 도달 경로를 sandbox → addInitScript SDK 목(completePaidOrder/completePaidTwoBookOrder)으로 이전(mypage-finish.spec.ts 무회귀)."
     },
     {
       "id": "F019",
@@ -420,7 +420,7 @@
       "verification": "pnpm test:e2e -- checkout-success.spec.ts (+ review pass)",
       "state": "passing",
       "passes": true,
-      "evidence": "2026-06-02 Worker≠checker review recorded for the checkout chain F012–F014 (ADR-0005/F042 protocol). PRE-build: a 33-agent / 6-lens adversarial DESIGN review (19 skeptic-verified findings folded into the spec before any code — notably RAW-body-first webhook HMAC + client-side clearCart-after-PAID + server-computed payUrl). POST-build: a 12-agent IMPLEMENTATION review (4 skeptic-verified findings fixed: production-checkout 503 gate, getTemplateByKey active-row rejection, tightened email regex, all re-verified). checkout-success.spec.ts green + pnpm check green + 58 E2E. Decision recorded: NO requireApproval('order.confirm') gate on the buyer's test confirm (sandbox/reversible; real-money irreversibility is gated at env+adapter — live keys refused at boot, toss.charge.live/refund.live in IRREVERSIBLE_ACTIONS). Full record: PROGRESS + DECISIONS ADR-0013."
+      "evidence": "2026-06-02 Worker≠checker review recorded for the checkout chain F012–F014 (ADR-0005/F042 protocol). PRE-build: a 33-agent / 6-lens adversarial DESIGN review (19 skeptic-verified findings folded into the spec before any code — notably RAW-body-first webhook HMAC + client-side clearCart-after-PAID + server-computed payUrl). POST-build: a 12-agent IMPLEMENTATION review (4 skeptic-verified findings fixed: production-checkout 503 gate, getTemplateByKey active-row rejection, tightened email regex, all re-verified). checkout-success.spec.ts green + pnpm check green + 58 E2E. Decision recorded: NO requireApproval('order.confirm') gate on the buyer's test confirm (sandbox/reversible; real-money irreversibility is gated at env+adapter — live keys refused at boot, toss.charge.live/refund.live in IRREVERSIBLE_ACTIONS). Full record: PROGRESS + DECISIONS ADR-0013. · 2026-06-08 (F044/ADR-0019): production 503 게이트 + sandbox payUrl/PaySandbox 제거됨(실 Toss 브라우저 SDK 로 전환); checkout-success.spec.ts verification + worker≠checker 리뷰 보존(state/passes/steps/verification 불변)."
     },
     {
       "id": "F035",
@@ -529,6 +529,38 @@
       "state": "passing",
       "passes": true,
       "evidence": "2026-06-03 docs/DEPLOY.md written — 13-section production deploy plan & runbook targeting Vercel (app) + Supabase (Postgres + Storage): topology, a prominent PRE-LAUNCH REALITY CHECK (prod /api/payments/create 503s, real Toss browser SDK not built, mypage HMAC capability-cookie != real buyer auth, webhook/MYPAGE_ACCESS_SECRET fail-closed), full env/secrets table (incl. the MYPAGE_ACCESS_SECRET not-in-zod gap + service_role must-never-be-NEXT_PUBLIC), Supabase pooled(:6543 DATABASE_URL)/direct(:5432 DIRECT_URL) setup, migration runbook (prisma migrate deploy via DIRECT_URL — NOT migrate dev; idempotent seed; Node 22.6+ seed-runner caveat), Vercel build config (the 'prisma generate && next build' gotcha), private 'assets' Storage bucket, safety/go-live cutover (deploy.production approval token + live-key boot refusal), a seam-closure checklist of future F-items, post-deploy canary, rollback (forward-only migrations), and a doc-drift note (ARCHITECTURE.md stale). Process (F042/ADR-0005 worker!=checker): a 12-agent workflow — 6 read-only file:line-grounded fact-sheets + a 5-dimension refute-by-default review (env-completeness / migration-correctness / seam-accuracy = CLEAN; vercel-specifics 1 major [Vercel's 4.5MB Function body cap vs bodySizeLimit 25mb => large-photo upload is a pre-launch blocker] + 2 minor [runtime Node major set in Vercel Project Settings not .nvmrc; prefer build-command 'prisma generate && next build' over postinstall] + 1 nit; internal-consistency 1 nit [42->43 feature count]) — ALL findings applied to the doc. Verification 'review:' satisfied (precedent F041/F042, also review:-verified doc/policy features). Harness track (R8 exempt — no E2E surface). pnpm check green (typecheck + 145 unit + constraints R1-R8 0 violations)."
+    },
+    {
+      "id": "F044",
+      "category": "checkout",
+      "track": "product",
+      "priority": 1,
+      "description": "실 TossPayments 브라우저 SDK 로 결제창을 열고(prod), 성공 콜백이 주문을 PAID 로 확정",
+      "steps": [
+        "/checkout 에서 결제하기",
+        "loadTossPayments→requestPayment 로 Toss 결제창 오픈(prod: 실제 호스티드 창)",
+        "성공 콜백 → /api/payments/confirm(서버) → PAID → /orders/[id]"
+      ],
+      "verification": "pnpm test:e2e -- checkout-toss-sdk.spec.ts",
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-08 Playwright checkout-toss-sdk.spec.ts: 3 passed — 실 Toss 브라우저 SDK 경로(loadTossPayments→payment(ANONYMOUS)→requestPayment)를 page.addInitScript 로 window.TossPayments 를 심어 hermetic 하게 실행: requestPayment 가 서버 발급 amount(43,000원 KRW)·orderId(ord_)·orderName(탄생)·successUrl(/checkout/success)·failUrl(/checkout/failed)·서버 clientKey(/^test_ck_/)로 호출됨을 검증; success 콜백 → 서버 confirmPayment → PAID → /orders/[id]; PAID 후 cart 비움. create 라우트의 APP_ENV==='production' 503 게이트 제거 + Checkout 공개필드(clientKey=publishable test 키) 반환. confirmPayment 가 이미-PAID 주문을 gateway 재호출 없이 단락(webhook.test.ts: reload/webhook-first 안전). 취소는 failUrl code=PAY_PROCESS_CANCELED → /cart(F016 계약 보존). Toss orderId 제약(6–64 [A-Za-z0-9-_]) createCheckout 가드+단위테스트(R10). E2E 는 playwright webServer.env 로 DATABASE_URL 비워 in-memory 강제(기계적 hermetic, 실 Supabase DB 미오염). pnpm check green(lint+typecheck+147 unit+0 constraints R1–R9) + 95 hermetic E2E(기존 7개 스펙 sandbox→addInitScript SDK-mock 이전, 무회귀). 독립 worker≠checker: plan-review 19건 + 구현 6-lens 12건(모두 refute-by-default 재검증; 0 blocker; majors=hermeticity·R10·evidence 모두 반영). 실 Toss 호스티드 결제창 오픈은 passing 후 Vercel prod 카나리(vercel --prod) 수동 라운드트립으로 검증(설계 §7c, 배포 단계). webhook 안전망은 F045 로 분리(설계 §9). · ADR-0019."
+    },
+    {
+      "id": "F045",
+      "category": "checkout",
+      "track": "product",
+      "priority": 2,
+      "description": "Toss webhook 실 서명 스킴 매핑 + TOSS_WEBHOOK_SECRET boot 검증(결제 정합성 안전망)",
+      "steps": [
+        "Toss 실제 webhook 서명 스킴을 verifyWebhookSignature 에 매핑",
+        "TOSS_WEBHOOK_SECRET 부재 시 prod boot 거부",
+        "리다이렉트 전 이탈 주문도 webhook 으로 PAID 도달"
+      ],
+      "verification": "pnpm test -- webhook.test.ts",
+      "state": "not_started",
+      "passes": false,
+      "evidence": ""
     }
   ]
 }

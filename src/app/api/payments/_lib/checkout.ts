@@ -140,6 +140,10 @@ export async function confirmPayment(
   const paymentKey = asString(input.paymentKey);
   const order = await repo.get(orderId);
   if (!order) return { status: 404, body: { errors: ["주문을 찾을 수 없습니다."] } };
+  // Idempotent: an already-PAID order is settled — do NOT re-call the gateway (the real Toss
+  // /confirm rejects an already-used paymentKey → 402). Makes the success-page reload and a
+  // webhook-first race safe. The stored (first) paymentKey is preserved.
+  if (order.status === "PAID") return { status: 200, body: { status: "PAID", orderId: order.id } };
   if (!paymentKey) return { status: 400, body: { errors: ["결제 정보가 없습니다."] } };
 
   const conf = await provider.confirm({ paymentKey, orderId: order.id, amount: order.amountWon });

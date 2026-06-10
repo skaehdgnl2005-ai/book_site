@@ -1,0 +1,25 @@
+import { redirect } from "next/navigation";
+import { confirmPayment, checkoutProvider } from "../../api/payments/_lib/checkout";
+import { orderRepo } from "../../api/payments/_lib/orders";
+import { ClearCartRedirect } from "./ClearCartRedirect";
+
+export const dynamic = "force-dynamic";
+
+/**
+ * F044 — TossPayments success redirect lands here with ?paymentKey&orderId(&amount). We settle
+ * server-side with the SERVER-held amount (the `amount` query is IGNORED — anti-tamper). confirmPayment
+ * is idempotent (already-PAID short-circuits), so a reload / webhook-first is safe. On PAID a tiny client
+ * child clears the localStorage cart and navigates to the canonical /orders/[id]; otherwise → failed.
+ */
+export default async function CheckoutSuccessPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ paymentKey?: string; orderId?: string }>;
+}) {
+  const { paymentKey, orderId } = await searchParams;
+  const res = await confirmPayment(orderRepo(), checkoutProvider(), { orderId, paymentKey });
+  if (res.status !== 200 || res.body.status !== "PAID") {
+    redirect("/checkout/failed?code=CONFIRM_FAILED");
+  }
+  return <ClearCartRedirect orderId={String(orderId)} />;
+}

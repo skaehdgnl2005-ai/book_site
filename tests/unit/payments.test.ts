@@ -22,7 +22,7 @@ function newProvider(transport?: TossTransport): TossPaymentProvider {
 }
 
 const baseInput: CreatePaymentInput = {
-  orderId: "ord_1",
+  orderId: "ord_001", // 7 chars — satisfies the TossPayments 6–64 [A-Za-z0-9-_] constraint
   amount: 49000,
   orderName: "탄생 그림책 (하드커버)",
   successUrl: "https://shop.test/checkout/success",
@@ -46,7 +46,7 @@ describe("TossPaymentProvider.createCheckout", () => {
     const checkout = newProvider().createCheckout(baseInput);
     expect(checkout).toMatchObject({
       provider: "toss",
-      orderId: "ord_1",
+      orderId: "ord_001",
       amount: 49000,
       orderName: "탄생 그림책 (하드커버)",
       clientKey: TEST_CLIENT,
@@ -66,6 +66,15 @@ describe("TossPaymentProvider.createCheckout", () => {
     expect(() => p.createCheckout({ ...baseInput, amount: 0 })).toThrow(/positive|integer/i);
     expect(() => p.createCheckout({ ...baseInput, amount: -100 })).toThrow();
     expect(() => p.createCheckout({ ...baseInput, amount: 49000 })).not.toThrow();
+  });
+
+  it("createCheckout rejects an orderId that violates the Toss constraint (6–64 [A-Za-z0-9-_])", () => {
+    const p = new TossPaymentProvider({ secretKey: "test_sk_x", clientKey: "test_ck_x" });
+    const base = { amount: 43000, orderName: "탄생", successUrl: "https://e.com/s", failUrl: "https://e.com/f" };
+    expect(() => p.createCheckout({ ...base, orderId: "ab" })).toThrow(/orderId/); // too short
+    expect(() => p.createCheckout({ ...base, orderId: "bad id!" })).toThrow(/orderId/); // bad chars
+    expect(() => p.createCheckout({ ...base, orderId: "ord_0001" })).not.toThrow(); // in-memory shape
+    expect(() => p.createCheckout({ ...base, orderId: "550e8400-e29b-41d4-a716-446655440000" })).not.toThrow(); // UUID
   });
 });
 
