@@ -1,7 +1,8 @@
 import { test, expect } from "@playwright/test";
 import {
+  installTossMock,
   addBirthToCart,
-  payFromCart,
+  checkoutFromCart,
   completePaidOrder,
   capturedTossRequest,
 } from "./_helpers/tossMock";
@@ -12,8 +13,9 @@ import {
 // the sandbox provider always approves so it cannot be reproduced hermetically here.
 test.describe("checkout — real Toss browser SDK (F044)", () => {
   test("requestPayment is invoked with the SERVER-issued amount, orderId, name and callback URLs", async ({ page }) => {
+    await installTossMock(page, "abandon");
     await addBirthToCart(page);
-    await payFromCart(page, "abandon"); // capture args without navigating away
+    await checkoutFromCart(page);
     const req = await capturedTossRequest(page);
     expect(req.method).toBe("CARD");
     expect(req.amount).toEqual({ value: 43000, currency: "KRW" });

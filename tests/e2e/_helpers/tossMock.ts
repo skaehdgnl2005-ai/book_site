@@ -6,7 +6,8 @@ export type TossOutcome = "success" | "fail" | "cancel" | "abandon";
  * Plant a hermetic stand-in for the TossPayments browser SDK BEFORE any page script runs.
  * loadTossPayments (v2 thin loader) short-circuits when window.TossPayments already exists, so the
  * REAL client path (loadTossPayments → payment → requestPayment) runs with ZERO app test-hooks and
- * NO CDN fetch. The CDN route is aborted as a backstop (a missing global fails fast, never the network).
+ * NO CDN fetch. The CDN route is aborted as a backstop. MUST be called BEFORE the first navigation
+ * so addInitScript fires on the first document load and the global persists across SPA navigation.
  */
 export async function installTossMock(page: Page, outcome: TossOutcome): Promise<void> {
   await page.route("https://js.tosspayments.com/**", (route) => route.abort());
@@ -40,7 +41,7 @@ export async function installTossMock(page: Page, outcome: TossOutcome): Promise
   }, outcome);
 }
 
-/** Add one 탄생 book to the cart (photo skipped). Mirrors the legacy per-spec helper. */
+/** Add one 탄생 book to the cart (photo skipped). */
 export async function addBirthToCart(page: Page, opts: { coverHard?: boolean; qrOn?: boolean } = {}): Promise<void> {
   await page.goto("/order/birth");
   await page.getByTestId("order-name-input").fill("도윤");
@@ -60,9 +61,8 @@ async function fillBuyer(page: Page): Promise<void> {
   await page.getByTestId("checkout-buyer-email").fill("parent@example.com");
 }
 
-/** From a populated /cart: install the SDK mock with `outcome`, walk checkout, trigger requestPayment. */
-export async function payFromCart(page: Page, outcome: TossOutcome): Promise<void> {
-  await installTossMock(page, outcome);
+/** From a populated /cart, walk checkout and trigger requestPayment. The SDK mock MUST already be installed. */
+export async function checkoutFromCart(page: Page): Promise<void> {
   await page.getByTestId("cart-checkout").click();
   await page.waitForURL("**/checkout");
   await fillBuyer(page);
@@ -71,40 +71,45 @@ export async function payFromCart(page: Page, outcome: TossOutcome): Promise<voi
 
 /** Build a cart + pay successfully; returns the PAID orderId (from the /orders/[id] landing). */
 export async function completePaidOrder(page: Page, opts: { coverHard?: boolean; qrOn?: boolean } = {}): Promise<string> {
+  await installTossMock(page, "success");
   await addBirthToCart(page, opts);
-  await payFromCart(page, "success");
+  await checkoutFromCart(page);
   await page.waitForURL(/\/orders\/ord_/);
   return new URL(page.url()).pathname.split("/").pop() as string;
 }
 
 /** Build a 2-book cart (QR on book 2 if qrOn) + pay successfully; returns the PAID orderId. */
 export async function completePaidTwoBookOrder(page: Page, opts: { qrOn?: boolean } = {}): Promise<string> {
+  await installTossMock(page, "success");
   await addBirthToCart(page);
   await addBirthToCart(page, { qrOn: opts.qrOn }); // QR is order-level (last add-to-cart wins)
-  await payFromCart(page, "success");
+  await checkoutFromCart(page);
   await page.waitForURL(/\/orders\/ord_/);
   return new URL(page.url()).pathname.split("/").pop() as string;
 }
 
 /** Pay then FAIL; returns the orderId carried on the failUrl query. */
 export async function payAndFail(page: Page): Promise<string> {
+  await installTossMock(page, "fail");
   await addBirthToCart(page);
-  await payFromCart(page, "fail");
+  await checkoutFromCart(page);
   await page.waitForURL(/\/checkout\/failed/);
   return new URL(page.url()).searchParams.get("orderId") ?? "";
 }
 
 /** Pay then CANCEL; lands back on /cart (cart preserved). */
 export async function payAndCancel(page: Page): Promise<void> {
+  await installTossMock(page, "cancel");
   await addBirthToCart(page);
-  await payFromCart(page, "cancel");
+  await checkoutFromCart(page);
   await page.waitForURL(/\/cart$/);
 }
 
 /** Create a CREATED-but-unpaid order (buyer abandons the window); returns the orderId. */
 export async function createUnpaidOrder(page: Page): Promise<string> {
+  await installTossMock(page, "abandon");
   await addBirthToCart(page);
-  await payFromCart(page, "abandon");
+  await checkoutFromCart(page);
   await page.waitForFunction(() => (window as unknown as Record<string, unknown>).__TOSS_LAST_ORDER_ID__);
   return (await page.evaluate(() => (window as unknown as Record<string, unknown>).__TOSS_LAST_ORDER_ID__)) as string;
 }

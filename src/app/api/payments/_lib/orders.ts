@@ -298,7 +298,7 @@ export function createPrismaOrderRepo(getDb: () => Promise<Db>): OrderRepo {
         select: { id: true, key: true },
       });
       const byKey = new Map(tpls.map((t) => [t.key, t.id]));
-      const data = buildOrderCreateData(draft, `ord_${randomUUID()}`, (k) => byKey.get(k));
+      const data = buildOrderCreateData(draft, randomUUID(), (k) => byKey.get(k));
       const row = await (db.order as OrderDelegate).create({ data, include: ORDER_INCLUDE });
       return mapOrderRow(row);
     },
