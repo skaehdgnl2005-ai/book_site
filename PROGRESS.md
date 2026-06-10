@@ -3,6 +3,16 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **Latest (2026-06-08): F044 — real Toss browser SDK payment DONE + passing.** The hermetic `/checkout/pay` sandbox
+  stand-in is removed; `/api/payments/create` now returns `clientKey` (publishable test key) and the browser calls
+  `loadTossPayments → payment(ANONYMOUS) → requestPayment` via the real Toss SDK. All 7 checkout/mypage E2E specs
+  migrated from `PaySandbox` redirect pattern to `page.addInitScript` (injects `window.TossPayments` before the page
+  script) — 95 hermetic E2E, no regressions. `pnpm check` green (147 unit + R1–R9 0). Independent worker≠checker:
+  plan-review 19 findings + implementation 6-lens 12 findings, 0 blocker. **Prod is now ready to redeploy via
+  `vercel --prod`** (env vars already set in Vercel); the remaining real-window verification is a manual canary
+  round-trip post-deploy (the hermetic suite cannot open the actual Toss-hosted window). **F045** (Toss webhook real
+  signature scheme + `TOSS_WEBHOOK_SECRET` boot guard) is registered as the next named seam. Decision: **ADR-0019**.
+  **44/44 features passing (product 33/33 incl. F044 · harness 11/11); F045 not_started.**
 - **Latest (2026-06-03): F043 — production deploy plan & runbook DONE + passing.** `docs/DEPLOY.md` (13 sections,
   Vercel + Supabase): topology, a prominent PRE-LAUNCH REALITY CHECK (prod payment 503s, real Toss browser SDK not
   built, mypage HMAC ≠ real buyer auth), full env/secrets table, Supabase pooled(:6543)/direct(:5432) DB setup,
@@ -79,8 +89,8 @@
 - Boots via `./init.sh`: **yes** (install → check → ready, exit 0)
 - **Two honest, separate numbers** (`pnpm status`):
   - **Harness readiness** (machinery, product-agnostic): 85.2/100 → READY (see `SCORECARD.md`)
-  - **Product delivery** (그림책 제작소 store): **32 / 32 product features passing (100%)** — F001/F002 home, F003 payment, F004 DB+seed, F029 asset, F024–F028 content, F005/F006 catalog, F007–F011 + F019 order funnel, F020–F023 맞춤 제작, F012–F016 checkout, F017/F018 mypage finishing, F035 responsive (375px), **F036 perf (p95<2s), F037 a11y**.
-  - harness-track features passing: **10 / 10** (+F034 checkout verification, **F039 ops metrics, F040 entry-line eval, F042 worker≠checker protocol**).
+  - **Product delivery** (그림책 제작소 store): **33 / 33 product features passing (100%)** — F001/F002 home, F003 payment, F004 DB+seed, F029 asset, F024–F028 content, F005/F006 catalog, F007–F011 + F019 order funnel, F020–F023 맞춤 제작, F012–F016 checkout, F017/F018 mypage finishing, F035 responsive (375px), F036 perf (p95<2s), F037 a11y, **F044 real Toss browser SDK**. (F045 not_started)
+  - harness-track features passing: **11 / 11** (+F034 checkout verification, F039 ops metrics, F040 entry-line eval, F042 worker≠checker protocol, **F043 deploy plan**).
 - Bootstrap contract (build_guide §7): **MET** — boots, verified tests exist, AGENTS.md router, feature_list aligned.
 
 ## Status
@@ -88,6 +98,31 @@ Harness **INITIALIZED + review-hardened + repurposed to 그림책 제작소**. S
 feature_list/router) now reflects the real product; DESIGN.md (Atelier Sans) wired + enforced. Coding loop next.
 
 ## Session log (newest first)
+### 2026-06-08 — F044: real TossPayments browser SDK payment  [feat/F044-toss-sdk]
+- Replaced the hermetic `/checkout/pay` sandbox stand-in (ADR-0013 D1) with the real Toss browser SDK:
+  `loadTossPayments → payment(ANONYMOUS) → requestPayment`. The production 503 gate on
+  `/api/payments/create` is removed; the `Checkout` response gains `clientKey` (publishable test key,
+  server-issued — not `NEXT_PUBLIC_`). A single client path now covers dev and prod with no `APP_ENV`
+  branch in the app code.
+- **Key decisions (ADR-0019):** server-issued `clientKey` + server-recomputed amount forwarded to
+  `requestPayment`; `confirmPayment` already-PAID short-circuit (reload/webhook-first safety;
+  `webhook.test.ts` verified); cancel → `failUrl code=PAY_PROCESS_CANCELED → /cart` (F016 contract
+  frozen); mechanical E2E hermeticity via `playwright.config.ts` `webServer.env DATABASE_URL:""`
+  (forces in-memory, no Supabase pollution); R10 `orderId` guard (`[A-Za-z0-9-_]{6,64}`, throws
+  before write). Named seams: real hosted window opening = Vercel prod canary (post-deploy manual
+  round-trip); webhook real-sig scheme = F045.
+- **E2E migration:** all 7 checkout/mypage specs migrated from `PaySandbox` redirect to
+  `page.addInitScript` (injects `window.TossPayments` test-side before the page script). 95 hermetic
+  E2E passed, no regressions.
+- **Process:** brainstorm → spec → plan → adversarial plan-review (19 findings, 0 blocker) →
+  subagent-driven TDD → worker≠checker 6-lens impl review (12 findings, 0 blocker; majors =
+  hermeticity, R10, evidence — all reflected). An earlier app-level prod-compromise was caught in
+  review and reverted; test-side fixes used instead. Decision: **ADR-0019**.
+- **Gates:** `pnpm check` green (lint + typecheck + **147 unit** + R1–R9 0 constraints); **95 hermetic
+  E2E** (no regressions); `pnpm attempt F044 --reset`. **44/44 features: product 33/33 · harness 11/11.**
+  Prod ready for `vercel --prod` redeploy; real-window canary is the remaining verification step. F045
+  registered as the next named seam.
+
 ### 2026-06-02 — ADR-0016 seam closure: durable DB persistence + Supabase Storage + QR option B  [master]
 - Post-"feature-complete" work, maker-directed (DB=Supabase, E2E hermetic, photo bytes durable, QR=option B), then
   finished autonomously (maker unavailable) plan→implement→adversarial-review→commit. **Full record: DECISIONS ADR-0016.**
