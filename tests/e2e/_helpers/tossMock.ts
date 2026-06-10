@@ -28,11 +28,11 @@ export async function installTossMock(page: Page, outcome: TossOutcome): Promise
             w.__TOSS_REQUEST__ = req;
             w.__TOSS_LAST_ORDER_ID__ = req.orderId;
             if (o === "success")
-              location.assign(`${req.successUrl}?paymentKey=test_pk_${req.orderId}&orderId=${req.orderId}&amount=${req.amount.value}`);
+              location.assign(`${req.successUrl}?paymentKey=test_pk_${req.orderId}&orderId=${req.orderId}&amount=${req.amount.value}&paymentType=NORMAL`);
             else if (o === "fail")
               location.assign(`${req.failUrl}?code=PAY_PROCESS_ABORTED&message=${encodeURIComponent("결제에 실패했습니다")}&orderId=${req.orderId}`);
             else if (o === "cancel")
-              location.assign(`${req.failUrl}?code=PAY_PROCESS_CANCELED&message=${encodeURIComponent("결제를 취소했습니다")}`);
+              location.assign(`${req.failUrl}?code=PAY_PROCESS_CANCELED&message=${encodeURIComponent("결제를 취소했습니다")}&orderId=${req.orderId}`);
             // "abandon": no redirect — simulates the buyer closing the window (order stays CREATED).
           },
         }),

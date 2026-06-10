@@ -60,6 +60,15 @@ function assertWon(amount: number): void {
   }
 }
 
+const ORDER_ID_RE = /^[A-Za-z0-9_-]{6,64}$/; // TossPayments orderId constraint
+function assertValidOrderId(orderId: string): void {
+  if (!ORDER_ID_RE.test(orderId)) {
+    throw new Error(
+      `Invalid orderId "${orderId}": TossPayments requires 6–64 characters of [A-Za-z0-9-_].`,
+    );
+  }
+}
+
 /** Map a TossPayments payment status to our provider-agnostic status. */
 function mapStatus(ok: boolean, tossStatus: unknown): PaymentStatus {
   if (!ok) return "FAILED";
@@ -91,6 +100,7 @@ export class TossPaymentProvider implements PaymentProvider {
   }
 
   createCheckout(input: CreatePaymentInput): Checkout {
+    assertValidOrderId(input.orderId);
     assertWon(input.amount);
     return {
       provider: this.name,

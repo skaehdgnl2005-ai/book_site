@@ -9,10 +9,10 @@ import { requestTossPayment } from "./_lib/tossClient";
 import styles from "./checkout.module.css";
 
 /**
- * F012 — the checkout buyer step. Reads the cart from localStorage (client; survives the
+ * F012/F044 — the checkout buyer step. Reads the cart from localStorage (client; survives the
  * Toss redirect round-trip — F016), collects buyer identity (NOT in the cart, per the
- * ADR-0011 handoff), and POSTs to /api/payments/create. On success it redirects to the
- * server-returned payUrl (the sandbox Toss stand-in outside production).
+ * ADR-0011 handoff), and POSTs to /api/payments/create. On success it forwards the server-issued
+ * checkout fields to requestTossPayment, which opens the real TossPayments hosted payment window.
  */
 export function CheckoutView() {
   const [cart, setCart] = useState<Cart>({ lines: [], qrVideoAddon: false });
