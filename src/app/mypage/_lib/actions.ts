@@ -9,7 +9,7 @@ import { orderRepo } from "@/app/api/payments/_lib/orders";
 import { ACCESS_TTL_MS, cookieName, mintAccess, verifyAccess } from "./access";
 import { finishingStore } from "./finishing";
 import { after } from "next/server";
-import { generateCode, hashCode, codeHashEquals, otpStore } from "./otp";
+import { generateCode, hashCode, otpStore, verifyAndConsume } from "./otp";
 import { emailAdapter } from "@/lib/email";
 import { redact } from "@/lib/env";
 
@@ -78,17 +78,15 @@ export async function requestAccessCode(_prev: LookupState, formData: FormData):
 export async function verifyAccessCode(_prev: LookupState, formData: FormData): Promise<LookupState> {
   const orderId = String(formData.get("orderId") ?? "").trim();
   const code = String(formData.get("code") ?? "").trim();
-  if (!/^\d{6}$/.test(code)) return { stage: "verify", orderId, error: OTP_BAD }; // malformed ≠ a guess; no debit
 
-  const debit = await otpStore().verifyDebit(orderId);
-  if (!debit || !codeHashEquals(hashCode(orderId, code), debit.codeHash)) {
-    return { stage: "verify", orderId, error: OTP_BAD }; // uniform: missing/consumed/expired/over-cap/mismatch
+  // All the security logic (canonical gate → atomic debit → constant-time compare → mint-before-consume)
+  // lives in the unit-testable `verifyAndConsume` seam; this action is thin glue (FormData + cookie + redirect).
+  const result = await verifyAndConsume(otpStore(), orderId, code, mintAccess);
+  if ("error" in result) {
+    return { stage: "verify", orderId, error: result.error === "closed" ? OTP_CLOSED : OTP_BAD };
   }
-  const token = mintAccess(orderId);
-  if (!token) return { stage: "verify", orderId, error: OTP_CLOSED }; // do NOT consume — code stays usable
 
-  await otpStore().consume(orderId);
-  (await cookies()).set(cookieName(orderId), token, {
+  (await cookies()).set(cookieName(orderId), result.token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.APP_ENV === "production",

@@ -39,6 +39,11 @@ export function codeHashEquals(a: string, b: string): boolean {
   return ba.length === bb.length && timingSafeEqual(ba, bb);
 }
 
+/** Canonical 6-ASCII-digit predicate — the verify-side gate (malformed input is not a guess; spec M3). */
+export function isCanonicalCode(code: string): boolean {
+  return /^\d{6}$/.test(code);
+}
+
 export interface OtpStore {
   /** Atomic issue+throttle: replaces the code (fresh window or in-window-under-cap) else throttles (no send). */
   issue(orderId: string, codeHash: string, now?: number): Promise<{ sent: boolean }>;
@@ -46,6 +51,28 @@ export interface OtpStore {
   verifyDebit(orderId: string, now?: number): Promise<{ codeHash: string } | null>;
   /** Atomic single-use claim (idempotent). */
   consume(orderId: string, now?: number): Promise<void>;
+}
+
+/**
+ * Orchestrates one verify attempt as a unit-testable seam (mint injected, no Next APIs): canonical gate
+ * (malformed ⇒ no debit), atomic debit, constant-time compare, then **mint-before-consume** — a null mint
+ * returns `{error:"closed"}` WITHOUT consuming, so a single-use code is never burned (spec §4.2 m5).
+ */
+export async function verifyAndConsume(
+  store: OtpStore,
+  orderId: string,
+  code: string,
+  mint: (orderId: string) => string | null,
+  env: Record<string, string | undefined> = process.env,
+  now: number = Date.now(),
+): Promise<{ token: string } | { error: "bad" | "closed" }> {
+  if (!isCanonicalCode(code)) return { error: "bad" }; // malformed ≠ a guess; no debit (no garbage lockout)
+  const debit = await store.verifyDebit(orderId, now);
+  if (!debit || !codeHashEquals(hashCode(orderId, code, env), debit.codeHash)) return { error: "bad" };
+  const token = mint(orderId);
+  if (!token) return { error: "closed" }; // do NOT consume — code stays usable
+  await store.consume(orderId, now);
+  return { token };
 }
 
 type Row = {

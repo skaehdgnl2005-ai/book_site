@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
-  generateCode, hashCode, createInMemoryOtpStore,
+  generateCode, hashCode, createInMemoryOtpStore, verifyAndConsume, isCanonicalCode,
   MAX_ATTEMPTS, MAX_SENDS_PER_WINDOW, TTL_MS, SEND_WINDOW_MS,
 } from "../../src/app/mypage/_lib/otp";
 
@@ -57,5 +57,53 @@ describe("F046 in-memory OtpStore", () => {
     await issue(s, T0 + 1, "222222");
     const d = await s.verifyDebit(ORDER, T0 + 2);
     expect(d?.codeHash).toBe(hashCode(ORDER, "222222", DEV));
+  });
+});
+
+describe("F046 isCanonicalCode", () => {
+  it("accepts exactly 6 ASCII digits, rejects everything else", () => {
+    expect(isCanonicalCode("424242")).toBe(true);
+    expect(isCanonicalCode("12ab56")).toBe(false);
+    expect(isCanonicalCode("42424")).toBe(false);
+    expect(isCanonicalCode("4242420")).toBe(false);
+    expect(isCanonicalCode("")).toBe(false);
+  });
+});
+
+describe("F046 verifyAndConsume (gate → debit → compare → mint-before-consume)", () => {
+  const mintOk = (id: string) => `tok_${id}`;
+  const mintNull = () => null;
+  const seeded = async () => {
+    const s = createInMemoryOtpStore();
+    await s.issue(ORDER, hashCode(ORDER, "424242", DEV), T0);
+    return s;
+  };
+
+  it("malformed code -> {error:bad} and does NOT debit an attempt (no garbage lockout)", async () => {
+    const s = await seeded();
+    expect(await verifyAndConsume(s, ORDER, "12ab56", mintOk, DEV, T0 + 1)).toEqual({ error: "bad" });
+    // full attempt budget remains: MAX_ATTEMPTS debits succeed, then null
+    for (let i = 0; i < MAX_ATTEMPTS; i++) expect(await s.verifyDebit(ORDER, T0 + 1)).not.toBeNull();
+    expect(await s.verifyDebit(ORDER, T0 + 1)).toBeNull();
+  });
+
+  it("valid code but mint() returns null -> {error:closed} and does NOT consume (m5: code stays usable)", async () => {
+    const s = await seeded();
+    expect(await verifyAndConsume(s, ORDER, "424242", mintNull, DEV, T0 + 1)).toEqual({ error: "closed" });
+    expect(await s.verifyDebit(ORDER, T0 + 2)).not.toBeNull(); // not consumed — still verifiable
+  });
+
+  it("valid code + mint ok -> {token} and consumes (single-use)", async () => {
+    const s = await seeded();
+    expect(await verifyAndConsume(s, ORDER, "424242", mintOk, DEV, T0 + 1)).toEqual({ token: `tok_${ORDER}` });
+    expect(await s.verifyDebit(ORDER, T0 + 2)).toBeNull(); // consumed
+  });
+
+  it("wrong but well-formed code -> {error:bad} and DOES debit an attempt", async () => {
+    const s = await seeded();
+    expect(await verifyAndConsume(s, ORDER, "000000", mintOk, DEV, T0 + 1)).toEqual({ error: "bad" });
+    // one debit was charged for the wrong attempt → MAX_ATTEMPTS-1 remain
+    for (let i = 0; i < MAX_ATTEMPTS - 1; i++) expect(await s.verifyDebit(ORDER, T0 + 1)).not.toBeNull();
+    expect(await s.verifyDebit(ORDER, T0 + 1)).toBeNull();
   });
 });

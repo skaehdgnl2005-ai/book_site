@@ -60,8 +60,10 @@ export function parseEnv(raw: Record<string, string | undefined> = process.env):
     );
   }
 
-  // F046 (kept as a SEPARATE block from the live-key check above for clean merge vs F045's TOSS_WEBHOOK_SECRET
-  // work). VERCEL_ENV typo backstop, then the required-in-prod secret.
+  // F046 prod-boot backstops. NOTE: F045 (in master) inserts its TOSS_WEBHOOK_SECRET-required-in-prod throw
+  // at this SAME anchor (after the live-key check, before `return env`), so a 3-way merge CONFLICTS here —
+  // resolve by KEEPING ALL THREE throws (F045's TOSS_WEBHOOK_SECRET, then this VERCEL_ENV backstop +
+  // MYPAGE_ACCESS_SECRET). Dropping any is a fail-open regression.
   if (raw.VERCEL_ENV === "production" && env.APP_ENV !== "production") {
     throw new Error(
       "Refusing to boot: VERCEL_ENV=production but APP_ENV!==production — set APP_ENV=production.",

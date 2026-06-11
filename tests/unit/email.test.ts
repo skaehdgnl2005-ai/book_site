@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { mockEmailAdapter, failClosedProdAdapter, emailAdapter } from "../../src/lib/email";
 import { redact } from "../../src/lib/env";
 
@@ -22,5 +22,20 @@ describe("F046 email adapter", () => {
   it("PII: email is redact()-masked; a 6-digit code passes redact() UNCHANGED (so the code must never be traced)", () => {
     expect(redact("to parent@example.com")).toContain("***@***");
     expect(redact("code 424242")).toBe("code 424242"); // redact has no numeric rule — proves omission, not masking
+  });
+
+  it("PII: no console/log sink ever receives the raw code (by-construction omission, not masking)", async () => {
+    const seen: string[] = [];
+    const spies = (["log", "warn", "error", "info", "debug"] as const).map((m) =>
+      vi.spyOn(console, m).mockImplementation((...args: unknown[]) => {
+        seen.push(args.map(String).join(" "));
+      }),
+    );
+    try {
+      await mockEmailAdapter().send({ to: "parent@example.com", code: "424242" });
+    } finally {
+      spies.forEach((s) => s.mockRestore());
+    }
+    expect(seen.join("\n")).not.toContain("424242"); // the code reaches the outbox, never a log sink
   });
 });
