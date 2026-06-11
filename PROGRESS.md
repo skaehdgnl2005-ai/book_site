@@ -3,6 +3,8 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **Latest (2026-06-11): F046 — real buyer auth (email-OTP) implementation DONE; gates green; passes:true set this session after the worker≠checker review.** The mypage HMAC-cookie front door (order#+email string match) is replaced by an **email-OTP possession proof** + a durable **atomic** per-order `OtpCode` store (`DATABASE_URL ? Prisma : in-memory`; attempt-cap / send-throttle / single-use as atomic conditional writes — the markPaid idiom + one `INSERT…ON CONFLICT`). The HMAC capability cookie is **kept**, minted only after a correct OTP. `MYPAGE_ACCESS_SECRET` is now boot-validated on a hardened `isProductionRuntime` (VERCEL_ENV cross-check, so a mistyped APP_ENV on Vercel can't fail open). Email behind a provider-agnostic adapter (mock + fail-closed prod stub; the real **Resend** adapter is a paired follow-up ⇒ prod mypage **fail-closed-until-provisioned**). **ADR-0021** (ADR-0020 is F045's, merged). **Atomicity is a required gate** (hermetic `pnpm check` can't prove it): gated `otp-persistence-integration` is **4/4 against docker Postgres** (N=25 parallel verifies⇒exactly 5 debits, N=25 parallel issues⇒exactly 5 sends, parallel consume⇒single-use). Plus `pnpm check` green (165 unit, R1–R9 0) + **13/13 mypage E2E** (capability-cookie R1/R7/R9 invariants preserved verbatim; wrong-email strengthened to uniform-advance + no-access). F046-only files; `env.ts` is a known 3-way merge with F045's `TOSS_WEBHOOK_SECRET` block (keep both; `pnpm verify` post-merge gate). **Not deployed** — maker runs the single `vercel --prod` after F045+F046 land and provisions the email provider.
+- **⚠️ F046 → master MERGE NOTE (do NOT lose F045's passing state) — flagged by the worker≠checker review.** This branch was cut from `cc9793f` (pre-F045), so its `feature_list.json` and `src/lib/env.ts` still carry the *baseline* F045 state; F045 was promoted to passing on master (`d841845`). A 3-way merge therefore **conflicts** in both files. Resolve by keeping master's side for F045 and adding F046: **(1) `feature_list.json`** — keep master's F045 entry verbatim (state:passing/passes:true/ADR-0020 evidence/E2E-gated verification) and append ONLY the F046 entry; **never `-X ours`/take-HEAD wholesale** (that silently reverts F045 to not_started → breaks R4). **(2) `src/lib/env.ts`** — keep **all three** prod-boot throws in order: F045's `TOSS_WEBHOOK_SECRET`, then F046's `VERCEL_ENV` backstop + `MYPAGE_ACCESS_SECRET`. Then `pnpm check` must be green. (Rebasing `feat/F046` onto master first makes `feature_list.json` a clean append; the `env.ts` conflict remains and is resolved the same way.)
 - **Latest (2026-06-08): F044 — real Toss browser SDK payment DONE + passing.** The hermetic `/checkout/pay` sandbox
   stand-in is removed; `/api/payments/create` now returns `clientKey` (publishable test key) and the browser calls
   `loadTossPayments → payment(ANONYMOUS) → requestPayment` via the real Toss SDK. All 7 checkout/mypage E2E specs
@@ -98,6 +100,29 @@ Harness **INITIALIZED + review-hardened + repurposed to 그림책 제작소**. S
 feature_list/router) now reflects the real product; DESIGN.md (Atelier Sans) wired + enforced. Coding loop next.
 
 ## Session log (newest first)
+### 2026-06-11 — F046: real buyer auth (email-OTP possession proof)  [feat/F046]
+- Replaced the mypage HMAC-cookie front door with an **email-OTP possession proof**. Stage 1
+  `requestAccessCode` (order#+email → on match issue+send a 6-digit OTP, **always** advance to verify =
+  no existence oracle; send via `after()`; equal hash both paths); stage 2 `verifyAccessCode` (atomic
+  `verifyDebit` → constant-time compare → **mint-before-consume** + null-guard → capability cookie →
+  redirect; malformed input rejected before any debit). 2-stage `MypageLookup` (`useActionState`,
+  mounted-gated submit per `PhoneForm`/`WrittenForm`). The HMAC capability cookie (`access.ts`) is unchanged.
+- **Durable, atomic store** (`src/app/mypage/_lib/otp.ts`, new): `OtpCode` model (`DATABASE_URL ? Prisma :
+  in-memory`). Every mutation is an **atomic conditional write** so it survives Vercel multi-instance:
+  issue = one `INSERT…ON CONFLICT…WHERE` (insert / in-window-increment / window-reset / throttled=0-rows);
+  verify = `updateMany` increment guarded `attempts<MAX`; consume = conditional `updateMany`. Plaintext code
+  never stored (order-bound HMAC reusing `MYPAGE_ACCESS_SECRET` — no new secret). Provider-agnostic
+  `EmailAdapter` (`src/lib/email.ts`, new): mock outbox (non-prod) + fail-closed prod stub (D4 boot/config
+  gate, not per-send approval). `env.ts`: `MYPAGE_ACCESS_SECRET` required-in-prod + hardened
+  `isProductionRuntime` (VERCEL_ENV cross-check).
+- **Process (ADR-0021):** brainstorm → spec → plan → **PRE-build 6-dim design review (20/21 folded, 3
+  concurrency blockers)** → TDD (RED witnessed for env/email/otp + the E2E) → **independent worker≠checker
+  6-dim implementation review** (refute-by-default; the gated concurrency test executed independently).
+- **Gates:** `pnpm check` green (lint+typecheck+**165 unit**+R1–R9 0) + **13/13 mypage E2E** + the gated
+  `otp-persistence-integration` **4/4 on docker Postgres** (the REQUIRED atomicity proof — `pnpm check`
+  skips the Prisma path). F046 → `passing` + dated evidence; `pnpm attempt F046 --reset`. F046-only files,
+  no payments/F045/guardrails/check-constraints touched. **Not merged/deployed** (maker step).
+
 ### 2026-06-08 — F044: real TossPayments browser SDK payment  [feat/F044-toss-sdk]
 - Replaced the hermetic `/checkout/pay` sandbox stand-in (ADR-0013 D1) with the real Toss browser SDK:
   `loadTossPayments → payment(ANONYMOUS) → requestPayment`. The production 503 gate on
