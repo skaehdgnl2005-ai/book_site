@@ -561,6 +561,22 @@
       "state": "not_started",
       "passes": false,
       "evidence": ""
+    },
+    {
+      "id": "F046",
+      "category": "safety",
+      "track": "product",
+      "priority": 2,
+      "description": "실 buyer 인증: 마이페이지 HMAC stand-in → 이메일 OTP 소유증명 + 주문당 durable·atomic rate-limit; MYPAGE_ACCESS_SECRET 부팅검증 흡수",
+      "steps": [
+        "주문번호+이메일 제출 → 일치 시 6자리 OTP 발송(결과는 일치 여부와 무관하게 균일, no existence oracle)",
+        "OTP 입력 → 원자적 검증(단일사용·10m TTL·시도 5회·주문당 발송 throttle, 모두 atomic conditional write) 성공 시에만 capability 쿠키 발급 → /mypage/[orderId]",
+        "MYPAGE_ACCESS_SECRET 부재 시 prod boot 거부(VERCEL_ENV 교차검증); 실 이메일은 prod provider 미설정 시 fail-closed(테스트=목)"
+      ],
+      "verification": "pnpm test:e2e -- mypage-photo.spec.ts mypage-finish.spec.ts",
+      "state": "in_progress",
+      "passes": false,
+      "evidence": ""
     }
   ]
 }
