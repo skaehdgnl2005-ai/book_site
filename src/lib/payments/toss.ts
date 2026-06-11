@@ -5,6 +5,7 @@ import type {
   ConfirmInput,
   Confirmation,
   PaymentStatus,
+  PaymentLookupResult,
 } from "./index";
 
 /**
@@ -17,6 +18,8 @@ import type {
  */
 
 const TOSS_CONFIRM_URL = "https://api.tosspayments.com/v1/payments/confirm";
+// Re-query a payment by its paymentKey (webhook verification): GET /v1/payments/{paymentKey}.
+const TOSS_PAYMENT_URL = "https://api.tosspayments.com/v1/payments/";
 
 /** Minimal `Response`-shaped result the adapter needs (real `fetch` satisfies it). */
 export interface TossResponseLike {
@@ -37,6 +40,8 @@ export interface TossConfig {
   clientKey: string;
   transport?: TossTransport;
   confirmUrl?: string;
+  /** Base URL for the payment-lookup re-query (defaults to the real Toss endpoint). */
+  paymentUrl?: string;
 }
 
 const defaultTransport: TossTransport = (url, init) =>
@@ -89,6 +94,7 @@ export class TossPaymentProvider implements PaymentProvider {
   private readonly clientKey: string;
   private readonly transport: TossTransport;
   private readonly confirmUrl: string;
+  private readonly paymentUrl: string;
 
   constructor(config: TossConfig) {
     assertTestKey(config.secretKey, "secret");
@@ -97,6 +103,7 @@ export class TossPaymentProvider implements PaymentProvider {
     this.clientKey = config.clientKey;
     this.transport = config.transport ?? defaultTransport;
     this.confirmUrl = config.confirmUrl ?? TOSS_CONFIRM_URL;
+    this.paymentUrl = config.paymentUrl ?? TOSS_PAYMENT_URL;
   }
 
   createCheckout(input: CreatePaymentInput): Checkout {
@@ -134,6 +141,30 @@ export class TossPaymentProvider implements PaymentProvider {
       orderId: input.orderId,
       amount: input.amount,
       approvedAt: body.approvedAt,
+    };
+  }
+
+  async lookupPayment(paymentKey: string): Promise<PaymentLookupResult | null> {
+    // Re-query the authoritative payment (GET /v1/payments/{paymentKey}), Basic-auth with the
+    // secret key — same auth as confirm(). The webhook uses this to verify a NOTIFICATION before
+    // settling an order. A non-OK response (e.g. 404 / unknown key) ⇒ null (cannot verify).
+    const auth = "Basic " + Buffer.from(`${this.secretKey}:`).toString("base64");
+    const res = await this.transport(this.paymentUrl + encodeURIComponent(paymentKey), {
+      method: "GET",
+      headers: { Authorization: auth, "Content-Type": "application/json" },
+      body: "",
+    });
+    if (res.status >= 500) {
+      // Transient gateway error → throw so the webhook route returns 5xx and Toss RETRIES the
+      // delivery; never silently ack a re-query we couldn't complete (the safety-net must hold).
+      throw new Error(`Toss payment lookup failed transiently (HTTP ${res.status}).`);
+    }
+    if (!res.ok) return null; // 4xx (e.g. 404 not found) → definitively cannot verify → no settlement
+    const body = (await res.json()) as { status?: unknown; totalAmount?: unknown; orderId?: unknown };
+    return {
+      status: mapStatus(true, body.status),
+      amount: typeof body.totalAmount === "number" ? body.totalAmount : NaN,
+      orderId: typeof body.orderId === "string" ? body.orderId : "",
     };
   }
 }

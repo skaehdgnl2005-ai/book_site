@@ -18,8 +18,7 @@ Single-deployable, single-region web app. The Next.js 15 App Router runs on Verc
   │  • Route Handlers:                            │
   │     /api/payments/create   (503 in prod, §2)  │
   │     /api/payments/confirm  (server adapter)   │
-  │     /api/payments/webhook  (HMAC, 401 if no   │
-  │                             TOSS_WEBHOOK_SECRET)│
+  │     /api/payments/webhook  (token + re-query) │
   │     /api/custom/phone | written               │
   └──────────────┬──────────────────┬─────────────┘
                  │ Prisma            │ Storage REST (service_role)
@@ -48,7 +47,7 @@ What a prod build **cannot do yet** (each is by design — honest fail-fast over
 - **Entry-line checkout is 503 in prod.** `POST /api/payments/create` returns `503 {"errors":["결제 기능이 아직 준비되지 않았습니다."]}` as its first statement when `APP_ENV==="production"` (`src/app/api/payments/create/route.ts:19-21`). No order is created, no provider is called.
 - **The real Toss browser SDK is not implemented anywhere** in `src/`. Only a server-side **confirm** adapter exists (`src/lib/payments/toss.ts:19,106-128`); there is no client widget that opens the hosted payment window or yields a `paymentKey`. The dev/sandbox stand-in pay page calls `notFound()` (404) in prod (`src/app/checkout/pay/page.tsx:24`).
 - **mypage is NOT real buyer auth.** Ownership is proven by order# + matching `buyerEmail`, then an HMAC-signed, 2h-expiry, httpOnly per-order **capability cookie** (`secure:true` in prod). There is **no session library anywhere** (next-auth / iron-session → 0 hits). This is a stand-in seam (**ADR-0014**). Order ids are sequential/guessable; the email gate is the only ownership proof.
-- **Webhooks fail closed without their secret.** In prod, `webhookSecret()` returns only `process.env.TOSS_WEBHOOK_SECRET` (no fallback); the webhook route returns **401** if it is unset (`src/app/api/payments/webhook/route.ts:17-20`, `src/app/api/payments/_lib/checkout.ts:200-203`). No secret ⇒ no async PAID settlement.
+- **Webhooks fail closed without their secret.** The webhook authenticates with a shared URL token (`?token=` = `TOSS_WEBHOOK_SECRET`, constant-time) and then **re-queries** the authoritative payment from Toss (`GET /v1/payments/{paymentKey}`) before settling — the body is never trusted (F045, ADR-0020). `TOSS_WEBHOOK_SECRET` is now **boot-required in prod** (`src/lib/env.ts` refuses to boot without it); the route also returns **401** if it is unset. No secret ⇒ no async PAID settlement.
 - **mypage finishing fails closed without `MYPAGE_ACCESS_SECRET`.** If unset in prod, `mintAccess` returns `null` and `verifyAccess` returns `false` → all photo/dedication finishing is blocked with "마이페이지 접근이 일시적으로 제한…" (`src/app/mypage/_lib/access.ts:25,52`, `actions.ts:48-52`). This var is **not even in the zod schema** (see §4) — the boot validator will not warn you.
 - **Live Toss keys are refused by the payment adapter** even in prod. The constructor's `assertTestKey` throws on `live_sk_`/`live_ck_` (`src/lib/payments/toss.ts:45-53`). Real charges are an approval-gated irreversible action (`pnpm approve toss.charge.live`, §9). Today the only safe-to-run prod provider is one given **TEST** keys.
 
@@ -174,7 +173,7 @@ What must be **BUILT** before a real public launch. These are future **F-items**
 | Status | Seam | What to build | Ref |
 |---|---|---|---|
 | ☐ TODO | **Real Toss browser SDK** (highest-priority blocker) | Integrate `@tosspayments/tosspayments-sdk` client `requestPayment`, pass `clientKey` (already surfaced via `createCheckout().clientKey`), success callback → `/api/payments/confirm` (works server-side); then **remove the 503** in create route. | `create/route.ts:19-21`; `toss.ts:100,106-128`; `pay/page.tsx:24` |
-| ☐ TODO | **Toss webhook secret + real signature scheme** | Set `TOSS_WEBHOOK_SECRET` in prod (else 401); map Toss's real webhook signature scheme onto `verifyWebhookSignature` (current impl hashes raw body with our own `signWebhook`, a documented seam). | `webhook/route.ts:17-20`; `checkout.ts:151-183,200-203` |
+| ✅ DONE | **Toss webhook real scheme** (F045, ADR-0020) | Replaced the self-HMAC seam with the real Toss scheme: shared URL token (`?token=`=`TOSS_WEBHOOK_SECRET`) + **re-query** `GET /v1/payments/{paymentKey}` as the authoritative check; payload `{eventType,data:{paymentKey,orderId,status}}`; dedupe `paymentKey:status`; `TOSS_WEBHOOK_SECRET` **boot-required** in prod. Register the dashboard webhook URL as `…/api/payments/webhook?token=<secret>`. | `webhook/route.ts`; `checkout.ts` (processWebhook); `toss.ts` (lookupPayment); `env.ts` |
 | ☐ TODO | **Real buyer auth** (replace mypage HMAC stand-in) | Replace the per-order HMAC capability cookie with real buyer-session auth (ADR-0014). No session library exists today. Add lookup **rate-limiting** (named seam, not built). | `access.ts:22-64`; `actions.ts:48-60` |
 | ☐ TODO | **`MYPAGE_ACCESS_SECRET` boot validation** | Add a required-in-prod check to `src/lib/env.ts` (currently read ad-hoc; missing var fails closed only at first mypage use, not at boot). ADR-0014 flagged this out-of-scope-then. | `access.ts:25`; `env.ts:13-26` |
 | ☐ TODO | **Live Toss key path** | Decide the live-charge path: relax `assertTestKey` behind the `pnpm approve toss.charge.live` gate; provision real `TOSS_SECRET_KEY` / `NEXT_PUBLIC_TOSS_CLIENT_KEY`. | `toss.ts:45-53,138-144`; `docs/SAFETY.md` |
@@ -196,7 +195,7 @@ After a deploy with `APP_ENV=production` set, verify the skeleton is healthy **a
 | DB wired | Any order-listing / template page | Seeded **8 templates** appear (not the in-memory skeleton) ⇒ `DATABASE_URL` live + migrated + seeded. |
 | **Payment gate (intentional)** | `POST /api/payments/create` | **HTTP 503** `{"errors":["결제 기능이 아직 준비되지 않았습니다."]}`. ✅ This is the seam in §2 — **expected**, not a regression. |
 | Sandbox pay page closed | `/checkout/pay?order=…` | **404** (`notFound()`). ✅ Expected in prod. |
-| Webhook secured | `POST /api/payments/webhook` (no/invalid sig) | **401** if `TOSS_WEBHOOK_SECRET` unset, or signature rejected. With secret set + valid sig: idempotent PAID settlement. |
+| Webhook secured | `POST /api/payments/webhook` (no/invalid `?token=`) | **401** if `TOSS_WEBHOOK_SECRET` unset or the `?token=` mismatches. With the token + a real Toss event, the **re-query** confirms the payment → idempotent PAID settlement. A forged `DONE` body can't settle (re-query is authoritative). |
 | mypage access | mypage lookup (order# + email) | If `MYPAGE_ACCESS_SECRET` set: capability cookie minted (`secure`, httpOnly, 2h). If unset: "마이페이지 접근이 일시적으로 제한…" — confirm the secret is set. |
 | Storage round-trip | Run the gated test against prod env: `set -a; . .env.local; set +a; pnpm exec vitest run persistence-integration` | Upload → read-back exact bytes → cleanup, **S11 PASS** ⇒ `SUPABASE_*` live. |
 | Secrets not leaking | Vercel logs/traces | No raw keys/emails/DB passwords in output (`redact()` + R2). |

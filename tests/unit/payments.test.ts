@@ -18,6 +18,7 @@ function newProvider(transport?: TossTransport): TossPaymentProvider {
     clientKey: TEST_CLIENT,
     transport,
     confirmUrl: "https://api.example.test/v1/payments/confirm",
+    paymentUrl: "https://api.example.test/v1/payments/",
   });
 }
 
@@ -152,6 +153,75 @@ describe("TossPaymentProvider.confirm", () => {
       newProvider(failIfCalled).confirm({ paymentKey: "pk", orderId: "ord_1", amount: 4300.5 }),
     ).rejects.toThrow(/integer/i);
     expect(called).toBe(false);
+  });
+});
+
+describe("TossPaymentProvider.lookupPayment (webhook re-query)", () => {
+  it("GETs /v1/payments/{paymentKey} with Basic-auth and maps DONE→PAID with amount + orderId", async () => {
+    const calls: { url: string; init: { method: string; headers: Record<string, string>; body: string } }[] = [];
+    const transport: TossTransport = async (url, init) => {
+      calls.push({ url, init });
+      return { ok: true, status: 200, json: async () => ({ status: "DONE", totalAmount: 49000, orderId: "ord_77" }) };
+    };
+    const result = await newProvider(transport).lookupPayment("pk_test_1");
+    expect(result).toEqual({ status: "PAID", amount: 49000, orderId: "ord_77" });
+    expect(calls).toHaveLength(1);
+    expect(calls[0].init.method).toBe("GET");
+    expect(calls[0].url).toBe("https://api.example.test/v1/payments/pk_test_1");
+    const expectedAuth = "Basic " + Buffer.from(`${TEST_SECRET}:`).toString("base64");
+    expect(calls[0].init.headers.Authorization).toBe(expectedAuth);
+  });
+
+  it("url-encodes the paymentKey (no path injection)", async () => {
+    const calls: string[] = [];
+    const transport: TossTransport = async (url) => {
+      calls.push(url);
+      return { ok: true, status: 200, json: async () => ({ status: "DONE", totalAmount: 1, orderId: "o" }) };
+    };
+    await newProvider(transport).lookupPayment("a/b?c");
+    expect(calls[0]).toBe("https://api.example.test/v1/payments/" + encodeURIComponent("a/b?c"));
+  });
+
+  it("maps a not-yet-settled status (IN_PROGRESS) to a non-PAID status (so the webhook won't settle)", async () => {
+    const transport: TossTransport = async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: "IN_PROGRESS", totalAmount: 49000, orderId: "ord_1" }),
+    });
+    const result = await newProvider(transport).lookupPayment("pk");
+    expect(result?.status).not.toBe("PAID");
+  });
+
+  it("maps a CANCELED payment to CANCELED", async () => {
+    const transport: TossTransport = async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: "CANCELED", totalAmount: 49000, orderId: "ord_1" }),
+    });
+    const result = await newProvider(transport).lookupPayment("pk");
+    expect(result?.status).toBe("CANCELED");
+  });
+
+  it("maps a response with no totalAmount to a NaN amount (the webhook then rejects via AMOUNT_MISMATCH)", async () => {
+    const transport: TossTransport = async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({ status: "DONE", orderId: "ord_1" }), // malformed: totalAmount missing
+    });
+    const result = await newProvider(transport).lookupPayment("pk");
+    expect(result?.status).toBe("PAID");
+    expect(Number.isNaN(result?.amount)).toBe(true); // NaN ≠ any order total ⇒ never settles
+  });
+
+  it("returns null when the payment is not found (404) — a definitively-bad reference, no settlement", async () => {
+    const transport: TossTransport = async () => ({ ok: false, status: 404, json: async () => ({ code: "NOT_FOUND" }) });
+    const result = await newProvider(transport).lookupPayment("pk_missing");
+    expect(result).toBeNull();
+  });
+
+  it("throws on a transient 5xx so the webhook route can 503 and Toss retries (no silent ack)", async () => {
+    const transport: TossTransport = async () => ({ ok: false, status: 503, json: async () => ({}) });
+    await expect(newProvider(transport).lookupPayment("pk")).rejects.toThrow();
   });
 });
 

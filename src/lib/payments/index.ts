@@ -61,12 +61,28 @@ export interface Confirmation {
   approvedAt?: string;
 }
 
+/** Authoritative payment re-queried from the gateway (server→gateway, for webhook verification). */
+export interface PaymentLookupResult {
+  /** Provider-agnostic settled status (Toss DONE → PAID). */
+  status: PaymentStatus;
+  /** Amount the gateway holds, in KRW won — compared against the server-held order total. */
+  amount: Won;
+  /** Order id the gateway associates with this payment (authoritative; the webhook body is not trusted). */
+  orderId: string;
+}
+
 export interface PaymentProvider {
   readonly name: string;
   /** Prepare a checkout for the buyer's browser. Pure/synchronous — no network. */
   createCheckout(input: CreatePaymentInput): Checkout;
   /** Settle a payment with the gateway; maps the gateway result to our status. */
   confirm(input: ConfirmInput): Promise<Confirmation>;
+  /**
+   * Re-query the authoritative payment (secret-key auth). Used to verify a webhook
+   * NOTIFICATION before settling an order — Toss does not sign payment webhooks, so only
+   * this server→gateway lookup can move an order to PAID. Null when the payment isn't found.
+   */
+  lookupPayment(paymentKey: string): Promise<PaymentLookupResult | null>;
 }
 
 // First (and currently only) adapter. Re-exported here so consumers import from

@@ -557,10 +557,10 @@
         "TOSS_WEBHOOK_SECRET 부재 시 prod boot 거부",
         "리다이렉트 전 이탈 주문도 webhook 으로 PAID 도달"
       ],
-      "verification": "pnpm test -- webhook.test.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": ""
+      "verification": "pnpm test -- webhook.test.ts && pnpm test:e2e -- checkout-success.spec.ts",
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-06-11 vitest webhook.test.ts: 36 passed (+payments.test.ts: 21, lookupPayment 7; smoke.test.ts: 12) — 실 Toss webhook 스킴(ADR-0020). 공식문서 확인: Toss 는 PAYMENT_STATUS_CHANGED 를 서명하지 않음(서명헤더 tosspayments-webhook-signature 는 payout/seller 전용)→ verifyWebhookToken(공유 URL 토큰 ?token=TOSS_WEBHOOK_SECRET, constant-time, 1차 필터) + RE-QUERY GET /v1/payments/{paymentKey}(TossPaymentProvider.lookupPayment, Basic auth)를 권위 소스로. 권위 status=PAID & totalAmount=order.amountWon & 권위 orderId 일 때만 markPaid. 페이로드 {eventType,data:{paymentKey,orderId,status}}; 멱등키=paymentKey:status(Toss 페이로드에 event id 없음), 권위확인 후에만 ledger 기록; markPaid 멱등(CREATED→PAID, 다운그레이드 없음)→ success-콜백 confirm 과 webhook 수렴(first-key 보존). 위조 DONE 바디는 재조회로 무력화; AMOUNT_MISMATCH/LOOKUP_FAILED/UNKNOWN_ORDER/IGNORED 는 미정산(200 ack). 재조회 5xx→throw→route 503→Toss 재시도(non-2xx 최대 7회/~3d19h), 404→null→200. raw-body-먼저(req.text() 전 parse 금지) 유지. TOSS_WEBHOOK_SECRET prod boot 필수(env.ts). 기존 webhook.test.ts 10개 webhook 케이스를 실 스킴으로 이전(불변식 전부 보존, constraint #2)+보안 케이스 추가. 자체 HMAC(signWebhook/verifyWebhookSignature) 제거. pnpm check green(lint+typecheck+163 unit+0 constraints R1–R9) + 95 hermetic E2E(checkout-success.spec.ts 포함, 무회귀). 독립 worker≠checker(F042): 6-lens refute-by-default(10 agents)→ 4 findings, 3 confirmed(0 blocker/0 코드결함; 2 major=SAFETY/DEPLOY 문서드리프트→수정, 1 minor=lookupPayment totalAmount 누락 테스트→추가); security/idempotency/retry/harness lens 0 finding. R9: F045 stub 의 unit-only verification 을 별도 spec-correction 커밋으로 E2E 게이트까지 강화(R8 충족). 배포 후: Toss 대시보드 webhook URL(?token=) 등록 + 테스트 이벤트로 PAID 수렴 카나리. · ADR-0020."
     }
   ]
 }

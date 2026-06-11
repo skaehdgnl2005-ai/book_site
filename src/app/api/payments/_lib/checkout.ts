@@ -8,11 +8,12 @@
  * module, mirroring the `src/lib/*` convention. Cross-cutting `untrusted()` is applied at
  * the route boundary (AGENTS #6); this module treats every input as untrusted and validates.
  */
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { timingSafeEqual } from "node:crypto";
 import {
   TossPaymentProvider,
   tossFromEnv,
   type PaymentProvider,
+  type PaymentLookupResult,
   type TossTransport,
 } from "../../../../lib/payments";
 import { QR_ADDON_WON } from "../../../../lib/cart";
@@ -24,25 +25,26 @@ import type {
   ExtraVarValue,
 } from "./orders";
 
-// ── webhook signature: HMAC-SHA256 over the RAW body, constant-time ───────────
-// Provider-agnostic seam: the production Toss adapter maps Toss's real scheme onto this.
-// CRITICAL: callers MUST verify over the raw request bytes (`await req.text()`) BEFORE any
-// JSON.parse — `req.json()` consumes the stream, so parsing first would hash the wrong bytes.
-export function signWebhook(secret: string, rawBody: string): string {
-  return createHmac("sha256", secret).update(rawBody, "utf8").digest("hex");
+// ── webhook auth: a shared URL token, constant-time ───────────────────────────
+// Toss does NOT sign PAYMENT_STATUS_CHANGED webhooks (only payout/seller events carry a
+// `tosspayments-webhook-signature`). So the webhook body is an untrusted NOTIFICATION: we
+// (1) gate on a shared secret token registered in the dashboard webhook URL (?token=…) as a
+// cheap first-line filter and (2) RE-QUERY the authoritative payment from Toss
+// (`PaymentLookup`, secret-key Basic auth) — only that status/amount can move an order to
+// PAID. This replaces the earlier self-HMAC seam (`signWebhook`). See ADR-0020 (F045).
+export function verifyWebhookToken(provided: string | null, secret: string): boolean {
+  if (!provided) return false;
+  const a = Buffer.from(provided, "utf8");
+  const b = Buffer.from(secret, "utf8");
+  if (a.length !== b.length) return false; // timingSafeEqual throws on length mismatch
+  return timingSafeEqual(a, b);
 }
 
-export function verifyWebhookSignature(
-  rawBody: string,
-  signature: string | null,
-  secret: string,
-): boolean {
-  if (!signature) return false;
-  const expected = Buffer.from(signWebhook(secret, rawBody), "utf8");
-  const got = Buffer.from(signature, "utf8");
-  if (expected.length !== got.length) return false; // timingSafeEqual throws on length mismatch
-  return timingSafeEqual(expected, got);
-}
+/**
+ * Re-query the authoritative payment (GET /v1/payments/{paymentKey}). The webhook body is
+ * untrusted; ONLY this server→Toss lookup can settle an order. Null ⇒ payment not found.
+ */
+export type PaymentLookup = (paymentKey: string) => Promise<PaymentLookupResult | null>;
 
 // ── F012: server-authoritative order draft from an untrusted cart payload ──────
 export type TemplateResolver = (
@@ -152,47 +154,73 @@ export async function confirmPayment(
   return { status: 200, body: { status: "PAID", orderId: paid?.id ?? order.id } };
 }
 
-// ── F013: async webhook. Verify (raw body) → parse → dedupe → markPaid (idempotent). ──
+// Toss PAYMENT_STATUS_CHANGED payload: { eventType, createdAt, data:{ paymentKey, orderId, status } }.
+type TossWebhookData = { paymentKey?: unknown; orderId?: unknown; status?: unknown };
+type TossWebhookEvent = { eventType?: unknown; data?: TossWebhookData };
+
+// ── F045: async webhook. Token-gate → parse → dedupe → RE-QUERY (authoritative) → markPaid. ──
 export async function processWebhook(
   rawBody: string,
-  signature: string | null,
+  token: string | null,
   secret: string,
   repo: OrderRepo,
   ledger: WebhookLedger,
+  lookup: PaymentLookup,
 ): Promise<{ status: number; body: Record<string, unknown> }> {
-  if (!verifyWebhookSignature(rawBody, signature, secret)) {
-    return { status: 401, body: { errors: ["서명 검증에 실패했습니다."] } };
+  if (!verifyWebhookToken(token, secret)) {
+    return { status: 401, body: { errors: ["웹훅 인증에 실패했습니다."] } };
   }
-  let event: { eventId?: unknown; orderId?: unknown; status?: unknown };
+  let event: TossWebhookEvent;
   try {
-    event = JSON.parse(rawBody) as typeof event;
+    event = JSON.parse(rawBody) as TossWebhookEvent;
   } catch {
     return { status: 400, body: { errors: ["잘못된 요청입니다."] } };
   }
-  const eventId = asString(event.eventId);
-  const orderId = asString(event.orderId);
-  if (!eventId) return { status: 400, body: { errors: ["이벤트 식별자가 없습니다."] } };
+  const data = (event.data && typeof event.data === "object" ? event.data : {}) as TossWebhookData;
+  const paymentKey = asString(data.paymentKey);
+  const bodyStatus = asString(data.status);
+  if (!paymentKey) return { status: 400, body: { errors: ["paymentKey 가 없습니다."] } };
 
-  // Dedupe BEFORE any state change so a redelivery (even a forged later payload) is a
-  // strict no-op. Hermetic store is single-process; the prod Prisma seam uses the
-  // ProcessedWebhook @id unique constraint as the atomic gate (insert-first).
-  if (await ledger.seen(eventId)) return { status: 200, body: { duplicate: true } };
-  await ledger.record(eventId);
+  // Idempotency key: Toss payment webhooks carry NO event id, so we key on paymentKey:status
+  // — stable per state transition (READY→…→DONE each distinct), so a redelivery of the SAME
+  // transition is a strict no-op while a later genuine DONE still lands. Dedupe runs before
+  // the re-query so an identical redelivery costs no API call.
+  const dedupeKey = `${paymentKey}:${bodyStatus}`;
+  if (await ledger.seen(dedupeKey)) return { status: 200, body: { duplicate: true } };
 
-  if (event.status !== "DONE") return { status: 200, body: { status: "IGNORED" } };
-  const order = await repo.get(orderId);
+  // RE-QUERY: the body is untrusted. Fetch the authoritative payment from Toss; only its
+  // status/amount can settle the order. A forged "DONE" body re-queries to the real status.
+  const authoritative = await lookup(paymentKey);
+  if (!authoritative) return { status: 200, body: { status: "LOOKUP_FAILED" } }; // not found → ack, no retry storm
+  if (authoritative.status !== "PAID") return { status: 200, body: { status: "IGNORED" } };
+
+  const order = await repo.get(authoritative.orderId); // authoritative id, never the body's
   if (!order) return { status: 200, body: { status: "UNKNOWN_ORDER" } };
-  await repo.markPaid(order.id, `webhook:${eventId}`);
+  if (authoritative.amount !== order.amountWon) {
+    return { status: 200, body: { status: "AMOUNT_MISMATCH" } }; // suspicious — never settle
+  }
+
+  // Record the acted DONE transition only AFTER authoritative confirmation, so a stale/forged
+  // body can't poison a later genuine DONE. markPaid is itself idempotent (CREATED→PAID only,
+  // never downgrades), so the success-callback confirm and this webhook converge on one order.
+  await ledger.record(dedupeKey);
+  await repo.markPaid(order.id, paymentKey);
   return { status: 200, body: { status: "PAID", orderId: order.id } };
 }
 
 // ── provider + secret wiring (sandbox outside production; impossible to stub in prod) ──
 export function checkoutProvider(env: Record<string, string | undefined> = process.env): PaymentProvider {
   if (env.APP_ENV === "production") return tossFromEnv(env);
-  const sandboxTransport: TossTransport = async () => ({
+  const sandboxTransport: TossTransport = async (_url, init) => ({
     ok: true,
     status: 200,
-    json: async () => ({ status: "DONE", approvedAt: new Date().toISOString() }),
+    // GET = lookupPayment re-query. The sandbox can't know an order's real amount/id, so it
+    // returns a benign payment that settles nothing (orderId:"" → UNKNOWN_ORDER). The webhook
+    // safety-net is verified hermetically by webhook.test.ts; dev/E2E use the confirm path.
+    json: async () =>
+      init.method === "GET"
+        ? { status: "DONE", totalAmount: 0, orderId: "" }
+        : { status: "DONE", approvedAt: new Date().toISOString() },
   });
   return new TossPaymentProvider({
     secretKey: env.TOSS_SECRET_KEY ?? "test_sk_checkoutsandbox",

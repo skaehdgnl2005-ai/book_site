@@ -536,3 +536,60 @@ implement → adversarial review → commit) was completed autonomously.
 - Gates: `pnpm check` green (lint + typecheck + **147 unit** + 0 constraints R1–R9); **95 hermetic E2E**
   (7 checkout/mypage specs migrated to addInitScript; no regressions); `pnpm constraints` ok:true count:0.
   **44/44 features: product 33/33 · harness 11/11.**
+
+## 2026-06-11 — ADR-0020 — F045: real TossPayments webhook verification (token + re-query)
+- **Context.** F044 reaches PAID only via the success-callback `confirm`. If the buyer abandons the
+  window after Toss approves but before the redirect, the payment is DONE while our order stays
+  CREATED — the webhook is that safety-net. The prior webhook verified a **self-HMAC** (`signWebhook`,
+  raw-body HMAC-SHA256) — a documented seam, **not** Toss's real scheme.
+- **Decision.** Confirmed against the official Toss docs that **payment webhooks
+  (`PAYMENT_STATUS_CHANGED`) are NOT signed** — only payout/seller events carry a
+  `tosspayments-webhook-signature` (HMAC-SHA256 over `{payload}:{transmission-time}`, base64, `v1:`
+  prefix). So the payment-webhook body is an untrusted **notification**. Replaced the self-HMAC with
+  the real scheme:
+  1. **Shared URL token** (`?token=` = `TOSS_WEBHOOK_SECRET`, `verifyWebhookToken`, constant-time) as
+     a cheap first-line filter (registered in the dashboard webhook URL).
+  2. **Re-query** `GET /v1/payments/{paymentKey}` (`TossPaymentProvider.lookupPayment`, Basic auth
+     `base64("<secretKey>:")`) as the **authoritative** source of truth. Only authoritative
+     `status==PAID` AND `totalAmount==order.amountWon`, resolved via the **authoritative `orderId`**
+     (never the body's), marks the order PAID.
+  - **Payload** parsed as `{ eventType, data:{ paymentKey, orderId, status } }`.
+  - **Idempotency key** = `paymentKey:status` (Toss payment webhooks carry **no event id**), stable
+    per state transition, recorded in the `ProcessedWebhook` ledger only **after** authoritative
+    confirmation (so a stale/forged body can't poison a later genuine DONE). Redelivery of the same
+    transition is a strict no-op; `markPaid` is idempotent (CREATED→PAID only, never downgrades), so
+    the success-callback confirm and the webhook **converge** on one order, keeping the first key.
+  - **Retry semantics.** Toss retries non-2xx up to 7× over ~3d19h. A transient re-query **5xx
+    throws** → the route returns **503** so Toss retries; a **404** → `null` → **200** ack (nothing to
+    settle); IGNORED / UNKNOWN_ORDER / AMOUNT_MISMATCH / LOOKUP_FAILED all **200** (no settle, no
+    retry storm). Raw body is read first (`req.text()`), parsed only after the token gate — never
+    `req.json()`.
+  - **Boot guard.** `TOSS_WEBHOOK_SECRET` is **required in production** (`src/lib/env.ts` fails fast),
+    mirroring the live-key refusal. `TOSS_SECRET_KEY` (re-query auth) is already required by
+    `tossFromEnv`.
+- **Spec note (R9).** F045 was registered (commit 65a8c34) as a stub with a unit-only `verification`
+  and no `e2e_via`, which trips R8 once passing. Its `verification` was corrected — in a dedicated
+  spec-correction commit so R9's `git HEAD` baseline carries it — to also gate
+  `checkout-success.spec.ts`: a human-approved, **strengthening** amendment of an otherwise-immutable
+  field (never a weakening). The prior 10 webhook unit cases were **migrated** to the real scheme
+  preserving every invariant (constraint #2 honoured); security cases (forged DONE body, amount-tamper,
+  lookup-failed, authoritative-orderId, convergence) + 6 `lookupPayment` adapter cases were added.
+- **Worker≠checker (F042/ADR-0005).** A 6-lens refute-by-default review (10 agents) → 4 findings, **3
+  confirmed, 0 blocker, 0 code defect**: 2 doc-drift majors (SAFETY §4 / DEPLOY diagram+checklist →
+  fixed here) + 1 minor (missing-`totalAmount` lookup test → added). The security, idempotency, retry,
+  and harness-compliance lenses raised nothing.
+- **Rejected alternatives.**
+  - **Signature-header verification for payment webhooks** — Toss doesn't sign them; the
+    `tosspayments-webhook-signature` header is payout/seller-only, so there is nothing to verify.
+  - **Trust the webhook body status/amount (no re-query)** — a forged/replayed body could mark an
+    order PAID. The secret-keyed server→Toss re-query is the only authoritative check.
+  - **Keep the self-HMAC** — never the real Toss scheme; real Toss never sends `x-toss-signature`, so
+    every genuine webhook would 401.
+  - **IP allowlist as the sole gate** — brittle (Toss IPs change) and not authoritative about payment
+    state; the re-query subsumes it.
+- **Gates.** `pnpm check` green (lint + typecheck + **163 unit** + 0 constraints R1–R9); **95 hermetic
+  E2E** (incl. `checkout-success.spec.ts`, no regressions). **45/45 features: product 34/34 · harness
+  11/11.** `pnpm attempt F045 --reset`.
+- **Deploy / canary.** `vercel --prod`; register the dashboard webhook URL
+  `https://storybook-shop.vercel.app/api/payments/webhook?token=<TOSS_WEBHOOK_SECRET>`; send a Toss
+  test event and confirm the order converges PAID (secret already set in Vercel prod).

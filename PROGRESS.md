@@ -3,6 +3,23 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **Latest (2026-06-11): F045 — real Toss webhook verification scheme DONE + passing.** Replaced the
+  self-HMAC seam (`signWebhook`) with the real Toss scheme (official docs: `PAYMENT_STATUS_CHANGED`
+  webhooks are **unsigned** — only payout/seller events carry `tosspayments-webhook-signature`):
+  `verifyWebhookToken` (shared URL token `?token=`=`TOSS_WEBHOOK_SECRET`, constant-time, first-line
+  filter) + **re-query** `GET /v1/payments/{paymentKey}` (Basic auth) as the authoritative source —
+  only authoritative `PAID` + matching amount + authoritative `orderId` marks PAID, so a forged body
+  can't settle and the "approved-but-abandoned-before-redirect" gap is covered. Payload mapped to
+  `{eventType,data:{paymentKey,orderId,status}}`; idempotency key `paymentKey:status` (no event id);
+  `markPaid` idempotent → confirm + webhook converge. `TOSS_WEBHOOK_SECRET` now **boot-required in
+  prod** (`env.ts`). Prior 10 webhook unit cases migrated to the real scheme (every invariant
+  preserved) + security cases; +6 `lookupPayment` adapter tests; transient 5xx→503→Toss-retry. `pnpm
+  check` green (**163 unit**, R1–R9 0) + **95 hermetic E2E** (incl. `checkout-success.spec.ts`, no
+  regress). Independent worker≠checker (6-lens, 10 agents): 3 confirmed / 0 blocker / 0 code defect (2
+  doc-drift fixed, 1 test gap closed). **ALL 45/45 features passing (product 34/34 · harness 11/11);
+  `pnpm status` product 100%.** Decision: **ADR-0020**. **Deploy:** `vercel --prod`, then register the
+  Toss dashboard webhook URL `https://storybook-shop.vercel.app/api/payments/webhook?token=<TOSS_WEBHOOK_SECRET>`
+  and send a test event to verify PAID convergence (secret already set in Vercel prod).
 - **Latest (2026-06-08): F044 — real Toss browser SDK payment DONE + passing.** The hermetic `/checkout/pay` sandbox
   stand-in is removed; `/api/payments/create` now returns `clientKey` (publishable test key) and the browser calls
   `loadTossPayments → payment(ANONYMOUS) → requestPayment` via the real Toss SDK. All 7 checkout/mypage E2E specs
@@ -89,7 +106,7 @@
 - Boots via `./init.sh`: **yes** (install → check → ready, exit 0)
 - **Two honest, separate numbers** (`pnpm status`):
   - **Harness readiness** (machinery, product-agnostic): 85.2/100 → READY (see `SCORECARD.md`)
-  - **Product delivery** (그림책 제작소 store): **33 / 34 product features passing (97%)** — F001/F002 home, F003 payment, F004 DB+seed, F029 asset, F024–F028 content, F005/F006 catalog, F007–F011 + F019 order funnel, F020–F023 맞춤 제작, F012–F016 checkout, F017/F018 mypage finishing, F035 responsive (375px), F036 perf (p95<2s), F037 a11y, **F044 real Toss browser SDK**. (**F045** webhook seam not_started → the 1 non-passing product feature)
+  - **Product delivery** (그림책 제작소 store): **34 / 34 product features passing (100%)** — F001/F002 home, F003 payment, F004 DB+seed, F029 asset, F024–F028 content, F005/F006 catalog, F007–F011 + F019 order funnel, F020–F023 맞춤 제작, F012–F016 checkout, F017/F018 mypage finishing, F035 responsive (375px), F036 perf (p95<2s), F037 a11y, **F044 real Toss browser SDK**, **F045 real Toss webhook scheme**.
   - harness-track features passing: **11 / 11** (+F034 checkout verification, F039 ops metrics, F040 entry-line eval, F042 worker≠checker protocol, **F043 deploy plan**).
 - Bootstrap contract (build_guide §7): **MET** — boots, verified tests exist, AGENTS.md router, feature_list aligned.
 
@@ -98,6 +115,39 @@ Harness **INITIALIZED + review-hardened + repurposed to 그림책 제작소**. S
 feature_list/router) now reflects the real product; DESIGN.md (Atelier Sans) wired + enforced. Coding loop next.
 
 ## Session log (newest first)
+### 2026-06-11 — F045: real Toss webhook verification (token + re-query)  [feat/F045-toss-webhook]
+- Closed the webhook safety-net seam. Confirmed via official Toss docs that `PAYMENT_STATUS_CHANGED`
+  webhooks are **unsigned** (the `tosspayments-webhook-signature` HMAC header is payout/seller-only),
+  so the body is an untrusted notification. Replaced the self-HMAC (`signWebhook`/`verifyWebhookSignature`,
+  removed) with: **(1)** `verifyWebhookToken` — shared URL token `?token=`=`TOSS_WEBHOOK_SECRET`,
+  constant-time, first-line filter; **(2)** **re-query** `TossPaymentProvider.lookupPayment`
+  (`GET /v1/payments/{paymentKey}`, Basic auth) as the authoritative source. Only authoritative
+  `PAID` + matching `totalAmount` + authoritative `orderId` calls `markPaid`. Payload parsed as
+  `{eventType,data:{paymentKey,orderId,status}}`; idempotency key `paymentKey:status` (no event id),
+  recorded only after authoritative confirmation; `markPaid` idempotent (CREATED→PAID, no downgrade)
+  → confirm + webhook converge. `lookupPayment` added to the provider-agnostic `PaymentProvider`
+  interface (+`PaymentLookupResult`); sandbox transport handles the GET branch (hermetic).
+- **Boot guard:** `env.ts` refuses prod boot without `TOSS_WEBHOOK_SECRET`. **Retry semantics:**
+  transient re-query 5xx throws → route 503 → Toss retries (non-2xx, up to 7×/~3d19h); 404→null→200
+  ack. Raw-body-first preserved (route reads `req.text()`, parse only inside `processWebhook`).
+- **Spec (R9/R8):** F045 pre-existed in the baseline (commit 65a8c34) as a stub with a unit-only
+  `verification`. Corrected it to also gate `checkout-success.spec.ts` in a **dedicated spec-correction
+  commit** (so R9's HEAD baseline carries the strengthening change). Migrated the prior 10 webhook
+  unit cases to the real scheme — every invariant preserved (constraint #2) — + added security cases
+  (forged DONE body, amount-tamper, lookup-failed, authoritative-orderId, convergence) + 6
+  `lookupPayment` adapter cases (incl. transient-5xx-throws, driven test-first).
+- **Process:** docs-research → TDD (RED→GREEN watched for `verifyWebhookToken`, `processWebhook`,
+  `lookupPayment`, the env guard) → worker≠checker (F042): a 6-lens refute-by-default workflow (10
+  agents) → 4 findings, **3 confirmed, 0 blocker, 0 code defect** (2 doc-drift majors: SAFETY §4 +
+  DEPLOY diagram/checklist → fixed; 1 minor: missing-`totalAmount` lookup test → added). Security,
+  idempotency, retry, and harness-compliance lenses found nothing. Decision: **ADR-0020**.
+- **Gates:** `pnpm check` green (lint + typecheck + **163 unit** + R1–R9 0 constraints); **95 hermetic
+  E2E** (incl. `checkout-success.spec.ts`; no regressions); `pnpm attempt F045 --reset`. **ALL 45/45
+  features passing: product 34/34 (100%) · harness 11/11.**
+- Next: merge `feat/F045-toss-webhook` → master, `vercel --prod`, register the Toss dashboard webhook
+  URL (`?token=`) and run the test-event canary (PAID convergence). The entry-line payment path —
+  browser SDK (F044) + webhook safety-net (F045) — is now complete end-to-end.
+
 ### 2026-06-08 — F044: real TossPayments browser SDK payment  [feat/F044-toss-sdk]
 - Replaced the hermetic `/checkout/pay` sandbox stand-in (ADR-0013 D1) with the real Toss browser SDK:
   `loadTossPayments → payment(ANONYMOUS) → requestPayment`. The production 503 gate on
