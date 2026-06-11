@@ -641,3 +641,59 @@ is mandatory evidence (ADR-0016 S10/S11 precedent).
 (keep both throws; `pnpm verify` post-merge gate). `feature_list.json` append-only (F045 entry untouched in
 this branch). **Not deployed** — the maker runs the single `vercel --prod` after F045+F046 land and
 provisions the email provider.
+
+## 2026-06-11 — ADR-0022 — F047: real Resend transactional-email adapter (mypage OTP send)
+> F046's paired follow-up (the ADR-0021 **D6b** sub-decision). F046 built the `EmailAdapter` seam + a
+> fail-closed prod stub; F047 supplies the real provider so prod mypage OTP actually sends — closing F046's
+> "fail-closed-until-provisioned" seam. Cut from clean master (`8050b26`, F046 already merged), so unlike the
+> F045↔F046 3-way there is **no merge conflict**.
+
+Adds `resendEmailAdapter` behind the F046 `EmailAdapter` interface; **no call-site change** — `actions.ts`
+already invokes `emailAdapter().send()` inside `after()` (F046, spec §4.3). Only the factory's prod branch and
+the env contract change.
+
+- **D1 provider / transport:** Resend HTTPS API (`POST https://api.resend.com/emails`, `Authorization: Bearer
+  RESEND_API_KEY`, `from=EMAIL_FROM`, `to`, OTP code in the body). The HTTP transport is **injectable**
+  (`ResendConfig.transport`, default `fetch`) — the exact `TossTransport` pattern — so unit tests are hermetic
+  and `pnpm check` needs no network (ADR-0002).
+- **D2 fail-closed gate (unchanged from F046 D4):** factory picks Resend **only when BOTH `RESEND_API_KEY` and
+  `EMAIL_FROM` are set** in prod; either missing (or non-prod) keeps F046's behavior (fail-closed stub / mock).
+  A half-configured provider must never half-send. **Deliberately NOT a boot refusal** — a prod build still
+  boots without the email secret (only the OTP send fail-closes), matching F046 and not coupling the
+  catalog/checkout surfaces to the email rollout. Enabling real mail = provisioning the secret at the go-live
+  cutover, not a code change.
+- **D3 no silent no-op:** a non-2xx Resend response **throws** (a security email must not silently drop). The
+  `after()` call site already catches + logs a `redact()`ed error; the OTP is recoverable by re-request.
+- **D4 PII by-construction:** the thrown error carries the **HTTP status only** — never the recipient or the
+  code (`redact()` has no numeric rule, so the code must never reach a log). The code travels to Resend over
+  TLS as the email body, never to a trace/log sink. `redact()` gains an `re_…` Resend-key mask.
+
+**Security invariant — redact ordering (regression caught by the review).** The `re_` mask **must run AFTER the
+email rule**: masking injects `*` (outside the email rule's local-part class `[\w.+-]`), so an earlier `re_`
+pass strands a `re_`-prefixed email's *domain* in cleartext (`re_user@x.com → re_***@x.com`). The independent
+worker≠checker review flagged this as a **major PII regression**; fixed by reordering (`re_` last) + a
+left-anchor `(?<![A-Za-z0-9])` that also masks a key after `_`/delimiter while leaving `more_`/`pre_` intact.
+A regression test (`re_`-prefixed email ⇒ `***@***`) now guards it.
+
+**Verification / honesty.** The real Resend HTTP path is **hermetically unit-tested** via the injected
+transport (2xx resolves with the correct Bearer/from/to/code request shape; non-2xx throws; the error is
+PII-free; no code reaches a console sink; factory selects Resend prod-configured, fail-closed on partial /
+absent). The **real network send is NOT hermetically E2E-able** (the F044/F045 precedent — real Toss window /
+webhook are docker + manual-canary verified, not E2E). So the `mypage-photo` E2E exercises the `EmailAdapter`
+**interface via the mock** (8/8; APP_ENV≠production ⇒ the mock factory branch + `after()` wiring), and the
+**live send is a go-live manual canary** (real mypage lookup → mail received → OTP → `/mypage/[orderId]`).
+`pnpm check` green (lint+typecheck+**199 unit**+R1–R9 0).
+
+**Process (spec-lite → TDD → worker≠checker).** Design was fixed by F046's interface, so heavy brainstorm was
+skipped (the maker's instruction). Built TDD (RED witnessed twice: `resendEmailAdapter` undefined + the `re_`
+redact gap → GREEN; then the review's PII-regression reproduced RED → fixed GREEN). A 6-lens independent
+worker≠checker review (refute-by-default): correctness / security-PII / F046-invariants **clean**; redact lens
+found the **1 major** (PII-regression, fixed) + 1 minor anchor hardening (folded) + 1 nit (declined,
+conservative-by-design); harness + honesty lenses found doc-consistency gaps (ADR-0022 authored, §4
+never-NEXT_PUBLIC + hygiene lists updated) — all folded.
+
+**Scope / parallel-safety.** F047 touches only `src/lib/email.ts`, `src/lib/env.ts`, `tests/unit/email.test.ts`,
+`feature_list.json` (append-only), and docs (`DEPLOY.md` §2/§4/§10, `.env.example`, `PROGRESS.md`,
+`DECISIONS.md`). **No** `actions.ts` / payments / F045 / `guardrails.ts` / `check-constraints.mjs` touched.
+**Deploy:** the maker provisions `RESEND_API_KEY` + `EMAIL_FROM` (Resend-verified domain) in Vercel prod env,
+then a single `vercel --prod` carries F046+F047 together; canary as above.

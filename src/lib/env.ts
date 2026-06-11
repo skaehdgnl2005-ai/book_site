@@ -26,6 +26,12 @@ const schema = z.object({
   // HMAC key for the mypage OTP-hash + capability cookie (F046). Required in production (boot check below);
   // non-prod uses access.ts's deterministic dev fallback.
   MYPAGE_ACCESS_SECRET: z.string().optional(),
+  // Resend transactional-email provider (F047). BOTH must be set to enable real prod mypage OTP mail; either
+  // missing ⇒ prod stays fail-closed (F046 behavior — deliberately NOT a boot refusal, so a prod build still
+  // boots; the email send fail-closes at the adapter). RESEND_API_KEY is a secret (re_… ; redact()-masked).
+  RESEND_API_KEY: z.string().optional(),
+  // Verified sender address for the OTP mail (e.g. no-reply@<verified-domain>); the Resend `from`.
+  EMAIL_FROM: z.string().optional(),
 });
 
 /**
@@ -94,5 +100,10 @@ export function redact(value: string): string {
     // The service_role key bypasses RLS — this is the backstop so it can never leak via a trace/error.
     .replace(/(sb_(?:secret|publishable)_)[A-Za-z0-9_-]+/g, "$1***")
     .replace(/eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, "eyJ***.***.***")
-    .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, "***@***");
+    .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, "***@***")
+    // Resend transactional-email API keys: re_… (F047). MUST run AFTER the email rule above — masking injects
+    // '*' (outside that rule's local-part class), so an earlier re_ pass would strand a re_-prefixed email's
+    // domain (PII regression caught in review). Left anchor (?<![A-Za-z0-9]) blocks intra-word matches
+    // ("more_"/"pre_") while still masking a key that follows '_' or a delimiter.
+    .replace(/(?<![A-Za-z0-9])(re_)[A-Za-z0-9_]+/g, "$1***");
 }
