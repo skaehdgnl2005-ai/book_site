@@ -23,7 +23,21 @@ const schema = z.object({
   NEXT_PUBLIC_TOSS_CLIENT_KEY: z.string().optional(),
   TOSS_WEBHOOK_SECRET: z.string().optional(),
   BASE_URL: z.string().url().default("http://localhost:3000"),
+  // HMAC key for the mypage OTP-hash + capability cookie (F046). Required in production (boot check below);
+  // non-prod uses access.ts's deterministic dev fallback.
+  MYPAGE_ACCESS_SECRET: z.string().optional(),
 });
+
+/**
+ * Host-independent production marker (F046). A single hand-set APP_ENV (schema default "development") would
+ * be one point of failure for all prod gates; cross-check Vercel's injected VERCEL_ENV so a mistyped/omitted
+ * APP_ENV on Vercel can't silently fail open. The VERCEL_ENV half protects Vercel only (our deploy target);
+ * on a non-Vercel host this falls back to APP_ENV alone (re-check then). The deterministic-OTP ⟺ mock-adapter
+ * invariant (otp.ts/email.ts) is the host-independent backstop.
+ */
+export function isProductionRuntime(raw: Record<string, string | undefined> = process.env): boolean {
+  return raw.APP_ENV === "production" || raw.VERCEL_ENV === "production";
+}
 
 export type Env = z.infer<typeof schema>;
 
@@ -53,6 +67,17 @@ export function parseEnv(raw: Record<string, string | undefined> = process.env):
     throw new Error(
       "Refusing to boot: TOSS_WEBHOOK_SECRET is required in production " +
         "(authenticates inbound Toss payment webhooks; without it the payment safety-net is open).",
+    );
+  }
+  // F046 prod-boot backstops (keep all three throws — dropping any is a fail-open regression).
+  if (raw.VERCEL_ENV === "production" && env.APP_ENV !== "production") {
+    throw new Error(
+      "Refusing to boot: VERCEL_ENV=production but APP_ENV!==production — set APP_ENV=production.",
+    );
+  }
+  if (isProductionRuntime(raw) && !env.MYPAGE_ACCESS_SECRET) {
+    throw new Error(
+      "Refusing to boot: MYPAGE_ACCESS_SECRET is required in production (mypage buyer auth).",
     );
   }
   return env;

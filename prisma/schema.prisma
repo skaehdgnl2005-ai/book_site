@@ -142,6 +142,22 @@ model ProcessedWebhook {
   processedAt DateTime @default(now())
 }
 
+// Mypage buyer-auth OTP (F046). One active code per order (@id); every mutation is an atomic conditional
+// write (markPaid idiom + INSERT…ON CONFLICT) so it survives Vercel multi-instance. Ephemeral — decoupled
+// from Order (no FK) by design. PII: codeHash only — the plaintext code is never stored.
+model OtpCode {
+  orderId     String    @id
+  codeHash    String
+  expiresAt   DateTime
+  attempts    Int       @default(0)
+  windowStart DateTime
+  sendCount   Int       @default(0)
+  lastSentAt  DateTime
+  consumedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
 enum TemplateCategory {
   ANNIVERSARY // 기념일
   FIRST_MOMENT // 첫 순간들

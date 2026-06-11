@@ -593,3 +593,51 @@ implement → adversarial review → commit) was completed autonomously.
 - **Deploy / canary.** `vercel --prod`; register the dashboard webhook URL
   `https://storybook-shop.vercel.app/api/payments/webhook?token=<TOSS_WEBHOOK_SECRET>`; send a Toss
   test event and confirm the order converges PAID (secret already set in Vercel prod).
+## 2026-06-11 — ADR-0021 — F046: real buyer auth (email-OTP possession proof)
+> ADR-0020 is F045's (Toss webhook, merged to master `d841845`); F046 takes the next free id, 0021.
+
+Replaces the mypage HMAC capability-cookie **front door** (order#+email string match — the ADR-0014
+stand-in) with an **email-OTP possession proof** + durable **atomic** per-order rate-limiting. The
+capability-cookie layer is **kept**; only what mints it changes.
+
+- **D1 model:** possession proof, **no accounts** (one-shot keepsake guest checkout; next-auth/iron-session
+  stay 0 hits). **D2:** 6-digit OTP (in-flow; avoids the magic-link mail-prefetch footgun).
+- **D3 store:** durable Prisma `OtpCode` (`DATABASE_URL ? Prisma : in-memory`, the orders.ts pattern).
+  Stateless-signed **rejected** (cannot enforce single-use / attempt-cap). **Every mutation is an atomic
+  conditional write** (markPaid idiom + one `INSERT…ON CONFLICT…WHERE` for issue; verify/consume =
+  conditional `updateMany`) to survive Vercel multi-instance — read-modify-write would race past the cap.
+  The plaintext code never enters the store (order-bound HMAC only, reusing `MYPAGE_ACCESS_SECRET` — no new
+  secret).
+- **D4 email gate:** boot/config **fail-closed**, NOT per-send `requireApproval` (a one-shot CLI intent
+  token is the wrong tool for automated transactional mail — baking it into prod env is a flag, not a gate).
+  Non-prod → mock adapter; prod → real provider only if configured, else fail-closed. Enabling email = the
+  go-live cutover. `guardrails.ts` untouched; R3 is advisory for `.send(`.
+- **D5 env:** `MYPAGE_ACCESS_SECRET` required-in-prod at boot on a hardened `isProductionRuntime`
+  (`VERCEL_ENV` cross-check) so a mistyped `APP_ENV` on Vercel cannot fail open. Absorbs the DEPLOY §10
+  boot-validation item (no separate F-item).
+- **D6 provider:** Resend target; the real adapter is a **paired follow-up** (F012→F044 precedent), so prod
+  mypage is **fail-closed-until-provisioned** — accepted as a named seam.
+
+**Security invariants.** Possession proof (NEW); no existence oracle (uniform `stage:verify` both paths +
+equal hash; the request-timing residual is deferred to an edge constant-time seam); brute-force / email-bomb
+bounded by the durable atomic caps (attempt-cap 5, send-throttle 5/h, 10m TTL, single-use); single-use via
+atomic consume + **mint-before-consume** null-guard; canonical 6-digit (malformed rejected before any
+debit); PII — email `redact()`-masked, code **by-construction omitted** (never logged).
+
+**Process (brainstorm → spec → plan → 2 adversarial reviews → TDD → worker≠checker).** A PRE-build 6-dim
+design review folded **20/21 findings** — incl. 3 concurrency **blockers** that reshaped the store to atomic
+conditional writes, the single-`APP_ENV` fail-open, canonical padding, and the fire-and-forget email drop →
+`after()`. Built TDD (RED witnessed for env/email/otp + the E2E). A POST-build independent worker≠checker
+review (6 dims, refute-by-default; the gated concurrency test executed independently). **Atomicity is a
+required gate:** hermetic `pnpm check` skips the Prisma path, so the docker-Postgres concurrency run (N=25
+parallel verifies ⇒ exactly 5 debits; N=25 parallel issues ⇒ exactly 5 sends; parallel consume ⇒ single-use)
+is mandatory evidence (ADR-0016 S10/S11 precedent).
+
+**Gates.** `pnpm check` green (lint+typecheck+**165 unit**+R1–R9 0) + **13/13 mypage E2E** + the gated
+`otp-persistence-integration` **4/4 against docker Postgres**.
+
+**Scope / parallel-safety.** F046-only files; **no** payments / F045 / `guardrails.ts` /
+`check-constraints.mjs` touched. `env.ts` is a known 3-way merge with F045's `TOSS_WEBHOOK_SECRET` block
+(keep both throws; `pnpm verify` post-merge gate). `feature_list.json` append-only (F045 entry untouched in
+this branch). **Not deployed** — the maker runs the single `vercel --prod` after F045+F046 land and
+provisions the email provider.

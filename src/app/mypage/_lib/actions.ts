@@ -8,6 +8,10 @@ import { putObject } from "@/lib/storage";
 import { orderRepo } from "@/app/api/payments/_lib/orders";
 import { ACCESS_TTL_MS, cookieName, mintAccess, verifyAccess } from "./access";
 import { finishingStore } from "./finishing";
+import { after } from "next/server";
+import { generateCode, hashCode, otpStore, verifyAndConsume } from "./otp";
+import { emailAdapter } from "@/lib/email";
+import { redact } from "@/lib/env";
 
 /**
  * Server actions for 마이페이지 (F017/F018). Every input is `untrusted()` at the boundary
@@ -26,32 +30,63 @@ async function requireAccess(orderId: string): Promise<boolean> {
   return verifyAccess(orderId, token);
 }
 
-type LookupState = { error?: string };
+const UNIFORM_LOOKUP_NOTE = "입력하신 정보와 일치하는 주문이 있으면 인증 코드를 메일로 보냈습니다.";
+const OTP_BAD = "인증 코드가 올바르지 않거나 만료되었습니다. 다시 시도해 주세요.";
+const OTP_CLOSED = "마이페이지 접근이 일시적으로 제한되어 있습니다. 잠시 후 다시 시도해 주세요.";
+
+export type LookupState = { stage?: "request" | "verify"; orderId?: string; error?: string; note?: string };
 
 /**
- * F017 lookup. Verifies order# + the email paid with (uniform error → no id-existence oracle),
- * mints the capability cookie, and redirects to the finishing page. The cookie is set BEFORE
- * redirect(), and redirect() is the final statement OUTSIDE any try/catch (it throws NEXT_REDIRECT
- * by design). Redirect target uses the resolved `order.id`, never raw input.
+ * F046 stage 1 (possession proof). Verify order# + the email paid with; ON MATCH issue + send a 6-digit OTP
+ * (atomic store). ALWAYS advance to the verify stage with a uniform note — a non-match issues nothing but
+ * looks identical, so there is no existence oracle. The send is scheduled with after() so it never blocks
+ * the response (no latency oracle) and is not dropped on serverless freeze; the no-match path performs an
+ * equal hash() to equalize compute. PII (email/code) is never logged.
  */
-export async function lookupOrder(_prev: LookupState, formData: FormData): Promise<LookupState> {
+export async function requestAccessCode(_prev: LookupState, formData: FormData): Promise<LookupState> {
   const input = untrusted({
     orderId: String(formData.get("orderId") ?? "").trim(),
     email: String(formData.get("email") ?? ""),
   }).value;
 
   const order = await orderRepo().get(input.orderId);
-  if (!order || normalizeEmail(order.buyerEmail) !== normalizeEmail(input.email)) {
-    return { error: "주문번호와 이메일을 다시 확인해 주세요." }; // uniform: unknown id OR email mismatch
+  if (order && normalizeEmail(order.buyerEmail) === normalizeEmail(input.email)) {
+    const code = generateCode();
+    const { sent } = await otpStore().issue(order.id, hashCode(order.id, code));
+    if (sent) {
+      const to = order.buyerEmail;
+      after(async () => {
+        try {
+          await emailAdapter().send({ to, code });
+        } catch (e) {
+          console.warn("otp send failed:", redact(String(e))); // recoverable by re-request; never surfaced
+        }
+      });
+    }
+  } else {
+    hashCode("dummy", generateCode()); // equalize compute; residual = the match-only DB write (spec §4.3)
+  }
+  return { stage: "verify", orderId: input.orderId, note: UNIFORM_LOOKUP_NOTE };
+}
+
+/**
+ * F046 stage 2. Atomically verify the 6-digit code; on success mint the capability cookie, THEN consume the
+ * code (mint-before-consume + null-guard, so a null mint can never burn a single-use code), then redirect.
+ * Malformed input is rejected before any debit (so garbage can't exhaust a legit user's attempt budget).
+ * The cookie is set BEFORE redirect(), which is the final statement OUTSIDE any try/catch (throws by design).
+ */
+export async function verifyAccessCode(_prev: LookupState, formData: FormData): Promise<LookupState> {
+  const orderId = String(formData.get("orderId") ?? "").trim();
+  const code = String(formData.get("code") ?? "").trim();
+
+  // All the security logic (canonical gate → atomic debit → constant-time compare → mint-before-consume)
+  // lives in the unit-testable `verifyAndConsume` seam; this action is thin glue (FormData + cookie + redirect).
+  const result = await verifyAndConsume(otpStore(), orderId, code, mintAccess);
+  if ("error" in result) {
+    return { stage: "verify", orderId, error: result.error === "closed" ? OTP_CLOSED : OTP_BAD };
   }
 
-  const token = mintAccess(order.id);
-  if (!token) {
-    // Fail-closed: production without MYPAGE_ACCESS_SECRET (no source-literal secret).
-    return { error: "마이페이지 접근이 일시적으로 제한되어 있습니다. 잠시 후 다시 시도해 주세요." };
-  }
-
-  (await cookies()).set(cookieName(order.id), token, {
+  (await cookies()).set(cookieName(orderId), result.token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.APP_ENV === "production",
@@ -59,7 +94,7 @@ export async function lookupOrder(_prev: LookupState, formData: FormData): Promi
     maxAge: Math.floor(ACCESS_TTL_MS / 1000),
   });
 
-  redirect(`/mypage/${order.id}`);
+  redirect(`/mypage/${orderId}`);
 }
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
