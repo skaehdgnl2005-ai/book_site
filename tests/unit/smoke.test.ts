@@ -35,6 +35,7 @@ describe("env contract (G-ERR / E3)", () => {
         TOSS_SECRET_KEY: "test_sk_x",
         NEXT_PUBLIC_TOSS_CLIENT_KEY: "test_ck_x",
         TOSS_WEBHOOK_SECRET: "whsec_prod_x",
+        MYPAGE_ACCESS_SECRET: "mypage_prod_x",
       }),
     ).not.toThrow();
   });

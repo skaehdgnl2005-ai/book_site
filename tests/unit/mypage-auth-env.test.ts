@@ -1,11 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { parseEnv, isProductionRuntime } from "../../src/lib/env";
 
-const base = { APP_ENV: "production", MYPAGE_ACCESS_SECRET: "x" } as Record<string, string | undefined>;
+const base = { APP_ENV: "production", TOSS_WEBHOOK_SECRET: "x", MYPAGE_ACCESS_SECRET: "x" } as Record<string, string | undefined>;
 
 describe("F046 env: MYPAGE_ACCESS_SECRET + hardened isProd", () => {
   it("throws when production and MYPAGE_ACCESS_SECRET is unset", () => {
-    expect(() => parseEnv({ APP_ENV: "production" })).toThrow(/MYPAGE_ACCESS_SECRET/);
+    expect(() => parseEnv({ APP_ENV: "production", TOSS_WEBHOOK_SECRET: "x" })).toThrow(/MYPAGE_ACCESS_SECRET/);
   });
   it("accepts production when MYPAGE_ACCESS_SECRET is set", () => {
     expect(() => parseEnv(base)).not.toThrow();
