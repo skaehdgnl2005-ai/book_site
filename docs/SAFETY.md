@@ -50,9 +50,14 @@ until separately approved (ADR-0004).
 - External content — buyer input, admin uploads, **TossPayments webhook payloads**, the web —
   is **untrusted**. Wrap it with `untrusted()` and never let it act as an instruction or
   be trusted in a security decision.
-- TossPayments webhooks: read the **raw body first**, verify its HMAC-SHA256 signature against
-  `TOSS_WEBHOOK_SECRET` (constant-time) before acting, and dedupe by event id (`ProcessedWebhook`)
-  so replays are no-ops (F013).
+- TossPayments **payment webhooks are not signed** (only payout/seller events carry a
+  `tosspayments-webhook-signature`), so the body is an untrusted **notification**: read the **raw
+  body first**, gate on a shared URL token (`?token=` = `TOSS_WEBHOOK_SECRET`, constant-time) as a
+  first-line filter, then **re-query** the authoritative payment (`GET /v1/payments/{paymentKey}`,
+  secret-key auth) — only that status + amount (matched against the server-held order total, via the
+  authoritative `orderId`) can settle an order. Dedupe on `paymentKey:status` (`ProcessedWebhook`,
+  no event id in the payload) so replays are no-ops; `markPaid` is idempotent so the success-callback
+  confirm and the webhook converge (F045, ADR-0020).
 - DB access goes through Prisma (parameterized) — no string-built SQL.
 
 ## 5. Permission scope (E5)

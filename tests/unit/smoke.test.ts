@@ -22,6 +22,23 @@ describe("env contract (G-ERR / E3)", () => {
     expect(() => parseEnv({ TOSS_SECRET_KEY: "test_sk_abc123" })).not.toThrow();
   });
 
+  it("refuses to boot in production without TOSS_WEBHOOK_SECRET (F045 webhook safety-net)", () => {
+    expect(() =>
+      parseEnv({ APP_ENV: "production", TOSS_SECRET_KEY: "test_sk_x", NEXT_PUBLIC_TOSS_CLIENT_KEY: "test_ck_x" }),
+    ).toThrow(/TOSS_WEBHOOK_SECRET/);
+  });
+
+  it("boots in production once TOSS_WEBHOOK_SECRET is set (F045)", () => {
+    expect(() =>
+      parseEnv({
+        APP_ENV: "production",
+        TOSS_SECRET_KEY: "test_sk_x",
+        NEXT_PUBLIC_TOSS_CLIENT_KEY: "test_ck_x",
+        TOSS_WEBHOOK_SECRET: "whsec_prod_x",
+      }),
+    ).not.toThrow();
+  });
+
   it("redacts payment secrets and emails", () => {
     expect(redact("key test_sk_abc123 end")).toContain("test_sk_***");
     expect(redact("key test_ck_abc123 end")).toContain("test_ck_***");

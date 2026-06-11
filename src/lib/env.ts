@@ -45,6 +45,16 @@ export function parseEnv(raw: Record<string, string | undefined> = process.env):
         "approval gate (pnpm approve toss.charge.live).",
     );
   }
+
+  // F045: the inbound-webhook shared token authenticates Toss PAYMENT_STATUS_CHANGED
+  // NOTIFICATIONs (the payment safety-net) and gates the prod re-query path. Missing it in
+  // production leaves async PAID settlement unauthenticated — fail fast (never logs the value).
+  if (env.APP_ENV === "production" && !env.TOSS_WEBHOOK_SECRET) {
+    throw new Error(
+      "Refusing to boot: TOSS_WEBHOOK_SECRET is required in production " +
+        "(authenticates inbound Toss payment webhooks; without it the payment safety-net is open).",
+    );
+  }
   return env;
 }
 

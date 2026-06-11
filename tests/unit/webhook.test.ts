@@ -1,15 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { createHmac } from "node:crypto";
 import {
   createOrderRepo,
   createWebhookLedger,
 } from "../../src/app/api/payments/_lib/orders";
 import {
-  verifyWebhookSignature,
+  verifyWebhookToken,
   buildOrderDraft,
   confirmPayment,
   processWebhook,
   type TemplateResolver,
+  type PaymentLookup,
 } from "../../src/app/api/payments/_lib/checkout";
 import type {
   PaymentProvider,
@@ -18,14 +18,37 @@ import type {
   ConfirmInput,
   Confirmation,
   PaymentStatus,
+  PaymentLookupResult,
 } from "../../src/lib/payments";
 
 // ── helpers ───────────────────────────────────────────────────────────────
-const SECRET = "test_whsec_unitfake";
+// Toss does NOT sign PAYMENT_STATUS_CHANGED webhooks, so the shared URL token (registered
+// in the dashboard webhook URL) is the cheap first-line filter and the AUTHORITATIVE check
+// is a re-query (`lookupPayment`). TOKEN stands in for TOSS_WEBHOOK_SECRET. (F045 / ADR-0020)
+const TOKEN = "test_whsec_unitfake";
 
-/** Independent HMAC (NOT the impl) so the test pins the documented contract, not itself. */
-function sign(body: string, secret = SECRET): string {
-  return createHmac("sha256", secret).update(body).digest("hex");
+/** A Toss PAYMENT_STATUS_CHANGED webhook body: { eventType, createdAt, data:{ paymentKey, orderId, status } }. */
+function tossBody(over: { paymentKey?: string; orderId?: string; status?: string } = {}): string {
+  return JSON.stringify({
+    eventType: "PAYMENT_STATUS_CHANGED",
+    createdAt: "2026-06-11T00:00:00.000000",
+    data: {
+      paymentKey: over.paymentKey ?? "pay_unit",
+      orderId: over.orderId ?? "ord_unit",
+      status: over.status ?? "DONE",
+    },
+  });
+}
+
+/** Stub the authoritative Toss re-query; captures the paymentKey it was (or wasn't) called with. */
+function lookupReturning(
+  result: PaymentLookupResult | null,
+  captured: { paymentKey?: string } = {},
+): PaymentLookup {
+  return async (paymentKey) => {
+    captured.paymentKey = paymentKey;
+    return result;
+  };
 }
 
 /** Hermetic seed-mirror-shaped resolver (every entry template: 43,000 / 49,000원). */
@@ -77,6 +100,9 @@ function stubProvider(outcome: PaymentStatus, captured: { input?: ConfirmInput }
       captured.input = input;
       return { status: outcome, provider: "stub", paymentKey: input.paymentKey, orderId: input.orderId, amount: input.amount };
     },
+    async lookupPayment(_paymentKey: string): Promise<PaymentLookupResult | null> {
+      return { status: outcome, amount: 0, orderId: "" }; // confirm tests don't exercise the re-query
+    },
   };
 }
 
@@ -87,30 +113,27 @@ async function paidOrder() {
   return { repo, order: await repo.create(built.draft) };
 }
 
-// ── F013: webhook signature verification (raw body, HMAC-SHA256, constant-time) ──
-describe("verifyWebhookSignature", () => {
-  const body = JSON.stringify({ eventId: "evt_1", orderId: "ord_1", status: "DONE" });
-
-  it("accepts a signature computed over the exact raw body", () => {
-    expect(verifyWebhookSignature(body, sign(body), SECRET)).toBe(true);
+// ── F045: webhook auth = shared URL token, constant-time (Toss does not sign payment webhooks) ──
+describe("verifyWebhookToken", () => {
+  it("accepts the exact shared token", () => {
+    expect(verifyWebhookToken(TOKEN, TOKEN)).toBe(true);
   });
 
-  it("rejects when a single byte of the body is mutated", () => {
-    const goodSig = sign(body);
-    const tampered = body.replace('"DONE"', '"DONE "'); // 1 byte added
-    expect(verifyWebhookSignature(tampered, goodSig, SECRET)).toBe(false);
+  it("rejects a same-length token with a single byte different (constant-time compare)", () => {
+    const wrong = TOKEN.slice(0, -1) + "X";
+    expect(verifyWebhookToken(wrong, TOKEN)).toBe(false);
   });
 
-  it("rejects a signature made with the wrong secret", () => {
-    expect(verifyWebhookSignature(body, sign(body, "wrong_secret"), SECRET)).toBe(false);
+  it("rejects a token of a different length without throwing", () => {
+    expect(verifyWebhookToken("short", TOKEN)).toBe(false);
   });
 
-  it("rejects a null / missing signature without throwing", () => {
-    expect(verifyWebhookSignature(body, null, SECRET)).toBe(false);
+  it("rejects a null / missing token without throwing", () => {
+    expect(verifyWebhookToken(null, TOKEN)).toBe(false);
   });
 
-  it("rejects a malformed (wrong-length) signature without throwing", () => {
-    expect(verifyWebhookSignature(body, "deadbeef", SECRET)).toBe(false);
+  it("rejects an empty token", () => {
+    expect(verifyWebhookToken("", TOKEN)).toBe(false);
   });
 });
 
@@ -260,54 +283,148 @@ describe("confirmPayment", () => {
   });
 });
 
-// ── F013: webhook → PAID, signature-verified, idempotent via the ledger ────────
-describe("processWebhook", () => {
-  it("marks the order PAID on a valid signature + DONE event", async () => {
+// ── F045: webhook → re-query verification → idempotent PAID (Toss real scheme) ──
+// The body is an untrusted NOTIFICATION; the AUTHORITATIVE status/amount come from `lookup`
+// (GET /v1/payments/{paymentKey}). Dedupe keys on paymentKey:status (Toss payment webhooks
+// carry no event id). markPaid stays idempotent so the success-callback confirm and this
+// webhook converge on the same order.
+describe("processWebhook (Toss re-query scheme)", () => {
+  it("marks the order PAID when the token is valid and the re-query is authoritative PAID with a matching amount", async () => {
     const { repo, order } = await paidOrder();
     const ledger = createWebhookLedger();
-    const body = JSON.stringify({ eventId: "evt_a", orderId: order.id, status: "DONE" });
-    const res = await processWebhook(body, sign(body), SECRET, repo, ledger);
+    const lookup = lookupReturning({ status: "PAID", amount: order.amountWon, orderId: order.id });
+    const res = await processWebhook(tossBody({ orderId: order.id }), TOKEN, TOKEN, repo, ledger, lookup);
     expect(res.status).toBe(200);
+    expect(res.body.status).toBe("PAID");
     expect((await repo.get(order.id))?.status).toBe("PAID");
   });
 
-  it("rejects an invalid signature (401) and leaves the order CREATED", async () => {
+  it("rejects an invalid token (401), does NOT re-query, and leaves the order CREATED", async () => {
     const { repo, order } = await paidOrder();
     const ledger = createWebhookLedger();
-    const body = JSON.stringify({ eventId: "evt_b", orderId: order.id, status: "DONE" });
-    const res = await processWebhook(body, sign(body, "attacker"), SECRET, repo, ledger);
+    const captured: { paymentKey?: string } = {};
+    const lookup = lookupReturning({ status: "PAID", amount: order.amountWon, orderId: order.id }, captured);
+    const res = await processWebhook(tossBody({ orderId: order.id }), "wrong-token", TOKEN, repo, ledger, lookup);
     expect(res.status).toBe(401);
+    expect(captured.paymentKey).toBeUndefined(); // never re-queried — auth fails first
     expect((await repo.get(order.id))?.status).toBe("CREATED");
   });
 
-  it("is a no-op on redelivery of the same eventId (cannot be flipped by a forged later event)", async () => {
+  it("does NOT mark PAID when the body claims DONE but the authoritative re-query is not PAID (forged/optimistic body)", async () => {
     const { repo, order } = await paidOrder();
     const ledger = createWebhookLedger();
-    const first = JSON.stringify({ eventId: "evt_c", orderId: order.id, status: "DONE" });
-    await processWebhook(first, sign(first), SECRET, repo, ledger);
+    const lookup = lookupReturning({ status: "CANCELED", amount: order.amountWon, orderId: order.id });
+    const res = await processWebhook(tossBody({ orderId: order.id, status: "DONE" }), TOKEN, TOKEN, repo, ledger, lookup);
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("IGNORED");
+    expect((await repo.get(order.id))?.status).toBe("CREATED"); // re-query is the source of truth
+  });
+
+  it("does NOT mark PAID when the authoritative amount does not match the order (tamper guard)", async () => {
+    const { repo, order } = await paidOrder();
+    const ledger = createWebhookLedger();
+    const lookup = lookupReturning({ status: "PAID", amount: order.amountWon + 1, orderId: order.id });
+    const res = await processWebhook(tossBody({ orderId: order.id }), TOKEN, TOKEN, repo, ledger, lookup);
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("AMOUNT_MISMATCH");
+    expect((await repo.get(order.id))?.status).toBe("CREATED");
+  });
+
+  it("does NOT mark PAID when the re-query returns nothing (lookup failed / payment not found)", async () => {
+    const { repo, order } = await paidOrder();
+    const ledger = createWebhookLedger();
+    const res = await processWebhook(tossBody({ orderId: order.id }), TOKEN, TOKEN, repo, ledger, lookupReturning(null));
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("LOOKUP_FAILED");
+    expect((await repo.get(order.id))?.status).toBe("CREATED");
+  });
+
+  it("is a strict no-op on redelivery of the same paymentKey:status (deduped BEFORE re-querying again)", async () => {
+    const { repo, order } = await paidOrder();
+    const ledger = createWebhookLedger();
+    const body = tossBody({ paymentKey: "pay_dup", orderId: order.id });
+    await processWebhook(body, TOKEN, TOKEN, repo, ledger, lookupReturning({ status: "PAID", amount: order.amountWon, orderId: order.id }));
     expect((await repo.get(order.id))?.status).toBe("PAID");
 
-    // Same eventId, but a forged CANCELED payload + valid signature.
-    const replay = JSON.stringify({ eventId: "evt_c", orderId: order.id, status: "CANCELED" });
-    const res = await processWebhook(replay, sign(replay), SECRET, repo, ledger);
+    const captured: { paymentKey?: string } = {};
+    const res = await processWebhook(body, TOKEN, TOKEN, repo, ledger, lookupReturning({ status: "PAID", amount: order.amountWon, orderId: order.id }, captured));
     expect(res.status).toBe(200);
-    expect((await repo.get(order.id))?.status).toBe("PAID"); // dedupe short-circuits before any state change
+    expect(res.body.duplicate).toBe(true);
+    expect(captured.paymentKey).toBeUndefined(); // dedupe short-circuits before re-query
   });
 
-  it("acknowledges a non-DONE event without marking PAID", async () => {
+  it("cannot be flipped to CANCELED by a forged later event (re-query authoritative + never downgrades)", async () => {
     const { repo, order } = await paidOrder();
     const ledger = createWebhookLedger();
-    const body = JSON.stringify({ eventId: "evt_d", orderId: order.id, status: "CANCELED" });
-    const res = await processWebhook(body, sign(body), SECRET, repo, ledger);
+    await processWebhook(
+      tossBody({ paymentKey: "pay_x", orderId: order.id, status: "DONE" }),
+      TOKEN, TOKEN, repo, ledger,
+      lookupReturning({ status: "PAID", amount: order.amountWon, orderId: order.id }),
+    );
+    expect((await repo.get(order.id))?.status).toBe("PAID");
+
+    // Forged later CANCELED (valid token, distinct paymentKey:status → not deduped). Re-query is
+    // authoritative and a PAID order is never downgraded.
+    const res = await processWebhook(
+      tossBody({ paymentKey: "pay_x", orderId: order.id, status: "CANCELED" }),
+      TOKEN, TOKEN, repo, ledger,
+      lookupReturning({ status: "CANCELED", amount: order.amountWon, orderId: order.id }),
+    );
+    expect(res.status).toBe(200);
+    expect((await repo.get(order.id))?.status).toBe("PAID"); // never downgraded
+  });
+
+  it("acknowledges (200) a not-yet-settled payment without marking PAID", async () => {
+    const { repo, order } = await paidOrder();
+    const ledger = createWebhookLedger();
+    const lookup = lookupReturning({ status: "FAILED", amount: order.amountWon, orderId: order.id });
+    const res = await processWebhook(tossBody({ orderId: order.id, status: "IN_PROGRESS" }), TOKEN, TOKEN, repo, ledger, lookup);
     expect(res.status).toBe(200);
     expect((await repo.get(order.id))?.status).toBe("CREATED");
   });
 
-  it("acknowledges (no crash) an event for an unknown order", async () => {
+  it("acknowledges (200) an event whose authoritative order is unknown", async () => {
     const { repo } = await paidOrder();
     const ledger = createWebhookLedger();
-    const body = JSON.stringify({ eventId: "evt_e", orderId: "ord_missing", status: "DONE" });
-    const res = await processWebhook(body, sign(body), SECRET, repo, ledger);
+    const lookup = lookupReturning({ status: "PAID", amount: 43000, orderId: "ord_missing" });
+    const res = await processWebhook(tossBody({ orderId: "ord_missing" }), TOKEN, TOKEN, repo, ledger, lookup);
     expect(res.status).toBe(200);
+    expect(res.body.status).toBe("UNKNOWN_ORDER");
+  });
+
+  it("resolves the order from the AUTHORITATIVE orderId, ignoring a mismatched body orderId", async () => {
+    const { repo, order } = await paidOrder();
+    const ledger = createWebhookLedger();
+    // The body lies about the orderId; the re-query returns the real one — we trust the re-query.
+    const lookup = lookupReturning({ status: "PAID", amount: order.amountWon, orderId: order.id });
+    const res = await processWebhook(tossBody({ orderId: "ord_lie" }), TOKEN, TOKEN, repo, ledger, lookup);
+    expect(res.status).toBe(200);
+    expect((await repo.get(order.id))?.status).toBe("PAID");
+  });
+
+  it("rejects a malformed JSON body (400) once the token passes", async () => {
+    const { repo } = await paidOrder();
+    const ledger = createWebhookLedger();
+    const res = await processWebhook("{not json", TOKEN, TOKEN, repo, ledger, lookupReturning(null));
+    expect(res.status).toBe(400);
+  });
+
+  it("rejects a payload with no paymentKey (400)", async () => {
+    const { repo } = await paidOrder();
+    const ledger = createWebhookLedger();
+    const body = JSON.stringify({ eventType: "PAYMENT_STATUS_CHANGED", data: { orderId: "ord_x", status: "DONE" } });
+    const res = await processWebhook(body, TOKEN, TOKEN, repo, ledger, lookupReturning(null));
+    expect(res.status).toBe(400);
+  });
+
+  it("converges with the success-callback confirm: a webhook on an already-PAID order is a no-op keeping the first key", async () => {
+    const { repo, order } = await paidOrder();
+    await repo.markPaid(order.id, "pk_confirm"); // the sync confirm settled it first
+    const ledger = createWebhookLedger();
+    const lookup = lookupReturning({ status: "PAID", amount: order.amountWon, orderId: order.id });
+    const res = await processWebhook(tossBody({ paymentKey: "pay_webhook", orderId: order.id }), TOKEN, TOKEN, repo, ledger, lookup);
+    expect(res.status).toBe(200);
+    expect((await repo.get(order.id))?.status).toBe("PAID");
+    expect((await repo.get(order.id))?.tossPaymentKey).toBe("pk_confirm"); // first key preserved
   });
 });
