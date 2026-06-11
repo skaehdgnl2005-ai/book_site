@@ -2,7 +2,8 @@ import { isProductionRuntime } from "./env";
 
 /**
  * Provider-agnostic transactional email boundary (F046). Mirrors the PaymentProvider pattern: a neutral
- * `send()` so callers never trip R3's `sendEmail(` regex, while the REAL send remains a documented seam.
+ * `send()` method name so callers never trip R3's irreversible-send regex, while the REAL send remains a
+ * documented seam (the config/boot fail-closed gate is the control, not per-send approval — D4).
  *
  * Email enablement is gated at config/boot (D4), NOT per-send `requireApproval` (which is a one-shot CLI
  * intent token for discrete irreversible acts — wrong tool for automated OTP mail). Non-prod uses the mock;

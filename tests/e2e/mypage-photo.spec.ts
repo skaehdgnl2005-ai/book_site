@@ -22,11 +22,14 @@ async function setMypageCookie(page: Page, orderId: string, value: string) {
   ]);
 }
 
+// F046: order#+email -> uniform "code sent" -> enter the deterministic non-prod OTP (424242) -> redirect.
 async function lookup(page: Page, orderId: string, email = "parent@example.com") {
   await page.goto("/mypage");
   await page.getByTestId("mypage-lookup-orderid").fill(orderId);
   await page.getByTestId("mypage-lookup-email").fill(email);
   await page.getByTestId("mypage-lookup-submit").click();
+  await page.getByTestId("mypage-otp-input").fill("424242");
+  await page.getByTestId("mypage-otp-submit").click();
 }
 
 // A tiny non-empty image payload — assets.ts allowlists by contentType, not bytes (so content
@@ -83,11 +86,18 @@ test.describe("mypage photo (F017)", () => {
     await expect(page.getByTestId("mypage-photo-input-0")).toHaveCount(0);
   });
 
-  test("wrong email -> uniform error, no redirect, no access", async ({ page }) => {
+  test("wrong email -> uniform code-entry advance, code never verifies, no access", async ({ page }) => {
     const orderId = await completePaidOrder(page);
-    await lookup(page, orderId, "intruder@example.com");
-    await expect(page.getByTestId("mypage-lookup-error")).toHaveText("주문번호와 이메일을 다시 확인해 주세요.");
-    await expect(page).toHaveURL(/\/mypage$/);
+    await page.goto("/mypage");
+    await page.getByTestId("mypage-lookup-orderid").fill(orderId);
+    await page.getByTestId("mypage-lookup-email").fill("intruder@example.com");
+    await page.getByTestId("mypage-lookup-submit").click();
+    // Uniform advance to code entry regardless of match (no existence oracle) — but no code was issued.
+    await expect(page.getByTestId("mypage-otp-sent")).toBeVisible();
+    await page.getByTestId("mypage-otp-input").fill("424242");
+    await page.getByTestId("mypage-otp-submit").click();
+    await expect(page.getByTestId("mypage-otp-error")).toBeVisible(); // mismatch -> no valid code -> rejected
+    await expect(page).toHaveURL(/\/mypage$/); // never reached /mypage/[orderId]
   });
 
   test("R1: no-cookie visit is an identical access prompt for an existing AND a non-existent id (no existence oracle)", async ({ page }) => {
