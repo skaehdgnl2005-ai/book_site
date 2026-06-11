@@ -319,7 +319,11 @@ D5 (`isProd` via `VERCEL_ENV` cross-check + the required-in-prod throw). Tests i
   when `isProd` (M3 canonical form); a **deterministic 6-ASCII-digit test code** otherwise. **Fail-closed
   cross-check:** the deterministic code may coexist **only** with the mock adapter — if a real provider is
   ever configured while the code-source is not `randomInt`, **boot throws**. This guarantees *deterministic
-  code ⟺ mock adapter*, removing the silent guessable-OTP-in-prod path even if `APP_ENV` is wrong.
+  code ⟺ mock adapter*, removing the silent guessable-OTP path. **Scope (review #2):** the `VERCEL_ENV`
+  half of the backstop protects **Vercel only** — on a non-Vercel prod host a mistyped `APP_ENV` gives
+  `isProd=false` → deterministic code + mock + dev-secret fallback (fail-open). Our target **is** Vercel
+  (DEPLOY.md) so this is harmless today; the *deterministic-code ⟺ mock-adapter* boot throw is the
+  host-independent backstop. Assumption stated so a future non-Vercel host re-checks it.
 - **Posture note (corrected, M2):** without the `isProd`/`VERCEL_ENV` backstop, a wrong `APP_ENV` would
   **regress** mypage from today's *fail-closed* (`mintAccess→null` blocks finishing) to *fail-open*
   (reachable via a guessable OTP) — a **new** failure mode, not "the same posture as the existing dev
@@ -360,8 +364,14 @@ D5 (`isProd` via `VERCEL_ENV` cross-check + the required-in-prod throw). Tests i
 
 **E2E:** rewrite the `lookup()` helper + wrong-email case per §9; preserve every invariant assertion.
 
-**Gates:** `pnpm check` green + the two mypage E2E specs. Independent **worker≠checker** review (F042)
-before `passes:true`.
+**Gates (review #1 — atomicity is a REQUIRED gate, not just a listed test):** `pnpm check` green + the two
+mypage E2E specs **AND** `tests/unit/otp-persistence-integration.test.ts` **passing against a real docker
+Postgres** (`pnpm db:up` → `set -a; . <db env>; set +a; pnpm exec vitest run otp-persistence-integration`).
+Hermetic `pnpm check` runs only the in-memory backend and **skips** the gated test (`skipIf(!DATABASE_URL)`),
+so it can NEVER prove the atomic conditional writes — the security-critical property. Therefore the
+docker-Postgres concurrency run is **mandatory dated evidence for `passes:true`** (precedent: ADR-0016 ran
+`persistence-integration` as the eval S10/S11 evidence). The independent **worker≠checker** (F042) must
+**execute and confirm** this run, not just read that it exists, before `passes:true`.
 
 ---
 
@@ -435,4 +445,10 @@ Own E2E ⇒ R8-exempt. Append `in_progress`/`passes:false` (R4 ok, R9 allows new
 4. ✅ §9 — preserved `mypage-photo.spec.ts` titles verified against the file.
 5. ✅ §11 — ADR-0021 (not 0020); env.ts guaranteed conflict + `pnpm verify` post-merge gate; DEPLOY.md
    hotspot.
-6. ✅ §9/§7/D5 — hardened `isProd` (VERCEL_ENV cross-check) so a wrong `APP_ENV` can't fail open.
+6. ✅ §9/§7/D5 — hardened `isProd` (VERCEL_ENV cross-check); `VERCEL_ENV` half scoped to Vercel (review #2),
+   deterministic-code ⟺ mock-adapter is the host-independent backstop.
+7. ✅ §10 — **review #1:** the docker-Postgres concurrency run is **mandatory dated evidence** for
+   `passes:true` (hermetic `pnpm check` skips it → cannot prove atomicity); worker≠checker executes+confirms.
+   (Spec-review carry-overs folded into the plan: #3 throttle counts send-attempts not deliveries — a
+   provider outage can burn a window's slots → temporary lockout, an intentional email-bomb-safety tradeoff;
+   #4 consumed/expired-row sweep is a small follow-up; #5 `after()` callback must `try/catch` its send.)
