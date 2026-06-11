@@ -557,7 +557,7 @@
         "TOSS_WEBHOOK_SECRET 부재 시 prod boot 거부",
         "리다이렉트 전 이탈 주문도 webhook 으로 PAID 도달"
       ],
-      "verification": "pnpm test -- webhook.test.ts",
+      "verification": "pnpm test -- webhook.test.ts && pnpm test:e2e -- checkout-success.spec.ts",
       "state": "not_started",
       "passes": false,
       "evidence": ""
