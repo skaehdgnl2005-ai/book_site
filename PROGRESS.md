@@ -3,6 +3,22 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **Latest (2026-06-11): F047 — real Resend transactional-email adapter DONE + passing (F046's paired
+  follow-up, ADR-0022).** `resendEmailAdapter` (behind F046's `EmailAdapter`) sends the mypage OTP via
+  Resend's HTTPS API (`POST https://api.resend.com/emails`, Bearer `RESEND_API_KEY`, `from=EMAIL_FROM`) with
+  an **injectable transport** so `pnpm check` stays hermetic; a non-2xx **throws** (no silent no-op); the
+  code/recipient never reach a log (status-only error). Factory picks Resend in prod **only when BOTH
+  `RESEND_API_KEY` & `EMAIL_FROM` are set** — else F046 fail-closed (a half-config never half-sends);
+  non-prod stays mock. `actions.ts` is **untouched** (F046's `after()` send is reused). `pnpm check` green
+  (**199 unit**, R1–R9 0) + mypage-photo E2E **8/8** (interface via the mock). Independent worker≠checker
+  (6-lens) caught **1 major PII regression** — the new `re_` redact rule ran before the email rule and
+  stranded a `re_`-prefixed email's domain; **fixed** (`re_` mask now runs last + `(?<![A-Za-z0-9])` anchor
+  + regression test). HONESTY: the real network send is **not** hermetically testable (F044/F045 precedent)
+  → unit-tested with an injected transport; **live send = go-live manual canary**. **Deploy:** F047 was cut
+  from **clean master (`8050b26`, post-F046-merge)**, so merging is a **clean append — NO conflict** (unlike
+  F046's 3-way). The maker provisions `RESEND_API_KEY` + `EMAIL_FROM` (Resend-verified domain) in Vercel
+  prod env, then a single `vercel --prod` carries **F046+F047 together**; canary: real mypage lookup → mail
+  received → OTP → `/mypage/[orderId]`. **ADR-0022.**
 - **Latest (2026-06-11): F045 — real Toss webhook verification scheme DONE + passing.** Replaced the
   self-HMAC seam (`signWebhook`) with the real Toss scheme (official docs: `PAYMENT_STATUS_CHANGED`
   webhooks are **unsigned** — only payout/seller events carry `tosspayments-webhook-signature`):
@@ -117,6 +133,37 @@ Harness **INITIALIZED + review-hardened + repurposed to 그림책 제작소**. S
 feature_list/router) now reflects the real product; DESIGN.md (Atelier Sans) wired + enforced. Coding loop next.
 
 ## Session log (newest first)
+### 2026-06-11 — F047: real Resend transactional-email adapter (mypage OTP send)  [feat/F047]
+- **What:** the paired follow-up to F046 (ADR-0021 D6b) — supplies the real provider behind F046's
+  `EmailAdapter` so prod mypage OTP actually sends, closing the "fail-closed-until-provisioned" seam.
+  `resendEmailAdapter` (`src/lib/email.ts`): `POST https://api.resend.com/emails`, `Authorization: Bearer
+  RESEND_API_KEY`, `from=EMAIL_FROM`, `to`+OTP-code body. **Injectable transport** (`ResendConfig.transport`,
+  default `fetch` — the `TossTransport` pattern) ⇒ hermetic unit tests, no network on `pnpm check`. Non-2xx
+  **throws** (a security mail never silently no-ops); the error is **status-only** (no code/recipient — PII
+  by-construction). Factory `emailAdapter()`: non-prod → mock (F046 unchanged); prod + **BOTH**
+  `RESEND_API_KEY` & `EMAIL_FROM` → Resend; prod + either missing → F046 fail-closed stub (a half-config
+  never half-sends). `env.ts`: both vars added to the zod schema as `optional()` — **NOT** a prod-boot
+  requirement (only the send fail-closes); `redact()` masks `re_…` keys. **`actions.ts` untouched** (F046's
+  `after()`/await send reused).
+- **Process (ADR-0022): spec-lite → TDD → worker≠checker.** Design fixed by F046's interface (heavy
+  brainstorm skipped, per instruction). TDD RED witnessed twice: (1) `resendEmailAdapter` undefined + the
+  `re_` redact gap; (2) the review's PII-regression reproduced. Independent **6-lens worker≠checker**
+  (refute-by-default): correctness / security-PII / F046-invariants **clean**; redact lens found **1 major
+  PII regression** — the `re_` mask ran **before** the email rule and injected `*` that broke the email
+  regex's local-part class, stranding a `re_`-prefixed email's *domain* (`re_user@x.com → re_***@x.com`).
+  **Fixed:** `re_` mask now runs **last** + a `(?<![A-Za-z0-9])` left anchor (also masks a key after `_`,
+  leaves `more_`/`pre_` intact), guarded by a regression test. + 1 minor (folded) + 1 nit (declined) + doc
+  gaps (ADR-0022 authored; DEPLOY §4 lists updated).
+- **Gates:** `pnpm check` green (lint+typecheck+**199 unit**+R1–R9 0) + **mypage-photo E2E 8/8** (interface
+  via the mock; `APP_ENV≠production`). The real Resend HTTP send is **not** hermetically E2E-able (F044/F045
+  precedent) → unit-only via injected transport; **live send = go-live manual canary**. F047 → `passing` +
+  dated evidence; `pnpm attempt F047 --reset`. F047-only files (email.ts, env.ts, email.test.ts,
+  feature_list append-only, docs); **no** actions.ts / payments / F045 / guardrails / check-constraints.
+- **Deploy:** cut from **clean master (`8050b26`, post-F046-merge)** ⇒ merging is a **clean append, NO
+  conflict** (unlike F046's 3-way). Maker provisions `RESEND_API_KEY` + `EMAIL_FROM` (Resend-verified
+  domain) in Vercel prod env, then a single `vercel --prod` carries **F046+F047 together**; canary: real
+  mypage lookup → mail received → OTP → `/mypage/[orderId]`.
+
 ### 2026-06-11 — F045: real Toss webhook verification (token + re-query)  [feat/F045-toss-webhook]
 - Closed the webhook safety-net seam. Confirmed via official Toss docs that `PAYMENT_STATUS_CHANGED`
   webhooks are **unsigned** (the `tosspayments-webhook-signature` HMAC header is payout/seller-only),
