@@ -19,6 +19,10 @@
   F046's 3-way). The maker provisions `RESEND_API_KEY` + `EMAIL_FROM` (Resend-verified domain) in Vercel
   prod env, then a single `vercel --prod` carries **F046+F047 together**; canary: real mypage lookup → mail
   received → OTP → `/mypage/[orderId]`. **ADR-0022.**
+  - **MERGED to master 2026-06-15 (`4bd068b`, `--no-ff`); `pnpm check` green post-merge (199 unit, R1–R9 0).
+    Deploy still PENDING** — provision `RESEND_API_KEY`+`EMAIL_FROM` (Resend-verified domain) in Vercel prod,
+    then a single `vercel --prod` carries **F046+F047 together** (canary as above). Leftover worktrees
+    `c:\dev\gpcs-F046` & `c:\dev\gpcs-F047` (both now merged) are safe to `git worktree remove`.
 - **Latest (2026-06-11): F045 — real Toss webhook verification scheme DONE + passing.** Replaced the
   self-HMAC seam (`signWebhook`) with the real Toss scheme (official docs: `PAYMENT_STATUS_CHANGED`
   webhooks are **unsigned** — only payout/seller events carry `tosspayments-webhook-signature`):
