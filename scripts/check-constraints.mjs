@@ -206,6 +206,53 @@ if (baseline && Array.isArray(baseline.features)) {
   }
 }
 
+// R10: every table CREATEd in a Prisma migration must also be granted RLS in some
+// migration. Supabase exposes the `public` schema through PostgREST (reachable with the
+// publishable anon key); a table without RLS is internet-readable/writable — the Supabase
+// linter rates this ERROR/EXTERNAL (0013_rls_disabled_in_public). The app reaches Postgres
+// only via Prisma as the table-OWNER `postgres` role (owners bypass RLS) + Storage via
+// service_role (also bypasses), so RLS with zero policies = deny-all to anon while the app
+// keeps full access. This makes "a new table ships unprotected" a hard gate failure instead
+// of a Supabase security email weeks later. Static check over migration SQL (the .sql files
+// are not in the code/style walk above). Ordering note: ship the table's RLS WITH the table,
+// and land the migration before/with the env that opens its feature — never after (else the
+// live path hits `relation … does not exist`). _prisma_migrations is Prisma-internal (not a
+// migration CREATE TABLE) so it is not policed here, though enable_rls covers it too.
+const MIGRATIONS_DIR = join(ROOT, "prisma", "migrations");
+let migrationDirs = [];
+try {
+  migrationDirs = (await readdir(MIGRATIONS_DIR, { withFileTypes: true }))
+    .filter((e) => e.isDirectory())
+    .map((e) => e.name)
+    .sort(); // lexicographic = chronological (timestamp-prefixed); deterministic report order
+} catch {
+  migrationDirs = []; // no migrations dir (pre-DB tree) → R10 has nothing to police; never fail.
+}
+const createdIn = new Map(); // table -> first migration dir that CREATEs it
+const rlsEnabled = new Set();
+for (const d of migrationDirs) {
+  let sql = "";
+  try {
+    sql = await readFile(join(MIGRATIONS_DIR, d, "migration.sql"), "utf8");
+  } catch {
+    continue; // a migration dir without migration.sql is not our concern here
+  }
+  for (const m of sql.matchAll(/CREATE TABLE (?:IF NOT EXISTS )?"([^"]+)"/gi)) {
+    if (!createdIn.has(m[1])) createdIn.set(m[1], d);
+  }
+  for (const m of sql.matchAll(/ALTER TABLE (?:ONLY )?"([^"]+)"\s+ENABLE ROW LEVEL SECURITY/gi)) {
+    rlsEnabled.add(m[1]);
+  }
+}
+for (const [table, dir] of createdIn) {
+  add(
+    !rlsEnabled.has(table),
+    `prisma/migrations/${dir}/migration.sql`,
+    "R10:rls-on-new-tables",
+    `table "${table}" is CREATEd but never gets "ENABLE ROW LEVEL SECURITY" in any migration — Supabase exposes public tables via PostgREST (anon key); ship RLS with the table (deny-all; the Prisma owner role bypasses it).`,
+  );
+}
+
 const report = {
   tool: "check-constraints",
   ok: violations.length === 0,
