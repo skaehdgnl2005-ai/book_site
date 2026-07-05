@@ -263,9 +263,12 @@ img {
   color: var(--bg);
   font-family: var(--font-grotesk);
   font-weight: 600;
-  /* DESIGN.md ctaPrimary: size 0.72rem · tracking 0.18em */
-  font-size: 0.72rem;
-  letter-spacing: 0.18em;
+  /* DESIGN.md ctaPrimary sizes/tracks an UPPERCASE LATIN label (0.72rem · 0.18em).
+     Our CTA labels are Korean (다음·결제하기·그림책 둘러보기), and the 자간 3단 규칙
+     forbids positive tracking on Korean — so: 자간 0, and the slightly larger
+     0.78rem keeps the un-uppercased Korean label legible inside the pill. */
+  font-size: 0.78rem;
+  letter-spacing: 0;
   text-decoration: none;
   transition: background 240ms var(--ease), color 240ms var(--ease);
 }
@@ -290,7 +293,7 @@ img {
   font-family: var(--font-grotesk);
   font-weight: 500;
   font-size: 0.75rem;
-  letter-spacing: 0.08em;
+  letter-spacing: 0; /* 한글 라벨(뒤로·건너뛰기) — 양수 자간 금지 (DESIGN.md 자간 3단 규칙) */
   color: var(--ink);
   text-decoration: none;
   cursor: pointer;
