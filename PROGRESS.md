@@ -3,6 +3,16 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **Latest (2026-07-05, 밤): 전 페이지 UI 디자이너 리뷰 → 개선 플랜 수립 (플랜만, 코드 무변경).**
+  메이커 요청("일반 버튼 투성이, 모바일 계획 포함 전면 검토")으로 20개 라우트를 코드 +
+  실물 스크린샷(1440/390, browse)으로 검토. 핵심 진단: CTA 체계 부재(P1)·네이티브 폼
+  컨트롤(P2)·위저드에 상품 실종+진행표시 없음(P3)·**내비에 /cart 진입점 부재(P4)**·빈
+  회색 매트(P5)·모바일 내비 랩+히어로 과대 여백(P6)·카트 라인 삭제 불가(P7). 플랜:
+  `docs/superpowers/specs/2026-07-05-ui-overhaul-plan-design.md` — WP1(버튼/CTA 3종) →
+  WP2(폼 키트) → WP3(위저드 리컴포지션†) → WP4(BAG+모바일 드로어†) → WP5(타이포 커버) →
+  WP6(카트 폴리시+라인 삭제†) → WP7(모바일 패스) → WP8(콘텐츠 정리). †표시는 행동 추가라
+  신규 feature row append 필요; 나머지는 F002 비주얼 폴리시 선례로 row 없이. `Next:`
+  메이커가 플랜 승인/조정 → WP1부터 세션당 1개(WIP=1) 실행.
 - **Latest (2026-07-05, 저녁 2): mypage 입구 결함 수정 + 프로덕션 배포 (F048 동승).** 메이커가
   라이브 카나리 중 발견: `/mypage`로 들어가는 UI가 사이트에 전무(내비 ✗, 푸터 ✗, 주문 완료 화면은
   "마이페이지에서 이어갈 수 있어요" **문구만** 있고 링크 ✗) — 구매자가 마무리(사진·헌정)에 도달 불가.
