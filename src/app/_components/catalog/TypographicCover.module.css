@@ -39,6 +39,21 @@
   color: var(--ink);
 }
 
+/* Non-title variant — grotesk for text that is NOT a 책/이야기 제목 (e.g. gallery
+   plate labels 내지/외함): DESIGN.md forbids serif outside book titles ("제목 외
+   세리프 금지"). No positive tracking (한글에 양수 자간 금지). */
+.label {
+  grid-row: 2;
+  align-self: center;
+  font-family: var(--font-grotesk);
+  font-weight: 500;
+  font-size: clamp(1.05rem, 0.85rem + 1vw, 1.35rem);
+  line-height: 1.35;
+  letter-spacing: 0;
+  word-break: keep-all;
+  color: var(--ink);
+}
+
 /* English kicker — microLabel at the mat's foot. */
 .kicker {
   grid-row: 3;
