@@ -611,6 +611,22 @@
       "state": "passing",
       "passes": true,
       "evidence": "2026-07-05 Playwright 전체 97/97 — home.spec F048 테스트(초개인화 아이브로우(AI 없음)·3단계 제작 과정·구성품(자석 외함/축하 카드)+QR 정직 카피·푸터 링크 → /faq 네비게이션), faq.spec 확장(신규 2문항 렌더), order-start.spec F048 테스트(위저드 블럽·기본 구성·제작 기간·사진 용도 힌트). pnpm check green(lint+typecheck+199 unit+constraints R1–R10 0 — F048 append R9 통과) + pnpm eval S1–S11 전부 pass(퍼널 무회귀). perf 예산 유지: home p95 813ms < 2s. 범위: 홈 ProcessSection/KitSection(src/app/_components/home/ — 구성품 미디어는 실물 사진 도착 전까지 정직한 --panel 매트, kit-lifestyle.png 브리프는 포토 브리프 2026-07-05 부록), Footer 콘텐츠 링크(고아 페이지 5개 도달 가능), 주문 위저드 맥락 카피, FAQ 2문항, lang=ko+한국어 title/description/OG. 고객 표면 AI 문구 제거(AI 언급 최소화 — 메이커 결정). 커버/리드타임 카피는 엔트리 라인 한정으로 명시(정직성)."
+    },
+    {
+      "id": "F049",
+      "category": "functional",
+      "track": "product",
+      "priority": 2,
+      "description": "내비 장바구니 진입점(BAG N 텍스트 링크) + 모바일 햄버거 드로어(다크 패널: 카테고리·주문 조회·BAG·콘텐츠 링크) — 구매자가 어느 화면에서든 카트/카테고리로 복귀 가능",
+      "steps": [
+        "아무 페이지에서 내비 우측 BAG 링크가 보이고 /cart로 이동",
+        "카트에 라인이 있으면 BAG 1 형태로 수량 표시",
+        "390px 뷰포트에서 햄버거 → 다크 드로어 열림, 링크로 이동 가능, Escape로 닫힘"
+      ],
+      "verification": "pnpm test:e2e -- nav.spec.ts",
+      "state": "in_progress",
+      "passes": false,
+      "evidence": ""
     }
   ]
 }

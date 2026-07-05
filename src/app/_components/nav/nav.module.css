@@ -1,0 +1,176 @@
+/* F049 — nav BAG entry + mobile drawer. Atelier Sans tokens only (R6: no box-shadow;
+   R7: no pure white/black). Radius 0; motion = transform/opacity, 300ms var(--ease);
+   the global prefers-reduced-motion guard collapses the transitions.
+   The bar itself keeps the shared .site-nav / .nav-link classes (globals.css, read-only);
+   this module adds only the right-side group, the BAG count, the hamburger and the drawer. */
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+/* BAG line count — plain text, accent number (no badge, no dot: DESIGN.md quiet rule). */
+.bagCount {
+  color: var(--accent);
+  font-weight: 600;
+}
+.overlay .bagCount,
+.drawer .bagCount {
+  color: var(--on-dark);
+}
+
+/* Hamburger — hidden on desktop; hairline bars drawn with currentColor. */
+.menuButton {
+  display: none;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 40px;
+  height: 40px;
+  padding: 10px;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius);
+  color: var(--grey);
+  cursor: pointer;
+}
+.menuButton:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.menuButton .bar {
+  display: block;
+  width: 100%;
+  height: 1px;
+  background: currentColor;
+}
+.overlay .menuButton {
+  color: var(--on-dark-muted);
+}
+.overlay .menuButton:focus-visible {
+  outline-color: var(--on-dark);
+}
+
+@media (max-width: 719px) {
+  /* The link list moves into the drawer — the bar keeps brand · BAG · hamburger,
+     so it never wraps to two lines on narrow viewports. */
+  .links {
+    display: none;
+  }
+  .menuButton {
+    display: inline-flex;
+  }
+}
+
+/* ── Drawer (mobile) — right slide-in, full height, dark panel (DESIGN.md Nav spec). ── */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  background: rgba(22, 20, 15, 0.4); /* --ink-strong at 40% — legibility scrim, not a fill */
+  border: 0;
+  padding: 0;
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 300ms var(--ease),
+    visibility 0s linear 300ms;
+}
+.backdropOpen {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 300ms var(--ease);
+}
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  width: min(320px, 86vw);
+  padding: var(--space-sm) var(--space-md) var(--space-lg);
+  background: var(--ink-strong);
+  color: var(--on-dark);
+  overflow-y: auto;
+  transform: translateX(100%);
+  visibility: hidden;
+  transition:
+    transform 300ms var(--ease),
+    visibility 0s linear 300ms;
+}
+.drawerOpen {
+  transform: translateX(0);
+  visibility: visible;
+  transition: transform 300ms var(--ease);
+}
+
+.drawerHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-xs) 0 var(--space-sm);
+  border-bottom: 1px solid rgba(201, 195, 182, 0.16); /* on-dark hairline (DESIGN.md) */
+}
+.drawerLabel {
+  font-family: var(--font-grotesk);
+  font-weight: 600;
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--on-dark-muted);
+}
+.closeButton {
+  font-family: var(--font-grotesk);
+  font-weight: 500;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius);
+  padding: var(--space-xs);
+  color: var(--on-dark);
+  cursor: pointer;
+}
+.closeButton:focus-visible {
+  outline: 2px solid var(--on-dark);
+  outline-offset: 2px;
+}
+
+.drawerList {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.drawerList li {
+  border-bottom: 1px solid rgba(201, 195, 182, 0.16);
+}
+.drawerLink {
+  display: block;
+  padding: var(--space-sm) 0;
+  font-family: var(--font-grotesk);
+  font-weight: 500;
+  font-size: 0.95rem;
+  letter-spacing: 0.04em;
+  color: var(--on-dark);
+  text-decoration: none;
+}
+.drawerLink:focus-visible {
+  outline: 2px solid var(--on-dark);
+  outline-offset: 2px;
+}
+
+/* Content pages (brand story · gallery · reviews · FAQ · contact) — quieter tier. */
+.drawerContentList {
+  margin: var(--space-md) 0 0;
+}
+.drawerContentList .drawerLink {
+  padding: calc(var(--space-xs) + 4px) 0;
+  font-size: 0.82rem;
+  color: var(--on-dark-muted);
+}
