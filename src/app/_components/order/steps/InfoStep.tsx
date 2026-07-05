@@ -6,6 +6,7 @@ import {
   validatePersonalization, isValid, EXTRA_VAR_SPECS,
   CHILD_GENDER_LABEL, CHILD_GENDER_LABEL_DEFAULT, type PersonalizationErrors,
 } from "../personalization";
+import { CtaPrimary } from "../../Button";
 import styles from "../order.module.css";
 
 export function InfoStep({
@@ -74,7 +75,14 @@ export function InfoStep({
       )}
       {errors.extraVar && <p className={styles.error} role="alert" id="order-error-extraVar" data-testid="order-error-extraVar">{errors.extraVar}</p>}
 
-      <button className="cta" type="button" data-testid="order-next" onClick={submit}>다음</button>
+      {/* Same .nav row as the other steps: keeps the pill at its intrinsic
+          ctaPrimary width on desktop (parent .step is align-items:stretch),
+          right-aligned; ≤480px the .nav .cta flex:1 rule makes it full-width. */}
+      <div className={styles.nav}>
+        <div className={styles.navGroup}>
+          <CtaPrimary data-testid="order-next" onClick={submit}>다음</CtaPrimary>
+        </div>
+      </div>
     </div>
   );
 }

@@ -263,14 +263,55 @@ img {
   color: var(--bg);
   font-family: var(--font-grotesk);
   font-weight: 600;
+  /* DESIGN.md ctaPrimary sizes/tracks an UPPERCASE LATIN label (0.72rem · 0.18em).
+     Our CTA labels are Korean (다음·결제하기·그림책 둘러보기), and the 자간 3단 규칙
+     forbids positive tracking on Korean — so: 자간 0, and the slightly larger
+     0.78rem keeps the un-uppercased Korean label legible inside the pill. */
   font-size: 0.78rem;
-  letter-spacing: 0.12em;
+  letter-spacing: 0;
   text-decoration: none;
   transition: background 240ms var(--ease), color 240ms var(--ease);
 }
 .cta:hover {
   background: transparent;
   color: var(--accent);
+}
+
+/* ── Quiet text action (DESIGN.md #4: one navy pill per screen; every other
+   action is a text link). Rendered by TextAction/BackAction in Button.tsx.
+   Arrow is a separate aria-hidden span; it slides 5px + turns navy on hover
+   (transform+opacity-only motion rule; reduced-motion guarded globally).
+   min-height/padding keep the touch target ≥ 44px. */
+.text-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  min-height: 44px;
+  padding: 0.5em 0.4em;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-grotesk);
+  font-weight: 500;
+  font-size: 0.75rem;
+  letter-spacing: 0; /* 한글 라벨(뒤로·건너뛰기) — 양수 자간 금지 (DESIGN.md 자간 3단 규칙) */
+  color: var(--ink);
+  text-decoration: none;
+  cursor: pointer;
+}
+.text-action__arrow {
+  display: inline-block;
+  transition: transform 240ms var(--ease), color 240ms var(--ease);
+}
+.text-action:hover .text-action__arrow {
+  transform: translateX(5px);
+  color: var(--accent);
+}
+.text-action--back:hover .text-action__arrow {
+  transform: translateX(-5px);
+}
+.text-action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .section {

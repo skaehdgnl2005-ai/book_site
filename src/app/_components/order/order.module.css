@@ -48,12 +48,12 @@
 .summaryTitle { font-family: var(--font-serif-ko); font-size: 1.2rem; color: var(--ink); }
 .summaryRow { display: flex; justify-content: space-between; gap: var(--space-sm); font-size: 0.92rem; color: var(--grey); }
 
-.nav { display: flex; justify-content: space-between; gap: var(--space-sm); margin-top: var(--space-md); }
-.navGroup { display: flex; gap: var(--space-sm); }
-.back {
-  font-family: var(--font-grotesk); font-weight: 600; font-size: 0.78rem; letter-spacing: 0.08em;
-  background: transparent; border: 1px solid var(--line); color: var(--ink);
-  padding: 1.05em 2.2em; cursor: pointer;
+/* Step nav — quiet text actions on the left, THE one navy pill on the right
+   (DESIGN.md #4). Single row even on mobile; the pill may fill the leftover width. */
+.nav { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); margin-top: var(--space-md); }
+.navGroup { display: flex; align-items: center; gap: var(--space-sm); flex: 1; justify-content: flex-end; }
+@media (max-width: 480px) {
+  .nav :global(.cta) { flex: 1; text-align: center; }
 }
 
 /* cart */
