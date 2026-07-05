@@ -624,9 +624,9 @@
         "390px 뷰포트에서 햄버거 → 다크 드로어 열림, 링크로 이동 가능, Escape로 닫힘"
       ],
       "verification": "pnpm test:e2e -- nav.spec.ts",
-      "state": "in_progress",
-      "passes": false,
-      "evidence": ""
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-06 pnpm test:e2e -- nav.spec.ts home.spec.ts a11y.spec.ts → 26 passed (nav.spec 5/5: BAG 링크 /cart 이동, BAG 1 수량 표시, 햄버거 드로어 열림/이동, Escape 닫힘+aria-expanded 토글, 390px 무랩; home 3/3, a11y 18/18 회귀 green)"
     }
   ]
 }
