@@ -23,8 +23,16 @@
     live desktop screenshot shows photo hero + card media (no dev badge). **Still open:**
     `RESEND_API_KEY` + `EMAIL_FROM` are NOT in Vercel prod env (checked `vercel env ls`), so prod
     mypage OTP mail stays **fail-closed by design** (env.ts F047 — boots fine, adapter refuses).
-    `Next:` maker provisions both (Resend-verified domain) → redeploy or `vercel env` + new deploy →
-    run the F047 mail canary (mypage lookup → real mail → OTP → `/mypage/[orderId]`).
+    ~~`Next:` maker provisions both (Resend-verified domain) → redeploy → mail canary.~~
+    **DONE 2026-07-05 (later same day):** maker provisioned `RESEND_API_KEY` + `EMAIL_FROM`
+    (**temporary `onboarding@resend.dev` path — no domain yet**, so Resend only delivers to the
+    maker's own Resend-account email; real customer mail still needs a verified domain later).
+    Env-only redeploy shipped from a **clean worktree @ `e45bf90`** (`dpl_CGWkmntXrM9C7Xuv3vADijeHjbjv`,
+    approved via `pnpm approve deploy.production`) — deliberately NOT the working tree, which held
+    mid-flight **F048** (in_progress) edits; F048 ships when its own session closes green. Route
+    canary 200 (/, /mypage, /anniversary). Mail canary handed to the maker (test order with the
+    Resend-account email → mypage lookup → OTP). Swap `EMAIL_FROM` + redeploy once a domain is
+    verified in Resend.
 - **Latest (2026-06-11): F047 — real Resend transactional-email adapter DONE + passing (F046's paired
   follow-up, ADR-0022).** `resendEmailAdapter` (behind F046's `EmailAdapter`) sends the mypage OTP via
   Resend's HTTPS API (`POST https://api.resend.com/emails`, Bearer `RESEND_API_KEY`, `from=EMAIL_FROM`) with
