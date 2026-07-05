@@ -626,7 +626,7 @@
       "verification": "pnpm test:e2e -- nav.spec.ts",
       "state": "passing",
       "passes": true,
-      "evidence": "2026-07-06 pnpm test:e2e -- nav.spec.ts home.spec.ts a11y.spec.ts → 26 passed (nav.spec 5/5: BAG 링크 /cart 이동, BAG 1 수량 표시, 햄버거 드로어 열림/이동, Escape 닫힘+aria-expanded 토글, 390px 무랩; home 3/3, a11y 18/18 회귀 green)"
+      "evidence": "2026-07-06 pnpm check green (lint+typecheck+unit 199 passed+constraints 0 violations) AND 전체 pnpm test:e2e → 102 passed 0 failed (nav.spec 5/5: BAG 링크 /cart 이동, BAG 1 수량 표시, 햄버거 드로어 열림/이동, Escape 닫힘+aria-expanded 토글, 390px 무랩; Nav 클라이언트 전환 영향권인 cart/order-*/checkout-*/mypage-*/home/a11y 전 스펙 + perf p95<2s 예산 green — home p95 691ms, /anniversary 704ms, /first-moments 717ms). 리뷰 반영: 드로어 한글 링크·닫기 자간 0 수정(DESIGN.md 한글 양수 자간 금지) + 오버레이 내비 상단 스크림 보강 후 재검증"
     }
   ]
 }

@@ -129,7 +129,7 @@
   font-family: var(--font-grotesk);
   font-weight: 500;
   font-size: 0.78rem;
-  letter-spacing: 0.04em;
+  letter-spacing: 0; /* 한글 라벨(닫기) — DESIGN.md: 한글에 양수 자간 금지 */
   background: transparent;
   border: 0;
   border-radius: var(--radius);
@@ -156,7 +156,7 @@
   font-family: var(--font-grotesk);
   font-weight: 500;
   font-size: 0.95rem;
-  letter-spacing: 0.04em;
+  letter-spacing: 0; /* 한글 링크 — DESIGN.md: 한글에 양수 자간 금지 (+트래킹은 대문자 라틴 전용) */
   color: var(--on-dark);
   text-decoration: none;
 }
