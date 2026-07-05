@@ -3,6 +3,15 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **Latest (2026-07-05, 저녁 2): mypage 입구 결함 수정 + 프로덕션 배포 (F048 동승).** 메이커가
+  라이브 카나리 중 발견: `/mypage`로 들어가는 UI가 사이트에 전무(내비 ✗, 푸터 ✗, 주문 완료 화면은
+  "마이페이지에서 이어갈 수 있어요" **문구만** 있고 링크 ✗) — 구매자가 마무리(사진·헌정)에 도달 불가.
+  수정(`c00bfad`, 2파일): Nav에 "주문 조회" 링크 + PAID 주문 확인 화면에 `마이페이지에서 마무리하기`
+  CTA(`data-testid="order-finish-link"`). 검증: `pnpm check` green + 타깃 E2E 32/32
+  (home·order-confirm·mypage-finish·a11y·checkout-success). **배포**: `pnpm approve deploy.production`
+  → 클린 워크트리 @ `c00bfad`에서 `vercel --prod` — **직전에 정식 종료된 F048 커밋(`8663107`)도 이
+  배포로 첫 라이브**. 카나리: /, /mypage, /anniversary, /faq 전부 200 + 홈 HTML에 "주문 조회" 링크
+  확인. `Next:` 메이커의 F047 메일 카나리(테스트 주문 → 주문 조회 → OTP 수신)가 이제 UI로 가능.
 - **Latest (2026-07-05, 저녁): F048 — 제품 설명 레이어 DONE + passing (신규 append, attempt 1/3 → reset).**
   신규 시장(초개인화 그림책) 첫 방문자를 위한 설명 계층 — 메이커 결정 3건 반영: **AI 언급 최소화**
   (히어로 아이브로우 "AI 초개인화 그림책" → "초개인화 그림책"; 고객 표면에서 AI 단어 0회, 카피는
