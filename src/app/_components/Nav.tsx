@@ -2,9 +2,13 @@ import Link from "next/link";
 
 // Top nav (Atelier Sans). Wordmark + category links. Flex-wraps so it never
 // overflows at 375px. Reused across all pages (built by F002).
-export function Nav() {
+// `overlay` (home only): transparent over the photo hero, on-dark text.
+export function Nav({ overlay = false }: { overlay?: boolean }) {
   return (
-    <nav className="site-nav" aria-label="주요 메뉴">
+    <nav
+      className={overlay ? "site-nav site-nav--overlay" : "site-nav"}
+      aria-label="주요 메뉴"
+    >
       <Link href="/" className="site-nav__brand">
         그림책 제작소
       </Link>

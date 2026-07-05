@@ -3,6 +3,20 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **Latest (2026-07-05): Home photo hero + category-card media (F002 visual polish — no new
+  feature row, no feature_list edits).** Hero now follows DESIGN.md ## Components #2: full-bleed
+  art-directed `<picture>` via `getImageProps` (16:9 `hero-desktop.png` ≥720px / 9:16
+  `hero-mobile.png` below — phones never download the wide cut), rendered **outside `<main>`**
+  so it full-bleeds without viewport-width hacks; `inkStrong` ground + `brightness(.92)` +
+  top/bottom legibility gradients; on-dark text tokens; new `Nav overlay` variant (home only,
+  transparent over the photo). Category cards mirror the TemplateCard media pattern (4:5 mat,
+  `--panel` ground, hairline, hover scale 1.03 · 1.2s). Assets: `public/images/*.png` (5, art
+  direction per `docs/superpowers/specs/2026-07-04-hero-category-photo-brief-design.md`).
+  Verified: `pnpm check` green (199 unit, R1–R10 0) + E2E `home.spec` 2/2 + `perf.spec` 3/3
+  (home p95 **646ms** < 2s budget — next/image optimization confirmed working) + visual
+  screenshots desktop 1440 / mobile 390. `Next:` deploy still pending from F046/F047 (see below);
+  optional polish: recompress the 6–8MB PNG sources to smaller masters (runtime serving already
+  optimized by next/image).
 - **Latest (2026-06-11): F047 — real Resend transactional-email adapter DONE + passing (F046's paired
   follow-up, ADR-0022).** `resendEmailAdapter` (behind F046's `EmailAdapter`) sends the mypage OTP via
   Resend's HTTPS API (`POST https://api.resend.com/emails`, Bearer `RESEND_API_KEY`, `from=EMAIL_FROM`) with

@@ -139,6 +139,85 @@ img {
 .hero {
   padding: var(--section) 0 var(--space-lg);
 }
+
+/* ── Full-bleed photo hero (home only — DESIGN.md ## Components #2) ──
+   The one full-bleed image besides dark bands. Rendered OUTSIDE <main> (page.tsx)
+   so it spans the viewport without width hacks. Content bottom-left over the
+   photo; text switches to the on-dark tokens. Scoped: plain `.hero` pages keep
+   their light text — only `.hero--image` goes dark. */
+.hero--image {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: 100vh;
+  min-height: 100svh;
+  padding: var(--section) var(--gutter) var(--space-xl);
+  background: var(--ink-strong);
+  overflow: hidden;
+}
+.hero__media,
+.hero__media picture,
+.hero__media img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.hero__media img {
+  object-fit: cover;
+  /* Unified grade (DESIGN.md Hero) so on-dark text reads on any photo. */
+  filter: brightness(0.92);
+}
+/* Legibility gradients — reading aids, not fills (DESIGN.md ## Elevation):
+   bottom for the hero content, a lighter top scrim for the overlay nav. */
+.hero__media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to bottom, rgba(22, 20, 15, 0.38), transparent 18%),
+    linear-gradient(to top, rgba(22, 20, 15, 0.52), transparent 60%);
+}
+.hero__content {
+  position: relative;
+  width: 100%;
+  max-width: var(--max-width);
+  margin: 0 auto;
+}
+.hero--image .hero__title {
+  color: var(--on-dark);
+}
+.hero--image .hero__sub {
+  color: var(--on-dark-muted);
+}
+.hero--image .eyebrow {
+  color: var(--on-dark-muted);
+}
+/* CTA hover on the dark hero: transparent fill, on-dark text (DESIGN.md ctaPrimary). */
+.hero--image .cta:hover {
+  color: var(--on-dark);
+}
+
+/* Nav overlaid on the photo hero (home only): transparent bar, on-dark text,
+   dark-side hairline per DESIGN.md (rgba(201,195,182,.16) over dark surfaces). */
+.site-nav--overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  border-bottom-color: rgba(201, 195, 182, 0.16);
+}
+.site-nav--overlay .site-nav__brand {
+  color: var(--on-dark);
+}
+.site-nav--overlay .nav-link {
+  color: var(--on-dark-muted);
+}
+.site-nav--overlay .nav-link:hover {
+  color: var(--on-dark);
+}
 .eyebrow {
   display: inline-flex;
   align-items: center;
@@ -241,6 +320,24 @@ img {
 }
 .category-card:hover {
   border-color: var(--accent);
+}
+/* Media — 4:5 mat, mirrors TemplateCard (DESIGN.md productCard.media): panel
+   ground, hairline, radius 0, hover scale 1.03 · 1.2s (reduced-motion guarded
+   globally). position:relative hosts next/image fill. */
+.category-card__media {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+.category-card__img {
+  object-fit: cover;
+  transition: transform 1.2s var(--ease);
+}
+.category-card:hover .category-card__img {
+  transform: scale(1.03);
 }
 .category-card__kicker {
   font-family: var(--font-grotesk);
