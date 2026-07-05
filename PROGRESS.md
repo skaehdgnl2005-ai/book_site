@@ -14,9 +14,17 @@
   direction per `docs/superpowers/specs/2026-07-04-hero-category-photo-brief-design.md`).
   Verified: `pnpm check` green (199 unit, R1–R10 0) + E2E `home.spec` 2/2 + `perf.spec` 3/3
   (home p95 **646ms** < 2s budget — next/image optimization confirmed working) + visual
-  screenshots desktop 1440 / mobile 390. `Next:` deploy still pending from F046/F047 (see below);
-  optional polish: recompress the 6–8MB PNG sources to smaller masters (runtime serving already
-  optimized by next/image).
+  screenshots desktop 1440 / mobile 390. Optional polish: recompress the 6–8MB PNG sources to
+  smaller masters (runtime serving already optimized by next/image).
+  - **DEPLOYED to production 2026-07-05** (user-instructed; `pnpm approve deploy.production` token
+    issued): `vercel --prod` → `dpl_3D23xRW7uSuHTJ7dbVe6yEHtduGt`, aliased
+    **https://storybook-shop.vercel.app** — this deploy also carries the previously-pending
+    **F046+F047** master state. Canary: home/anniversary/first-moments/custom/mypage all **200**;
+    live desktop screenshot shows photo hero + card media (no dev badge). **Still open:**
+    `RESEND_API_KEY` + `EMAIL_FROM` are NOT in Vercel prod env (checked `vercel env ls`), so prod
+    mypage OTP mail stays **fail-closed by design** (env.ts F047 — boots fine, adapter refuses).
+    `Next:` maker provisions both (Resend-verified domain) → redeploy or `vercel env` + new deploy →
+    run the F047 mail canary (mypage lookup → real mail → OTP → `/mypage/[orderId]`).
 - **Latest (2026-06-11): F047 — real Resend transactional-email adapter DONE + passing (F046's paired
   follow-up, ADR-0022).** `resendEmailAdapter` (behind F046's `EmailAdapter`) sends the mypage OTP via
   Resend's HTTPS API (`POST https://api.resend.com/emails`, Bearer `RESEND_API_KEY`, `from=EMAIL_FROM`) with
