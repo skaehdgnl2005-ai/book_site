@@ -22,6 +22,11 @@ export function Nav({ overlay = false }: { overlay?: boolean }) {
         <li>
           <Link href="/custom" className="nav-link">맞춤 제작</Link>
         </li>
+        <li>
+          {/* Post-purchase entry: the finishing flow (photo/dedication) lives behind
+              the mypage lookup — without this link buyers had no way back in. */}
+          <Link href="/mypage" className="nav-link">주문 조회</Link>
+        </li>
       </ul>
     </nav>
   );
