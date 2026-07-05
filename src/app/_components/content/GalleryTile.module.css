@@ -1,14 +1,8 @@
-/* F025 GalleryTile — depth via tone step (--panel) + 1px --line hairline, radius 0. */
+/* F025 GalleryTile — mat visuals live in catalog/TypographicCover.module.css now;
+   this module keeps only the figure frame + caption. Tokens only, radius 0. */
 
 .tile {
   margin: 0;
-}
-
-.mat {
-  display: block;
-  aspect-ratio: 4 / 5;
-  background: var(--panel);
-  border: 1px solid var(--line);
 }
 
 .cap {

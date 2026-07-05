@@ -40,23 +40,27 @@
   color: var(--muted);
 }
 
-/* Media — 4:5 panel mat (DESIGN media). No real hero asset yet → honest tone block. */
+/* Media — 4:5 panel mat (DESIGN media). No real hero asset yet → TypographicCover
+   (serif title on the panel mat); it reads --cover-aspect from this wrapper. */
 .media {
+  --cover-aspect: 4 / 5;
   display: block;
   margin-top: var(--space-sm);
   overflow: hidden;
 }
-.mediaMat,
+/* 1-column zone only (grid goes 2-col at 600px — CategoryView.module.css): a full-width
+   4:5 mat is ~5 screens of empty scroll on mobile, so flatten the mat to 4:3 there. */
+@media (max-width: 599.98px) {
+  .media {
+    --cover-aspect: 4 / 3;
+  }
+}
 .mediaImg {
+  /* Real-photo branch stays 4:5 at every width (a photo fills the mat — no empty-scroll
+     problem); only the typographic mat flattens on mobile via --cover-aspect above. */
   display: block;
   width: 100%;
   aspect-ratio: 4 / 5;
-}
-.mediaMat {
-  background: var(--panel);
-  border: 1px solid var(--line);
-}
-.mediaImg {
   object-fit: cover;
   border: 1px solid var(--line);
   transition: transform 1.2s var(--ease);

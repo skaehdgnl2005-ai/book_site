@@ -1,0 +1,52 @@
+/* TypographicCover — panel mat + 1px hairline, radius 0, type-only (no ornament).
+   Depth = tone step (--panel) + --line (no box-shadow, R6). Tokens only (R7).
+   3-row grid keeps the serif title dead-center whether or not edition/kicker render. */
+
+.cover {
+  display: grid;
+  grid-template-rows: 1fr auto 1fr;
+  justify-items: center;
+  width: 100%;
+  aspect-ratio: var(--cover-aspect, 4 / 5);
+  padding: clamp(14px, 7%, 28px) var(--space-sm);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  text-align: center;
+}
+
+/* Edition number — the mat's single navy accent (DESIGN.md accent use ④). */
+.edition {
+  grid-row: 1;
+  align-self: start;
+  font-family: var(--font-grotesk);
+  font-weight: 600;
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* 책 제목 — the only serif (DESIGN.md signature contrast). */
+.title {
+  grid-row: 2;
+  align-self: center;
+  font-family: var(--font-serif-ko);
+  font-weight: 400;
+  font-size: clamp(1.35rem, 1.05rem + 1.5vw, 1.9rem);
+  line-height: 1.35;
+  letter-spacing: -0.005em;
+  word-break: keep-all;
+  color: var(--ink);
+}
+
+/* English kicker — microLabel at the mat's foot. */
+.kicker {
+  grid-row: 3;
+  align-self: end;
+  font-family: var(--font-grotesk);
+  font-weight: 600;
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
