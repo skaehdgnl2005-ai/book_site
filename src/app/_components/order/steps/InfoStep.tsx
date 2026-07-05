@@ -6,6 +6,7 @@ import {
   validatePersonalization, isValid, EXTRA_VAR_SPECS,
   CHILD_GENDER_LABEL, CHILD_GENDER_LABEL_DEFAULT, type PersonalizationErrors,
 } from "../personalization";
+import { CtaPrimary } from "../../Button";
 import styles from "../order.module.css";
 
 export function InfoStep({
@@ -74,7 +75,7 @@ export function InfoStep({
       )}
       {errors.extraVar && <p className={styles.error} role="alert" id="order-error-extraVar" data-testid="order-error-extraVar">{errors.extraVar}</p>}
 
-      <button className="cta" type="button" data-testid="order-next" onClick={submit}>다음</button>
+      <CtaPrimary data-testid="order-next" onClick={submit}>다음</CtaPrimary>
     </div>
   );
 }

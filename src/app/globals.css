@@ -263,14 +263,52 @@ img {
   color: var(--bg);
   font-family: var(--font-grotesk);
   font-weight: 600;
-  font-size: 0.78rem;
-  letter-spacing: 0.12em;
+  /* DESIGN.md ctaPrimary: size 0.72rem · tracking 0.18em */
+  font-size: 0.72rem;
+  letter-spacing: 0.18em;
   text-decoration: none;
   transition: background 240ms var(--ease), color 240ms var(--ease);
 }
 .cta:hover {
   background: transparent;
   color: var(--accent);
+}
+
+/* ── Quiet text action (DESIGN.md #4: one navy pill per screen; every other
+   action is a text link). Rendered by TextAction/BackAction in Button.tsx.
+   Arrow is a separate aria-hidden span; it slides 5px + turns navy on hover
+   (transform+opacity-only motion rule; reduced-motion guarded globally).
+   min-height/padding keep the touch target ≥ 44px. */
+.text-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  min-height: 44px;
+  padding: 0.5em 0.4em;
+  border: 0;
+  background: transparent;
+  font-family: var(--font-grotesk);
+  font-weight: 500;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  color: var(--ink);
+  text-decoration: none;
+  cursor: pointer;
+}
+.text-action__arrow {
+  display: inline-block;
+  transition: transform 240ms var(--ease), color 240ms var(--ease);
+}
+.text-action:hover .text-action__arrow {
+  transform: translateX(5px);
+  color: var(--accent);
+}
+.text-action--back:hover .text-action__arrow {
+  transform: translateX(-5px);
+}
+.text-action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .section {

@@ -2,6 +2,7 @@
 import type { CatalogTemplate } from "../../catalog/templates";
 import { formatWon, COVER_LABEL } from "../format";
 import type { Draft } from "../OrderWizard";
+import { BackAction, CtaPrimary } from "../../Button";
 import styles from "../order.module.css";
 
 export function ReviewStep({
@@ -24,8 +25,8 @@ export function ReviewStep({
         <span className={styles.summaryRow}><span>금액</span><span>{formatWon(unitPriceWon)}</span></span>
       </div>
       <div className={styles.nav}>
-        <button className={styles.back} type="button" data-testid="order-back" onClick={onBack}>뒤로</button>
-        <button className="cta" type="button" data-testid="order-add-to-cart" onClick={onAddToCart}>장바구니에 담기</button>
+        <BackAction data-testid="order-back" onClick={onBack} />
+        <CtaPrimary data-testid="order-add-to-cart" onClick={onAddToCart}>장바구니에 담기</CtaPrimary>
       </div>
     </div>
   );

@@ -31,18 +31,11 @@
 .qrTag { margin: var(--space-xs) 0 0; font-size: 0.82rem; color: var(--muted); }
 .empty { display: flex; flex-direction: column; align-items: center; gap: var(--space-md); padding: var(--space-xl) 0; color: var(--grey); }
 
-/* sandbox pay stand-in */
+/* result card (checkout/failed) — surface plate, hairline, no box */
 .payCard {
   display: flex; flex-direction: column; gap: var(--space-md);
   padding: var(--space-lg); border: 1px solid var(--line); background: var(--surface); max-width: 520px;
 }
-.payActions { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
-.payAlt {
-  font-family: var(--font-grotesk); font-weight: 600; font-size: 0.78rem; letter-spacing: 0.08em;
-  background: transparent; border: 1px solid var(--line); color: var(--ink);
-  padding: 1.05em 2.2em; cursor: pointer;
-}
-.payAlt:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 @media (max-width: 640px) {
   .grid { grid-template-columns: 1fr; }

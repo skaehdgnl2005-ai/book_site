@@ -1,6 +1,7 @@
 "use client";
 import type { CatalogTemplate } from "../../catalog/templates";
 import type { Draft } from "../OrderWizard";
+import { BackAction, CtaPrimary } from "../../Button";
 import styles from "../order.module.css";
 import { formatWon, COVER_LABEL } from "../format";
 
@@ -48,8 +49,8 @@ export function CoverStep({
       <p className={styles.linePrice} data-testid="order-line-price">{formatWon(unitPriceWon)}</p>
 
       <div className={styles.nav}>
-        <button className={styles.back} type="button" data-testid="order-back" onClick={onBack}>뒤로</button>
-        <button className="cta" type="button" data-testid="order-next" onClick={onNext}>다음</button>
+        <BackAction data-testid="order-back" onClick={onBack} />
+        <CtaPrimary data-testid="order-next" onClick={onNext}>다음</CtaPrimary>
       </div>
     </div>
   );

@@ -2,6 +2,7 @@
 import { useState, type ChangeEvent } from "react";
 import type { Draft } from "../OrderWizard";
 import { uploadChildPhoto } from "../photo-action";
+import { BackAction, CtaPrimary, TextAction } from "../../Button";
 import styles from "../order.module.css";
 
 export function PhotoStep({
@@ -53,11 +54,11 @@ export function PhotoStep({
       {draft.photo && <p className={styles.photoStatus} data-testid="order-photo-status">사진 첨부됨</p>}
       {error && <p className={styles.error} role="alert" data-testid="order-photo-error">{error}</p>}
       <div className={styles.nav}>
-        <button className={styles.back} type="button" data-testid="order-back" onClick={onBack}>뒤로</button>
+        <BackAction data-testid="order-back" onClick={onBack} />
         <div className={styles.navGroup}>
-          <button className={styles.back} type="button" data-testid="order-photo-skip"
-            onClick={() => { onPatch({ photo: null }); onNext(); }}>건너뛰기</button>
-          <button className="cta" type="button" data-testid="order-next" onClick={onNext}>다음</button>
+          <TextAction data-testid="order-photo-skip"
+            onClick={() => { onPatch({ photo: null }); onNext(); }}>건너뛰기</TextAction>
+          <CtaPrimary data-testid="order-next" onClick={onNext}>다음</CtaPrimary>
         </div>
       </div>
     </div>
