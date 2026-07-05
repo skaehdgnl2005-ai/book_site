@@ -3,7 +3,23 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- **Latest (2026-07-05, 밤): 전 페이지 UI 디자이너 리뷰 → 개선 플랜 수립 (플랜만, 코드 무변경).**
+- **Latest (2026-07-06): UI 개선 Wave 1 — 병렬 3트랙 구현·머지 DONE (WP1 CTA체계 · WP5 타이포 커버 · F049 내비 BAG+드로어).**
+  UI 플랜(아래 항목)의 Wave 1을 트랙별 git worktree 병렬로 실행(멀티에이전트: 구현 3 ∥ →
+  E2E 직렬(포트 3000) → 적대적 리뷰 6(design/contract) → 수정 3). 내용: ① WP1 —
+  Button.tsx에 CtaPrimary/TextAction/BackAction 3종, 위저드 박스형 뒤로·건너뛰기를 텍스트
+  액션으로 전폐(화면당 필 1개 원칙), ② WP5 — TypographicCover(세리프 책 제목 매트)로
+  카테고리 8칸·갤러리 6칸의 빈 회색 매트 해소 + 모바일 1열 4:3, ③ **F049(신규 append,
+  passing)** — 내비 BAG 진입점(카트 진입 UI 부재 해소) + 모바일 다크 드로어(햄버거,
+  포커스 트랩·Escape·스크롤 락) + tests/e2e/nav.spec.ts 5케이스. 리뷰가 잡은 blocking 6건
+  수정: 한글 양수 자간 2건(.cta 0.18em→0, 드로어 링크 0.04em→0 — DESIGN.md 철칙),
+  F049 부분 게이트 승격→풀 게이트 재실행 후 evidence 재작성, 갤러리 세리프 오남용
+  (variant="label"), InfoStep 전폭 CTA, 히어로 스크림 보강. 머지: 한 브랜치씩 + 매번
+  `pnpm check`(전부 green, 충돌 0) → **통합 게이트: 전체 E2E 102/102 + eval S1–S11 pass
+  + perf p95 유지(home 785ms)**. `Next:` Wave 2 병렬(퍼널 WP2 폼 키트→WP3 위저드
+  리컴포지션(F050) ∥ WP6 카트 폴리시+라인 삭제(F051) ∥ WP8 콘텐츠 페이지) → Wave 3(WP7
+  모바일 글로벌 패스). 남은 nit: BAG 카운트 storage 리스너, 활성 내비 aria-current,
+  ContactForm 밑줄화(WP2에 편입), 모바일 4:3 결정의 DESIGN.md 반영.
+- **(2026-07-05, 밤): 전 페이지 UI 디자이너 리뷰 → 개선 플랜 수립 (플랜만, 코드 무변경).**
   메이커 요청("일반 버튼 투성이, 모바일 계획 포함 전면 검토")으로 20개 라우트를 코드 +
   실물 스크린샷(1440/390, browse)으로 검토. 핵심 진단: CTA 체계 부재(P1)·네이티브 폼
   컨트롤(P2)·위저드에 상품 실종+진행표시 없음(P3)·**내비에 /cart 진입점 부재(P4)**·빈
