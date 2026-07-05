@@ -593,6 +593,24 @@
       "state": "passing",
       "passes": true,
       "evidence": "2026-06-11 vitest email.test.ts: 14 passed (8 new F047 + 6 F046 unchanged) plus 3 redact regression/guard tests — real Resend transactional-email adapter behind F046's EmailAdapter (ADR-0022, the ADR-0021 D6b paired follow-up). resendEmailAdapter sends the OTP via Resend's HTTPS API (POST https://api.resend.com/emails, Authorization: Bearer RESEND_API_KEY, from=EMAIL_FROM, to+code in body) with an INJECTABLE transport (ResendConfig.transport, default fetch — the TossTransport pattern) so unit tests are hermetic. Factory emailAdapter(): non-prod → mock (F046 unchanged); prod + BOTH RESEND_API_KEY & EMAIL_FROM set → resendEmailAdapter; prod + either missing → F046 fail-closed stub (a half-config never half-sends). A non-2xx response THROWS (a security mail never silently no-ops); the thrown error is status-ONLY (no code, no recipient — PII by-construction omission, proven by a console-sink spy on the failure path). env.ts: RESEND_API_KEY(secret)+EMAIL_FROM added to the zod schema as optional — deliberately NOT a prod-boot requirement (prod still boots without email; only the OTP send fail-closes — symmetry with F046). redact() masks re_ keys. TDD: RED witnessed (resendEmailAdapter undefined + the re_ redact gap → GREEN). actions.ts UNTOUCHED (F046's after()/await send is reused). pnpm check green (lint+typecheck+199 unit+constraints R1–R9 0) + mypage-photo E2E 8/8. Independent worker≠checker (F042) 6-lens refute-by-default: correctness / security-PII / F046-invariants CLEAN; the redact lens caught 1 MAJOR PII regression — the re_ mask ran BEFORE the email rule and injected '*' that broke the email regex's local-part class, stranding a re_-prefixed email's domain (re_user@x.com → re_***@x.com); FIXED by reordering (re_ last) + a (?<![A-Za-z0-9]) left anchor, now guarded by a regression test (re_-prefixed email ⇒ ***@***); + 1 minor anchor hardening (folded) + 1 nit (declined, conservative-by-design); harness + honesty lenses → doc-consistency gaps folded (ADR-0022 authored; DEPLOY §4 never-NEXT_PUBLIC + hygiene lists updated). 0 outstanding blocker. HONESTY: the real Resend network send is NOT hermetically E2E-able (F044/F045 precedent) — the mypage-photo E2E exercises the EmailAdapter INTERFACE via the mock (APP_ENV≠production ⇒ mock factory branch + after() wiring), the resendEmailAdapter HTTP path is unit-only (injected transport), and the LIVE send is a go-live manual canary (real mypage lookup → mail received → OTP → /mypage/[orderId]); the real-send gap is disclosed here and in DEPLOY §10, not silently skipped. Scope: F047 touches only email.ts / env.ts / email.test.ts / feature_list(append-only) / docs; NO actions.ts / payments / F045 / guardrails / check-constraints. Cut from clean master (8050b26) ⇒ no merge conflict. NOT deployed — the maker provisions RESEND_API_KEY+EMAIL_FROM (Resend-verified domain) in Vercel prod env, then a single vercel --prod carries F046+F047 together; canary as above. · ADR-0022."
+    },
+    {
+      "id": "F048",
+      "category": "functional",
+      "track": "product",
+      "priority": 3,
+      "description": "제품 설명 레이어(신규 시장 첫 방문자용): 홈에 '이렇게 만들어집니다' 3단계 + '한 권에 담기는 것' 구성품 섹션, 히어로 아이브로우에서 AI 제거(고객 표면 AI 언급 최소화 — 초개인화 그림책), Footer에 콘텐츠 페이지 링크(브랜드 스토리·갤러리·후기·FAQ·문의 — 고아 페이지 해소), 주문 위저드 맥락 마이크로카피(템플릿 블럽 승계·자석 외함/축하 카드 기본 포함·제작 기간·사진 용도·커버 한 줄 설명), FAQ 2문항 추가(어떻게 만들어지나요/책과 함께 무엇이 오나요), 한국어 메타데이터(lang=ko·title/description·OG)",
+      "steps": [
+        "Open / — 히어로 아이브로우가 '초개인화 그림책'(AI 없음), 히어로와 푸터 사이에 3단계 제작 과정 섹션과 구성품(그림책·자석 외함·축하 카드) 섹션이 렌더",
+        "모든 페이지 Footer에 브랜드 스토리·갤러리·후기·자주 묻는 질문·문의 링크가 보이고 클릭 시 해당 페이지로 이동",
+        "주문 위저드 헤더에 템플릿 블럽 + '자석 외함·축하 카드 기본 포함 · 주문 후 일주일 이내 제작' 맥락이 보이고, 사진 단계에 사진 용도 설명이 보임",
+        "/faq 에 '그림책은 어떻게 만들어지나요?'와 '책과 함께 무엇이 오나요?' 문항이 추가로 렌더",
+        "html lang=ko + 한국어 title/description/OG 메타데이터"
+      ],
+      "verification": "pnpm test:e2e -- home.spec.ts faq.spec.ts order-start.spec.ts",
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-05 Playwright 전체 97/97 — home.spec F048 테스트(초개인화 아이브로우(AI 없음)·3단계 제작 과정·구성품(자석 외함/축하 카드)+QR 정직 카피·푸터 링크 → /faq 네비게이션), faq.spec 확장(신규 2문항 렌더), order-start.spec F048 테스트(위저드 블럽·기본 구성·제작 기간·사진 용도 힌트). pnpm check green(lint+typecheck+199 unit+constraints R1–R10 0 — F048 append R9 통과) + pnpm eval S1–S11 전부 pass(퍼널 무회귀). perf 예산 유지: home p95 813ms < 2s. 범위: 홈 ProcessSection/KitSection(src/app/_components/home/ — 구성품 미디어는 실물 사진 도착 전까지 정직한 --panel 매트, kit-lifestyle.png 브리프는 포토 브리프 2026-07-05 부록), Footer 콘텐츠 링크(고아 페이지 5개 도달 가능), 주문 위저드 맥락 카피, FAQ 2문항, lang=ko+한국어 title/description/OG. 고객 표면 AI 문구 제거(AI 언급 최소화 — 메이커 결정). 커버/리드타임 카피는 엔트리 라인 한정으로 명시(정직성)."
     }
   ]
 }

@@ -25,6 +25,27 @@ test.describe("order start — extra-var resolved per template (F007)", () => {
     expect(res?.status()).toBe(404);
   });
 
+  // F048 — funnel context: the wizard header carries the template's story blurb plus
+  // what's-in-the-box + lead time, and the photo step explains why the photo is asked.
+  test("wizard carries product context: blurb, 기본 구성, 제작 기간, photo purpose (F048)", async ({
+    page,
+  }) => {
+    await page.goto("/order/birth");
+    await expect(page.getByText("세상에 처음 온 그날의 설렘을 한 권에 담아.")).toBeVisible();
+    const included = page.getByTestId("order-included");
+    await expect(included).toContainText("자석 외함");
+    await expect(included).toContainText("축하 카드");
+    await expect(included).toContainText("일주일");
+
+    // Walk to the photo step and check the purpose hint.
+    await page.getByTestId("order-name-input").fill("도윤");
+    await page.getByTestId("order-gender-male").check();
+    await page.getByTestId("order-extravar-input").fill("2024-01-15");
+    await page.getByTestId("order-next").click();
+    await expect(page.getByTestId("order-wizard")).toHaveAttribute("data-step", "photo");
+    await expect(page.getByTestId("order-photo-hint")).toContainText("주인공의 모습");
+  });
+
   test("no horizontal overflow at 375px (F035)", async ({ page }) => {
     await page.setViewportSize({ width: 375, height: 800 });
     await page.goto("/order/birth");

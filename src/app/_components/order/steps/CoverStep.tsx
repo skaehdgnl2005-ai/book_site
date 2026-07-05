@@ -30,6 +30,10 @@ export function CoverStep({
             {COVER_LABEL.HARD} <span className={styles.choicePrice}>{formatWon(template.hardPriceWon)}</span>
           </label>
         </div>
+        {/* F048 — one honest line on what the choice means (no invented specs). */}
+        <p className={styles.hint} data-testid="order-cover-hint">
+          소프트커버는 가볍고 부드럽게, 하드커버는 오래 소장하도록 단단하게 제작됩니다.
+        </p>
       </fieldset>
 
       <div className={styles.qrRow}>

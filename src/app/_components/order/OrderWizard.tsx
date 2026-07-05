@@ -74,6 +74,12 @@ export function OrderWizard({ template }: { template: CatalogTemplate }) {
         <section className="hero" aria-labelledby="order-title">
           <p className="eyebrow">{template.label}</p>
           <h1 className="hero__title" id="order-title">주문 만들기</h1>
+          {/* F048 — carry the template's story blurb into the funnel + say what's
+              in the box and when it ships (entry line), before any field is asked. */}
+          <p className={styles.contextBlurb}>{template.blurb}</p>
+          <p className={styles.included} data-testid="order-included">
+            자석 외함 · 축하 카드 기본 포함 — 주문 후 일주일 이내 제작해 보내 드립니다
+          </p>
         </section>
         <section className={styles.wizard} data-testid="order-wizard" data-step={step} aria-label="주문 단계">
           {step === "info" && <InfoStep template={template} draft={state.draft} onPatch={patch} onNext={next} />}

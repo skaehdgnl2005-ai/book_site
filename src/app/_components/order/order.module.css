@@ -16,6 +16,14 @@
 .input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .error { margin: 0; font-size: 0.82rem; color: var(--accent); }
 
+/* F048 — funnel context microcopy (template blurb + what's-included + step hints). */
+.contextBlurb { margin: 0 0 var(--space-xs); max-width: 46ch; font-size: 1.05rem; line-height: 1.75; color: var(--grey); }
+.included {
+  margin: 0; font-family: var(--font-grotesk); font-weight: 500; font-size: 0.75rem;
+  letter-spacing: 0.08em; color: var(--muted);
+}
+.hint { margin: 0; max-width: 52ch; font-size: 0.85rem; line-height: 1.7; color: var(--grey); }
+
 .choices { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
 .choice {
   display: inline-flex; align-items: baseline; gap: var(--space-xs);

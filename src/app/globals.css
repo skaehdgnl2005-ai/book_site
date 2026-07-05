@@ -365,6 +365,7 @@ img {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
+  align-items: baseline;
   gap: var(--space-sm);
   padding: var(--space-lg) var(--gutter);
   border-top: 1px solid var(--line);
@@ -372,4 +373,26 @@ img {
   font-size: 0.72rem;
   letter-spacing: 0.08em;
   color: var(--muted);
+}
+.site-footer__brand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+/* F048 — quiet text-link nav to the content pages (no promo, hover = accent). */
+.site-footer__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.site-footer__link {
+  color: var(--muted);
+  text-decoration: none;
+  transition: color 240ms var(--ease);
+}
+.site-footer__link:hover {
+  color: var(--accent);
 }

@@ -15,6 +15,10 @@ test.describe("faq (자주 묻는 질문)", () => {
     await expect(answer).toBeVisible(); // revealed on click
 
     await expect(page.getByText("환불이 되나요?")).toBeVisible(); // refund topic present
+
+    // F048 — first-visitor product-explanation questions present.
+    await expect(page.getByText("그림책은 어떻게 만들어지나요?")).toBeVisible();
+    await expect(page.getByText("책과 함께 무엇이 오나요?")).toBeVisible();
   });
 
   test("no horizontal overflow at 375px", async ({ page }) => {

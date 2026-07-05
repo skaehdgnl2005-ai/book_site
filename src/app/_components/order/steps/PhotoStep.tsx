@@ -42,6 +42,12 @@ export function PhotoStep({
   return (
     <div className={styles.step}>
       <p className={styles.label} id="order-photo-label">아이 사진 (선택 — 나중에 마이페이지에서 올려도 됩니다)</p>
+      {/* F048 — why we ask: the photo shapes the protagonist's look. Honest scope
+          (참고합니다), no mechanism claims either way. */}
+      <p className={styles.hint} data-testid="order-photo-hint">
+        올려 주신 사진은 이야기 속 주인공의 모습을 담는 데 참고합니다. 지금 없어도 괜찮아요 —
+        결제 후 마이페이지에서 올릴 수 있습니다.
+      </p>
       <input type="file" accept="image/*" data-testid="order-photo-input" aria-labelledby="order-photo-label"
         onChange={onFile} disabled={busy} />
       {draft.photo && <p className={styles.photoStatus} data-testid="order-photo-status">사진 첨부됨</p>}

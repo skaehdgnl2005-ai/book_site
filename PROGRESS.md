@@ -3,6 +3,28 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **Latest (2026-07-05, 저녁): F048 — 제품 설명 레이어 DONE + passing (신규 append, attempt 1/3 → reset).**
+  신규 시장(초개인화 그림책) 첫 방문자를 위한 설명 계층 — 메이커 결정 3건 반영: **AI 언급 최소화**
+  (히어로 아이브로우 "AI 초개인화 그림책" → "초개인화 그림책"; 고객 표면에서 AI 단어 0회, 카피는
+  정직하되 기술을 명세하지 않음), **풀 패키지 범위**, **타이포 중심 비주얼**. 내용: ① 홈에 조용한
+  편집 섹션 2개 — `ProcessSection`("이렇게 만들어집니다" 3단계, 히어로 직후) +
+  `KitSection`("한 권에 담기는 것": 그림책·자석 외함·축하 카드 No.01–03 헤어라인 리스트 + QR
+  정직 카피, 카테고리 섹션 뒤) — `src/app/_components/home/` 네임스페이스, 토큰만 사용(악센트는
+  No. 숫자에만 — DESIGN.md 인가 용법); ② Footer에 콘텐츠 페이지 텍스트 링크 5개(브랜드
+  스토리·갤러리·후기·FAQ·문의 — **기존 고아 페이지 전부 도달 가능해짐**, 모든 페이지 공통);
+  ③ 주문 위저드 맥락 카피(템플릿 블럽 승계 + "자석 외함·축하 카드 기본 포함 — 주문 후 일주일
+  이내 제작" + 사진 용도 힌트 + 커버 한 줄 설명); ④ FAQ 신규 2문항(어떻게 만들어지나요/책과 함께
+  무엇이 오나요 — 기존 스펙의 `/주문 후 일주일 이내/` 유니크 매치 보존); ⑤ `layout.tsx` 한국어
+  메타데이터(lang=ko, title/description/OG ko_KR — 카톡 링크 미리보기가 첫 설명 표면).
+  정직성 가드: 리드타임·커버 선택 카피는 **기념일·첫 순간들 라인 한정**으로 명시(맞춤 제작의
+  리드타임은 상담/양식 기준이라 홈에서 일반화하지 않음); KitSection 미디어는 실물 사진이 없으므로
+  갤러리와 같은 기준의 정직한 `--panel` 매트("실물 사진 준비 중") — `kit-lifestyle.png`(4:5)
+  생성 브리프를 포토 브리프 문서 2026-07-05 부록으로 추가, 도착 시 CategoryCard 패턴으로 교체.
+  검증: `pnpm check` green(199 unit, R1–R10 0 — F048 append는 R9 append-only 허용 경로) +
+  **E2E 전체 97/97**(home.spec F048 테스트 신설, faq/order-start 확장) + `pnpm eval` S1–S11
+  전부 pass(퍼널 무회귀) + perf 예산 유지(home p95 813ms < 2s). `Next:` 메이커가
+  `kit-lifestyle.png` 생성(브리프 부록) → KitSection 매트를 next/image로 교체하는 소품 폴리시;
+  배포는 다음 승인 시 F048이 함께 실림.
 - **Latest (2026-07-05): Home photo hero + category-card media (F002 visual polish — no new
   feature row, no feature_list edits).** Hero now follows DESIGN.md ## Components #2: full-bleed
   art-directed `<picture>` via `getImageProps` (16:9 `hero-desktop.png` ≥720px / 9:16

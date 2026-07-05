@@ -90,3 +90,23 @@ no legible text, no logos --style photorealistic`
   (현재는 라이트 배경용 `ink`/`grey`).
 - 카테고리 카드에 4:5 미디어 블록 추가 (`panel` 배경, radius 0, hover scale 1.03 · 1.2s).
 - 후보를 슬롯당 2~3안 생성해 오면 톤 일관성 기준으로 최종 1안씩 선정 권장.
+
+---
+
+## 부록 (2026-07-05, F048) — 추가 1컷: `kit-lifestyle`
+
+홈 "한 권에 담기는 것"(구성품) 섹션의 미디어 슬롯용. 현재는 정직한 `--panel` 매트
+("실물 사진 준비 중" — 갤러리와 같은 기준)로 출고되었고, 이 컷이 도착하면
+`src/app/_components/home/KitSection.tsx`의 매트를 CategoryCard 패턴의
+`next/image fill`로 교체하면 된다.
+
+- **파일명/위치:** `public/images/kit-lifestyle.png`
+- **크기/비율:** 4:5 세로, 1600×2000 이상 (카테고리 카드와 동일 규격)
+- **장면:** 크림 톤 테이블 위, 아이보리 포장(또는 무지 크라프트) 선물 꾸러미를 여는
+  부모·아이의 손. **실제 제품(자석 외함·카드)의 근접 재현은 금지** — 실물이 아직
+  없으므로 제품 오인을 부르지 않는 "선물을 여는 순간"의 분위기 컷으로 한정한다.
+- **공통 톤 가이드 전부 적용** (자연광·웜 뉴트럴·저채도·판독 가능한 글자 금지·여백).
+- **생성 프롬프트:** "Parent and child hands opening an ivory kraft-wrapped gift
+  bundle on a cream table, soft natural window light, warm neutral tones, minimal
+  quiet composition, editorial lifestyle photography, no legible text, no logos,
+  4:5 vertical --style photorealistic"

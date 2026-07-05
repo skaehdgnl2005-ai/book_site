@@ -4,6 +4,8 @@ import { Footer } from "./_components/Footer";
 import { CtaLink } from "./_components/Button";
 import { SectionHeader } from "./_components/SectionHeader";
 import { CategoryCard } from "./_components/CategoryCard";
+import { ProcessSection } from "./_components/home/ProcessSection";
+import { KitSection } from "./_components/home/KitSection";
 
 // Home — 그림책 제작소 (F002). Full-bleed photo hero + 3-category preview + primary CTA.
 // All styling via DESIGN.md tokens (src/app/globals.css). No DB/payment here.
@@ -40,7 +42,7 @@ export default function HomePage() {
       <section className="hero hero--image" aria-labelledby="hero-title">
         <HeroMedia />
         <div className="hero__content">
-          <p className="eyebrow">AI 초개인화 그림책</p>
+          <p className="eyebrow">초개인화 그림책</p>
           <h1 className="hero__title" id="hero-title">
             세상에 한 아이만을 위해 만들어지는 책
           </h1>
@@ -53,6 +55,9 @@ export default function HomePage() {
       </section>
 
       <main>
+        {/* F048 — first-visitor explainer: how it's made BEFORE the category pick
+            (a new-market visitor needs the concept first), what arrives AFTER it. */}
+        <ProcessSection />
         <section
           className="section"
           aria-labelledby="categories-heading"
@@ -83,6 +88,7 @@ export default function HomePage() {
             />
           </div>
         </section>
+        <KitSection />
       </main>
       <Footer />
     </>
