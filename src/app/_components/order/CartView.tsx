@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { Nav } from "../Nav";
 import { Footer } from "../Footer";
+import { CtaPrimary, TextAction } from "../Button";
+import { TypographicCover } from "../catalog/TypographicCover";
 import { formatWon, COVER_LABEL } from "./format";
-import { loadCart, grandTotalWon, type Cart } from "@/lib/cart";
-import styles from "./order.module.css";
+import { loadCart, saveCart, removeLine, grandTotalWon, type Cart } from "@/lib/cart";
+import styles from "./cart.module.css";
 
 export function CartView() {
   // SSR renders a deterministic empty shell; the real cart is read from localStorage on mount
@@ -17,6 +18,16 @@ export function CartView() {
     setReady(true);
   }, []);
   const isEmpty = cart.lines.length === 0;
+
+  // F051 — immediate, reversible line removal: pure removeLine + persist + re-render.
+  // Reversible because the buyer can re-add from the template in seconds (no server state).
+  function onRemove(lineId: string) {
+    // Side effects (persist + change event) stay OUT of the setState updater —
+    // React can run updaters during render, and saveCart notifies NavClient.
+    const next = removeLine(cart, lineId);
+    saveCart(next);
+    setCart(next);
+  }
 
   return (
     <>
@@ -31,18 +42,34 @@ export function CartView() {
             (isEmpty ? (
               <div className={styles.empty} data-testid="cart-empty">
                 <p>장바구니가 비어 있습니다.</p>
-                <Link className="cta" href="/anniversary">그림책 둘러보기</Link>
+                <CtaPrimary href="/anniversary">그림책 둘러보기</CtaPrimary>
               </div>
             ) : (
               <>
                 {cart.lines.map((line) => (
                   <div key={line.id} className={styles.cartLine} data-testid="cart-line">
-                    <span className={styles.cartLineTitle} data-testid="cart-line-title">{line.templateLabel}</span>
-                    <span className={styles.cartLineMeta} data-testid="cart-line-cover">{COVER_LABEL[line.coverType]}</span>
-                    <span className={styles.cartLineMeta} data-testid="cart-line-person">
-                      {line.personalization.childName} · {line.personalization.childGender === "MALE" ? "남아" : "여아"}
+                    {/* Typographic cover thumbnail — decorative (aria-hidden inside);
+                        the line's visible text carries the announced content. */}
+                    <span className={styles.thumb}>
+                      <TypographicCover title={`「${line.templateLabel}」`} />
                     </span>
-                    <span className={styles.cartLineMeta}>{formatWon(line.unitPriceWon)}</span>
+                    <span className={styles.lineBody}>
+                      <span className={styles.cartLineTitle} data-testid="cart-line-title">{line.templateLabel}</span>
+                      <span className={styles.cartLineMeta} data-testid="cart-line-cover">{COVER_LABEL[line.coverType]}</span>
+                      <span className={styles.cartLineMeta} data-testid="cart-line-person">
+                        {line.personalization.childName} · {line.personalization.childGender === "MALE" ? "남아" : "여아"}
+                      </span>
+                    </span>
+                    <span className={styles.lineEnd}>
+                      <span className={styles.linePrice}>{formatWon(line.unitPriceWon)}</span>
+                      <TextAction
+                        onClick={() => onRemove(line.id)}
+                        data-testid="cart-line-remove"
+                        aria-label={`${line.templateLabel} 삭제`}
+                      >
+                        삭제
+                      </TextAction>
+                    </span>
                   </div>
                 ))}
                 {cart.qrVideoAddon && (
@@ -52,7 +79,14 @@ export function CartView() {
                   <span>총 결제 금액</span>
                   <span className={styles.grandTotal} data-testid="cart-grand-total">{formatWon(grandTotalWon(cart))}</span>
                 </div>
-                <Link className="cta" href="/checkout" data-testid="cart-checkout">결제하기</Link>
+                {/* F051 — on mobile this row pins to the viewport bottom (sticky bar with the
+                    grand total); on desktop it is a plain row. ONE pill either way (#4). */}
+                <div className={styles.payBar} data-testid="cart-paybar">
+                  <span className={styles.payBarTotal} data-testid="cart-paybar-total">
+                    {formatWon(grandTotalWon(cart))}
+                  </span>
+                  <CtaPrimary href="/checkout" data-testid="cart-checkout">결제하기</CtaPrimary>
+                </div>
               </>
             ))}
         </section>

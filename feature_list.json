@@ -644,6 +644,23 @@
       "state": "passing",
       "passes": true,
       "evidence": "2026-07-06 전체 pnpm test:e2e 105/105 passed (기존 102 + F050 신규 3: order-start.spec — ① 스텝 인디케이터 4단계 렌더 + aria-current가 진행/뒤로에 따라 이동, ② 데스크톱 1280px 요약 레일 가시 + 정직한 사전 금액 '43,000원부터' → 이름·커버 선택에 따라 '도윤 · 남아'/'하드커버'/'49,000원'으로 채워짐, ③ 모바일 390px 하단 고정 바에 43,000원+CTA가 뷰포트 안(가려짐 없음, boundingBox 검증)·바 위에서 전체 흐름→장바구니 담기 완주). 기존 계약 무회귀: order-form/photo/cover/qr-addon/cart/checkout-*/order-confirm/mypage-*/nav/a11y(위저드 스텝별 오딧 포함) 전부 green + perf p95 654/745/747ms < 2s. pnpm check green (lint+typecheck+199 unit+constraints R1–R10 0) + pnpm eval S1–S11 전부 pass. 구현: OrderWizard 컴팩트 퍼널 헤더(h1 하나 유지, 책 제목 『탄생』만 세리프 span, 한글 아이브로우 자간 0) + StepIndicator(숫자만 자간, 활성=네이비 1px 밑줄) + 데스크톱 7/5 grid·sticky SummaryRail(TypographicCover 4:5 + OrderSummary 공유 컴포넌트 — ReviewStep 요약 카드와 동일 소스, 데스크톱에선 레일이 대신 표시) + 모바일 <1024px .nav를 fixed 하단 바로(surface+헤어라인, safe-area env(), z-index 20 < 드로어 40/50, 위저드 padding-bottom으로 가려짐 방지). order-line-price는 커버·확인 단계 액션 행으로 이동(한 번에 한 스텝만 렌더 → 유일성 유지, order-cover/qr-addon 계약 그대로). 필 1개/화면 원칙 유지(바에 든 CTA가 그 화면의 유일한 필). 2026-07-06 적대적 리뷰 blocking 수정 게이트 재실행: pnpm check green + 전체 pnpm test:e2e 106/106 passed (F050 신규 4번째: order-start.spec — 모바일 390px에서 하단 액션 바를 fixed→position:sticky(카트 핀 패턴)로 전환해 퍼널 끝에서 풀리며 푸터 F048 콘텐츠 링크가 도달·클릭 가능 검증: 문의 링크 scrollIntoView→toBeInViewport→click→/contact 이동). 함께 수정: chipSub 한글('원') 자간 0.01em→0, funnelTitle font-weight 600 명시(UA 700 회피), dropHint 대비 --grey(4.38:1)→--ink(AA 통과), ReviewStep 확인 스텝 요약을 전 폭 본문에 표시+레일 중복 제거(데스크톱 좌측 빈 프레임 해소), koEyebrow .koEyebrow.koEyebrow 특이도 상승(주입 순서 무관 자간 0), UnderlineField date 힌트 aria-describedby 연결(에러 id와 병합)."
+    },
+    {
+      "id": "F051",
+      "category": "functional",
+      "track": "product",
+      "priority": 2,
+      "description": "카트 라인 삭제(즉시·가역, localStorage) + 카트/체크아웃 시각 위계: 타이포 커버 썸네일, 헤어라인 요약, 모바일 sticky 총액·결제 바",
+      "steps": [
+        "카트 라인에 삭제 액션이 보이고 클릭 시 그 라인만 제거된다",
+        "마지막 라인 삭제 시 빈 카트 상태가 보인다",
+        "카트/체크아웃 라인에 책 커버 썸네일이 보인다",
+        "모바일에서 총액과 결제 CTA가 하단 고정 바에 보인다"
+      ],
+      "verification": "pnpm test:e2e -- cart.spec.ts checkout-start.spec.ts",
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-06 full pnpm test:e2e 106/106 passed (1.4m) incl. cart.spec.ts + checkout-start.spec.ts; pnpm check green (lint+typecheck+unit 201 passed/10 skipped+constraints 0 violations); visual verify at 1440/390: cart line delete + empty state + typographic cover thumbnails + hairline summary + mobile sticky total/pay bar. Re-gated at branch tip (after 5134e7a nav BAG live-sync + 05afb7f onRemove side-effect move) 2026-07-06: pnpm check green (lint+typecheck+unit 201 passed/10 skipped+constraints 0 violations) + full pnpm test:e2e 106/106 passed (1.3m) — evidence now covers the branch tip, not just promote commit 0f075e1"
     }
   ]
 }

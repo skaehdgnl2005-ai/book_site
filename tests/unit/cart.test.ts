@@ -38,6 +38,21 @@ describe("cart model", () => {
     expect(c.lines.map((l) => l.id)).toEqual(["b"]);
   });
 
+  it("removeLine on the last line empties the cart but keeps the order-level QR flag", () => {
+    let c = setQrAddon(addLine(emptyCart(), line("a", "돌", 43000)), true);
+    c = removeLine(c, "a");
+    expect(c.lines).toHaveLength(0);
+    expect(c.qrVideoAddon).toBe(true); // QR is order-level — independent of lines (F051)
+    expect(grandTotalWon(c)).toBe(QR_ADDON_WON);
+  });
+
+  it("removeLine with an unknown id is a no-op and never mutates the input", () => {
+    const before = addLine(emptyCart(), line("a", "돌", 43000));
+    const after = removeLine(before, "nope");
+    expect(after.lines.map((l) => l.id)).toEqual(["a"]);
+    expect(before.lines).toHaveLength(1); // input untouched (immutability contract)
+  });
+
   it("orderName reads '<label>' for one line and '<label> 외 N건' for more", () => {
     expect(orderName(addLine(emptyCart(), line("a", "돌", 43000)))).toBe("돌");
     const two = addLine(addLine(emptyCart(), line("a", "돌", 43000)), line("b", "생일", 49000));
