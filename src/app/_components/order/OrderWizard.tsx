@@ -107,7 +107,7 @@ export function OrderWizard({ template }: { template: CatalogTemplate }) {
             {step === "cover" && <CoverStep template={template} draft={state.draft} unitPriceWon={unitPriceWon} onPatch={patch} onNext={next} onBack={back} />}
             {step === "review" && <ReviewStep template={template} draft={state.draft} unitPriceWon={unitPriceWon} onBack={back} onAddToCart={addToCart} />}
           </section>
-          <SummaryRail template={template} draft={state.draft} stepIndex={state.stepIndex} unitPriceWon={unitPriceWon} />
+          <SummaryRail template={template} draft={state.draft} stepIndex={state.stepIndex} unitPriceWon={unitPriceWon} showSummary={step !== "review"} />
         </div>
       </main>
       <Footer />

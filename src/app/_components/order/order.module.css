@@ -8,10 +8,13 @@
 .funnelHeader { padding: var(--space-lg) 0 var(--space-md); border-bottom: 1px solid var(--line); }
 /* The global .eyebrow tracks +0.18em for UPPERCASE LATIN; this one carries Korean
    (카테고리 · 템플릿) — 자간 0, no uppercase (한글에 양수 자간 금지, DESIGN.md 자간 3단 규칙). */
-.koEyebrow { letter-spacing: 0; text-transform: none; margin-bottom: var(--space-sm); }
+/* Doubled class (.koEyebrow.koEyebrow → specificity 0,2,0) so it beats the global
+   .eyebrow (+0.18em) regardless of stylesheet injection order — 한글에 양수 자간 금지. */
+.koEyebrow.koEyebrow { letter-spacing: 0; text-transform: none; margin-bottom: var(--space-sm); }
 .funnelTitle {
   margin: 0 0 var(--space-sm);
   font-size: clamp(1.5rem, 3.4vw, 2.1rem); /* compact: below the global h1 hero scale */
+  font-weight: 600; /* explicit — else the h1 falls back to UA 700 (palette tops out at 600) */
   line-height: 1.2;
 }
 /* 책 제목 span — the ONLY serif in the header (DESIGN.md signature contrast). */
@@ -87,11 +90,6 @@
 .summaryRow { display: flex; justify-content: space-between; gap: var(--space-sm); font-size: 0.92rem; color: var(--grey); }
 /* F050 — a summary row the buyer hasn't reached yet ("—" / soft base price). */
 .summaryPending { color: var(--muted); }
-/* F050 — the review step's in-column summary copy: ≥1024px the sticky rail already
-   shows the same card (same component), so hide the duplicate there. */
-@media (min-width: 1024px) {
-  .summaryMobileOnly { display: none; }
-}
 
 /* Step nav — quiet text actions on the left, THE one navy pill on the right
    (DESIGN.md #4). Single row even on mobile; the pill may fill the leftover width. */
@@ -103,17 +101,18 @@
   .nav :global(.cta) { flex: 1; text-align: center; }
 }
 
-/* ── F050 — mobile (<1024px): the step's action row becomes a fixed bottom bar
-   (surface tone + top hairline — no shadow, R6) so 금액 + the step CTA stay visible
-   above the fold; iOS home-indicator clearance via env(safe-area-inset-bottom).
-   z-index 20 keeps it under the nav drawer (40/50). The wizard reserves matching
-   bottom space so no control ever hides behind the bar. */
+/* ── F050 — mobile (<1024px): the step's action row pins to the viewport bottom via
+   position:sticky (the cart-track pattern — a pin INSIDE the flow, not a viewport-fixed
+   overlay). It keeps 금액 + the step CTA above the fold while the form scrolls, but
+   releases at the end of the wizard so the footer (F048 콘텐츠 링크) is reachable and
+   never permanently covered. surface tone + top hairline (no shadow, R6); iOS
+   home-indicator clearance via env(safe-area-inset-bottom). z-index 20 keeps it under
+   the nav drawer (40/50). No fixed-bar reservation needed — sticky stays in flow. */
 @media (max-width: 1023px) {
-  .wizard { padding-bottom: 140px; /* fixed-bar height + breathing room (ad-hoc: bar is viewport-fixed, no token maps to its cleared height) */ }
   .nav {
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
-    margin: 0;
-    padding: var(--space-sm) var(--gutter);
+    position: sticky; bottom: 0; z-index: 20;
+    margin-top: var(--space-md);
+    padding: var(--space-sm) 0;
     padding-bottom: calc(var(--space-sm) + env(safe-area-inset-bottom, 0px));
     background: var(--surface);
     border-top: 1px solid var(--line);

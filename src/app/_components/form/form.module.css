@@ -93,7 +93,7 @@
 .chipSub {
   font-family: var(--font-grotesk);
   font-size: 0.78rem;
-  letter-spacing: 0.01em; /* price token — digits, not 한글 */
+  letter-spacing: 0; /* formatWon() 출력은 '원'(한글)을 포함 — 양수 자간 금지 */
   color: var(--muted);
 }
 .chip:has(.overlayInput:checked) {
@@ -202,5 +202,7 @@
 .dropHint {
   font-size: 0.82rem;
   line-height: 1.6;
-  color: var(--grey);
+  /* On the --panel band, --grey gives only 4.38:1 (< WCAG AA 4.5:1); --ink clears it.
+     Hierarchy stays via the lighter weight + smaller size vs .dropTitle. */
+  color: var(--ink);
 }

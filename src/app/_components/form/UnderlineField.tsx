@@ -1,5 +1,11 @@
-import type { InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from "react";
+import { useId, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from "react";
 import styles from "./form.module.css";
+
+/** Merge a caller-supplied aria-describedby (e.g. an error id) with the hint id so both
+ *  are announced — never drop the error reference when a hint is present. */
+function describedBy(passed: string | undefined, hintId: string | null): string | undefined {
+  return [passed, hintId].filter(Boolean).join(" ") || undefined;
+}
 
 /**
  * WP2 — underline text field (DESIGN.md #4: 폼은 밑줄 1줄, :focus = 네이비).
@@ -23,15 +29,21 @@ export function UnderlineField({
   hint,
   ...input
 }: BaseProps & InputHTMLAttributes<HTMLInputElement>) {
+  const hintId = useId();
+  const hasHint = hint != null;
   return (
     <div className={styles.field}>
       <label className={styles.labelWrap}>
         <span className={styles.label} data-testid={labelTestId}>
           {label}
         </span>
-        <input className={styles.input} {...input} />
+        <input
+          className={styles.input}
+          {...input}
+          aria-describedby={describedBy(input["aria-describedby"], hasHint ? hintId : null)}
+        />
       </label>
-      {hint != null ? <p className={styles.hint}>{hint}</p> : null}
+      {hasHint ? <p className={styles.hint} id={hintId}>{hint}</p> : null}
     </div>
   );
 }
@@ -42,15 +54,21 @@ export function UnderlineTextarea({
   hint,
   ...textarea
 }: BaseProps & TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  const hintId = useId();
+  const hasHint = hint != null;
   return (
     <div className={styles.field}>
       <label className={styles.labelWrap}>
         <span className={styles.label} data-testid={labelTestId}>
           {label}
         </span>
-        <textarea className={`${styles.input} ${styles.textarea}`} {...textarea} />
+        <textarea
+          className={`${styles.input} ${styles.textarea}`}
+          {...textarea}
+          aria-describedby={describedBy(textarea["aria-describedby"], hasHint ? hintId : null)}
+        />
       </label>
-      {hint != null ? <p className={styles.hint}>{hint}</p> : null}
+      {hasHint ? <p className={styles.hint} id={hintId}>{hint}</p> : null}
     </div>
   );
 }

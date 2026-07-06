@@ -137,4 +137,20 @@ test.describe("order wizard recomposition (F050)", () => {
     await page.getByTestId("order-add-to-cart").click();
     await page.waitForURL("**/cart");
   });
+
+  test("mobile (390px): the sticky action bar releases at the end so the footer content links stay reachable + clickable", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/order/birth");
+
+    // The last footer row is the F048 content links; scrolled to the very bottom it must
+    // clear the action bar (the sticky pin releases at the end of the funnel) — a real
+    // click has to land on the link and navigate, proving nothing covers it.
+    const footerContact = page.locator("footer.site-footer").getByRole("link", { name: "문의" });
+    await footerContact.scrollIntoViewIfNeeded();
+    await expect(footerContact).toBeInViewport();
+    await footerContact.click();
+    await page.waitForURL("**/contact");
+  });
 });

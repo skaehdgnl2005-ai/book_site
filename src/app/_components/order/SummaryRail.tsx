@@ -90,22 +90,28 @@ export function SummaryRail({
   draft,
   stepIndex,
   unitPriceWon,
+  showSummary = true,
 }: {
   template: CatalogTemplate;
   draft: Draft;
   stepIndex: number;
   unitPriceWon: number;
+  /** false on the 04 확인 step: the review step shows the same card in the working
+   *  column, so the rail keeps only the cover mat to avoid a side-by-side duplicate. */
+  showSummary?: boolean;
 }) {
   return (
     <aside className={styles.rail} aria-label="주문 요약" data-testid="order-summary-rail">
       <TypographicCover title={`「${template.label}」`} kicker="Picture book" />
-      <OrderSummary
-        template={template}
-        draft={draft}
-        stepIndex={stepIndex}
-        unitPriceWon={unitPriceWon}
-        showTitle={false}
-      />
+      {showSummary && (
+        <OrderSummary
+          template={template}
+          draft={draft}
+          stepIndex={stepIndex}
+          unitPriceWon={unitPriceWon}
+          showTitle={false}
+        />
+      )}
     </aside>
   );
 }

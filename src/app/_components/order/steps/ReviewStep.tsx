@@ -17,16 +17,16 @@ export function ReviewStep({
 }) {
   return (
     <div className={styles.step}>
-      {/* F050 — same summary component as the desktop rail (no drift). ≥1024px the
-          sticky rail already shows this card, so the in-column copy hides there
-          (summaryMobileOnly) instead of duplicating the same rows side by side. */}
+      {/* F050 — the 04 확인 summary lives in the working column at every width: it IS the
+          content of the review step, so the desktop left column is never an empty frame.
+          On desktop the rail drops its own summary (SummaryRail showSummary={false} on
+          review) and keeps only the cover mat, so the rows are shown once, never twice. */}
       <OrderSummary
         template={template}
         draft={draft}
         stepIndex={3}
         unitPriceWon={unitPriceWon}
         testId="order-review-summary"
-        className={styles.summaryMobileOnly}
       />
       <div className={styles.nav}>
         <BackAction data-testid="order-back" onClick={onBack} />
