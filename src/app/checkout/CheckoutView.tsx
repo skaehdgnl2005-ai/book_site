@@ -3,6 +3,8 @@ import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Nav } from "../_components/Nav";
 import { Footer } from "../_components/Footer";
+import { CtaPrimary } from "../_components/Button";
+import { TypographicCover } from "../_components/catalog/TypographicCover";
 import { formatWon, COVER_LABEL } from "../_components/order/format";
 import { loadCart, grandTotalWon, type Cart } from "@/lib/cart";
 import { requestTossPayment } from "./_lib/tossClient";
@@ -93,7 +95,7 @@ export function CheckoutView() {
               </div>
             ) : (
               <div className={styles.grid}>
-                <form className={styles.form} onSubmit={onSubmit} noValidate>
+                <form id="checkout-form" className={styles.form} onSubmit={onSubmit} noValidate>
                   <div className={styles.field}>
                     <label className={styles.label} htmlFor="buyer-name">보호자 이름</label>
                     <input
@@ -120,16 +122,18 @@ export function CheckoutView() {
                   {error && (
                     <p className={styles.error} data-testid="checkout-error" role="alert">{error}</p>
                   )}
-                  <button className="cta" type="submit" data-testid="checkout-pay" disabled={submitting}>
-                    {submitting ? "결제 준비 중…" : "결제하기"}
-                  </button>
+                  {/* 문구 원문 보존 (F012) — 톤만 microLabel급으로 낮춤(한글: 자간 0·소문자 유지) */}
                   <p className={styles.note}>TossPayments 테스트(샌드박스) 결제로 진행됩니다.</p>
                 </form>
                 <aside className={styles.summary} aria-label="주문 요약">
                   {cart.lines.map((line) => (
                     <div key={line.id} className={styles.summaryRow}>
-                      <span>{line.templateLabel} · {COVER_LABEL[line.coverType]}</span>
-                      <span>{formatWon(line.unitPriceWon)}</span>
+                      {/* decorative typographic-cover thumb; the row text is the announced content */}
+                      <span className={styles.summaryThumb}>
+                        <TypographicCover title={`「${line.templateLabel}」`} />
+                      </span>
+                      <span className={styles.summaryLabel}>{line.templateLabel} · {COVER_LABEL[line.coverType]}</span>
+                      <span className={styles.summaryPrice}>{formatWon(line.unitPriceWon)}</span>
                     </div>
                   ))}
                   {cart.qrVideoAddon && (
@@ -142,6 +146,22 @@ export function CheckoutView() {
                     </span>
                   </div>
                 </aside>
+                {/* F051 — the ONE pill of the screen. Desktop: a quiet row under the form.
+                    Mobile: pins to the viewport bottom with the grand total (sticky bar).
+                    Submits via form="checkout-form" so it can live outside the <form>. */}
+                <div className={styles.payBar} data-testid="checkout-paybar">
+                  <span className={styles.payBarTotal} data-testid="checkout-paybar-total">
+                    {formatWon(grandTotalWon(cart))}
+                  </span>
+                  <CtaPrimary
+                    type="submit"
+                    form="checkout-form"
+                    data-testid="checkout-pay"
+                    disabled={submitting}
+                  >
+                    {submitting ? "결제 준비 중…" : "결제하기"}
+                  </CtaPrimary>
+                </div>
               </div>
             ))}
         </section>

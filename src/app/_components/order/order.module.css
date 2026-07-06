@@ -1,4 +1,4 @@
-/* order funnel + cart — Atelier Sans. Tokens only (R6: no box-shadow; R7: no pure white/black).
+/* order funnel — Atelier Sans. Tokens only (R6: no box-shadow; R7: no pure white/black).
    Radius 0; depth = tone steps + 1px --line hairlines; serif reserved for book titles. */
 .wizard { padding: var(--space-lg) 0; max-width: 640px; }
 .step { display: flex; flex-direction: column; gap: var(--space-md); }
@@ -56,18 +56,4 @@
   .nav :global(.cta) { flex: 1; text-align: center; }
 }
 
-/* cart */
-.cart { padding: var(--space-lg) 0; max-width: 720px; }
-.cartLine {
-  display: flex; flex-direction: column; gap: var(--space-xs);
-  padding: var(--space-md) 0; border-bottom: 1px solid var(--line);
-}
-.cartLineTitle { font-family: var(--font-serif-ko); font-size: 1.25rem; color: var(--ink); }
-.cartLineMeta { font-size: 0.9rem; color: var(--grey); }
-.cartTotals {
-  display: flex; justify-content: space-between; align-items: baseline;
-  margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--line);
-}
-.grandTotal { font-family: var(--font-grotesk); font-weight: 700; font-size: 1.3rem; color: var(--ink); }
-.empty { display: flex; flex-direction: column; align-items: center; gap: var(--space-md); padding: var(--space-xl) 0; color: var(--grey); }
-.qrTag { margin: var(--space-sm) 0 0; font-size: 0.82rem; color: var(--muted); }
+/* cart styles moved to cart.module.css (F051). */

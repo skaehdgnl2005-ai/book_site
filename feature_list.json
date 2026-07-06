@@ -627,6 +627,23 @@
       "state": "passing",
       "passes": true,
       "evidence": "2026-07-06 pnpm check green (lint+typecheck+unit 199 passed+constraints 0 violations) AND 전체 pnpm test:e2e → 102 passed 0 failed (nav.spec 5/5: BAG 링크 /cart 이동, BAG 1 수량 표시, 햄버거 드로어 열림/이동, Escape 닫힘+aria-expanded 토글, 390px 무랩; Nav 클라이언트 전환 영향권인 cart/order-*/checkout-*/mypage-*/home/a11y 전 스펙 + perf p95<2s 예산 green — home p95 691ms, /anniversary 704ms, /first-moments 717ms). 리뷰 반영: 드로어 한글 링크·닫기 자간 0 수정(DESIGN.md 한글 양수 자간 금지) + 오버레이 내비 상단 스크림 보강 후 재검증"
+    },
+    {
+      "id": "F051",
+      "category": "functional",
+      "track": "product",
+      "priority": 2,
+      "description": "카트 라인 삭제(즉시·가역, localStorage) + 카트/체크아웃 시각 위계: 타이포 커버 썸네일, 헤어라인 요약, 모바일 sticky 총액·결제 바",
+      "steps": [
+        "카트 라인에 삭제 액션이 보이고 클릭 시 그 라인만 제거된다",
+        "마지막 라인 삭제 시 빈 카트 상태가 보인다",
+        "카트/체크아웃 라인에 책 커버 썸네일이 보인다",
+        "모바일에서 총액과 결제 CTA가 하단 고정 바에 보인다"
+      ],
+      "verification": "pnpm test:e2e -- cart.spec.ts checkout-start.spec.ts",
+      "state": "in_progress",
+      "passes": false,
+      "evidence": ""
     }
   ]
 }

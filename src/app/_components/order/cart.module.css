@@ -1,0 +1,54 @@
+/* cart — Atelier Sans. Tokens only (R6: no box-shadow; R7: no pure white/black).
+   Radius 0; depth = tone steps + 1px --line hairlines; serif reserved for book titles.
+   Moved out of order.module.css (F051) so the cart and the order wizard evolve apart. */
+.cart { padding: var(--space-lg) 0; max-width: 720px; }
+
+/* Line = thumb | text | price+remove, divided by hairlines only (no boxes). */
+.cartLine {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-md) 0;
+  border-bottom: 1px solid var(--line);
+}
+.lineBody { display: flex; flex-direction: column; gap: var(--space-xs); flex: 1; min-width: 0; }
+.lineEnd { display: flex; flex-direction: column; align-items: flex-end; gap: var(--space-xs); }
+.cartLineTitle { font-family: var(--font-serif-ko); font-size: 1.25rem; color: var(--ink); }
+.cartLineMeta { font-size: 0.9rem; color: var(--grey); }
+.linePrice { font-family: var(--font-grotesk); font-weight: 600; font-size: 0.95rem; color: var(--ink); }
+
+/* Typographic-cover thumbnail (72×90 = the card mat's 4:5 at keepsake scale — ad-hoc px
+   is the thumb's own scale, with the mat's clamp() paddings/type sized for catalog cards
+   overridden to fit). Decorative: the line's text carries the announced content. */
+.thumb { flex: none; width: 72px; }
+.thumb > span { padding: 6px 4px; }
+.thumb span span { font-size: 0.72rem; line-height: 1.4; }
+
+.cartTotals {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--line);
+}
+.grandTotal { font-family: var(--font-grotesk); font-weight: 600; font-size: 1.3rem; color: var(--ink); }
+.empty { display: flex; flex-direction: column; align-items: center; gap: var(--space-md); padding: var(--space-xl) 0; color: var(--grey); }
+.qrTag { margin: var(--space-sm) 0 0; font-size: 0.82rem; color: var(--muted); }
+
+/* F051 — pay row. Desktop: quiet right-aligned row (the totals row above already shows
+   the amount, so the bar's own total stays hidden). Mobile: pins to the viewport bottom
+   as a sticky bar (surface plate + hairline top — no box-shadow) carrying the grand
+   total + THE one pill of the screen. */
+.payBar { display: flex; justify-content: flex-end; align-items: center; gap: var(--space-sm); margin-top: var(--space-md); }
+.payBarTotal { display: none; font-family: var(--font-grotesk); font-weight: 600; font-size: 1.1rem; color: var(--ink); }
+
+@media (max-width: 640px) {
+  .payBar {
+    position: sticky;
+    bottom: 0;
+    justify-content: space-between;
+    /* full-bleed within <main>'s gutter: stretch to the viewport edges, pad back in */
+    margin: var(--space-md) calc(-1 * var(--gutter)) 0;
+    padding: var(--space-sm) var(--gutter) calc(var(--space-sm) + env(safe-area-inset-bottom));
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+  }
+  .payBarTotal { display: inline; }
+}

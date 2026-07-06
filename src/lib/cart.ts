@@ -44,6 +44,7 @@ export function addLine(cart: Cart, line: CartLine): Cart {
   return { ...cart, lines: [...cart.lines, line] };
 }
 
+/** Drop one line by id (immutable). qrVideoAddon is ORDER-level and survives line removal. */
 export function removeLine(cart: Cart, id: string): Cart {
   return { ...cart, lines: cart.lines.filter((l) => l.id !== id) };
 }
