@@ -627,6 +627,23 @@
       "state": "passing",
       "passes": true,
       "evidence": "2026-07-06 pnpm check green (lint+typecheck+unit 199 passed+constraints 0 violations) AND 전체 pnpm test:e2e → 102 passed 0 failed (nav.spec 5/5: BAG 링크 /cart 이동, BAG 1 수량 표시, 햄버거 드로어 열림/이동, Escape 닫힘+aria-expanded 토글, 390px 무랩; Nav 클라이언트 전환 영향권인 cart/order-*/checkout-*/mypage-*/home/a11y 전 스펙 + perf p95<2s 예산 green — home p95 691ms, /anniversary 704ms, /first-moments 717ms). 리뷰 반영: 드로어 한글 링크·닫기 자간 0 수정(DESIGN.md 한글 양수 자간 금지) + 오버레이 내비 상단 스크림 보강 후 재검증"
+    },
+    {
+      "id": "F050",
+      "category": "functional",
+      "track": "product",
+      "priority": 2,
+      "description": "주문 위저드 리컴포지션: 스텝 인디케이터(01 아이 정보~04 확인, aria-current) + 컴팩트 퍼널 헤더(책 제목 세리프 강조) + 데스크톱 7/5 sticky 주문 요약 레일(타이포 커버+진행 요약) + 모바일 sticky 하단 금액·CTA 바",
+      "steps": [
+        "/order/birth 진입 시 4단계 스텝 인디케이터가 보이고 현재 단계가 표시된다",
+        "데스크톱(≥1024px)에서 우측에 책 커버 매트와 채워지는 주문 요약 레일이 보인다",
+        "모바일(390px)에서 커버 단계부터 하단 고정 바에 금액과 다음 CTA가 보인다",
+        "기존 4단계 흐름·장바구니 담기는 그대로 동작"
+      ],
+      "verification": "pnpm test:e2e -- order-start.spec.ts order-form.spec.ts order-cover.spec.ts",
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-06 전체 pnpm test:e2e 105/105 passed (기존 102 + F050 신규 3: order-start.spec — ① 스텝 인디케이터 4단계 렌더 + aria-current가 진행/뒤로에 따라 이동, ② 데스크톱 1280px 요약 레일 가시 + 정직한 사전 금액 '43,000원부터' → 이름·커버 선택에 따라 '도윤 · 남아'/'하드커버'/'49,000원'으로 채워짐, ③ 모바일 390px 하단 고정 바에 43,000원+CTA가 뷰포트 안(가려짐 없음, boundingBox 검증)·바 위에서 전체 흐름→장바구니 담기 완주). 기존 계약 무회귀: order-form/photo/cover/qr-addon/cart/checkout-*/order-confirm/mypage-*/nav/a11y(위저드 스텝별 오딧 포함) 전부 green + perf p95 654/745/747ms < 2s. pnpm check green (lint+typecheck+199 unit+constraints R1–R10 0) + pnpm eval S1–S11 전부 pass. 구현: OrderWizard 컴팩트 퍼널 헤더(h1 하나 유지, 책 제목 『탄생』만 세리프 span, 한글 아이브로우 자간 0) + StepIndicator(숫자만 자간, 활성=네이비 1px 밑줄) + 데스크톱 7/5 grid·sticky SummaryRail(TypographicCover 4:5 + OrderSummary 공유 컴포넌트 — ReviewStep 요약 카드와 동일 소스, 데스크톱에선 레일이 대신 표시) + 모바일 <1024px .nav를 fixed 하단 바로(surface+헤어라인, safe-area env(), z-index 20 < 드로어 40/50, 위저드 padding-bottom으로 가려짐 방지). order-line-price는 커버·확인 단계 액션 행으로 이동(한 번에 한 스텝만 렌더 → 유일성 유지, order-cover/qr-addon 계약 그대로). 필 1개/화면 원칙 유지(바에 든 CTA가 그 화면의 유일한 필)."
     }
   ]
 }

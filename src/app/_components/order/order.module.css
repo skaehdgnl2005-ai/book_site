@@ -1,7 +1,60 @@
 /* order funnel + cart — Atelier Sans. Tokens only (R6: no box-shadow; R7: no pure white/black).
    Radius 0; depth = tone steps + 1px --line hairlines; serif reserved for book titles. */
-.wizard { padding: var(--space-lg) 0; max-width: 640px; }
+.wizard { padding: var(--space-md) 0 var(--space-lg); max-width: 640px; }
 .step { display: flex; flex-direction: column; gap: var(--space-md); }
+
+/* ── F050 — compact funnel header (the funnel is a work surface, not a landing page):
+   short top offset instead of the full --section hero, closed by a hairline. */
+.funnelHeader { padding: var(--space-lg) 0 var(--space-md); border-bottom: 1px solid var(--line); }
+/* The global .eyebrow tracks +0.18em for UPPERCASE LATIN; this one carries Korean
+   (카테고리 · 템플릿) — 자간 0, no uppercase (한글에 양수 자간 금지, DESIGN.md 자간 3단 규칙). */
+.koEyebrow { letter-spacing: 0; text-transform: none; margin-bottom: var(--space-sm); }
+.funnelTitle {
+  margin: 0 0 var(--space-sm);
+  font-size: clamp(1.5rem, 3.4vw, 2.1rem); /* compact: below the global h1 hero scale */
+  line-height: 1.2;
+}
+/* 책 제목 span — the ONLY serif in the header (DESIGN.md signature contrast). */
+.funnelBookTitle { font-family: var(--font-serif-ko); font-weight: 400; letter-spacing: -0.005em; }
+
+/* ── F050 — desktop ≥1024px: 7/5 asymmetric split (DESIGN.md ## Layout), form column
+   left / sticky order-summary rail right. Single column below 1024px (rail hidden —
+   the fixed bottom action bar carries 금액+CTA instead). */
+.rail { display: none; }
+@media (min-width: 1024px) {
+  .layout {
+    display: grid;
+    grid-template-columns: 7fr 5fr;
+    column-gap: var(--space-xl);
+    align-items: start;
+  }
+  .rail {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-md);
+    position: sticky;
+    top: var(--space-lg);
+    padding: var(--space-md) 0 var(--space-lg);
+  }
+}
+
+/* F050 — step indicator: grotesk structure; tracking ONLY on the Latin numerals, Korean
+   labels at 자간 0. Active = navy + 1px navy underline 7px below (DESIGN.md navLink). */
+.stepIndicator {
+  display: flex; flex-wrap: wrap; gap: var(--space-sm) var(--space-md);
+  margin: 0 0 var(--space-md); padding: 0 0 var(--space-sm); list-style: none;
+  border-bottom: 1px solid var(--line);
+}
+.stepItem {
+  display: inline-flex; align-items: baseline; gap: var(--space-xs);
+  padding-bottom: 7px; border-bottom: 1px solid transparent;
+  font-family: var(--font-grotesk);
+}
+.stepNum { font-weight: 600; font-size: 0.62rem; letter-spacing: 0.2em; color: var(--muted); }
+.stepLabel { font-weight: 500; font-size: 0.78rem; letter-spacing: 0; color: var(--grey); }
+.stepItemActive { border-bottom-color: var(--accent); }
+.stepItemActive .stepNum,
+.stepItemActive .stepLabel { color: var(--accent); }
 
 .field { display: flex; flex-direction: column; gap: var(--space-xs); border: 0; margin: 0; padding: 0; }
 /* WP2 — matches the form-kit label (grotesk 500 · 자간 0: 한글 라벨에 양수 자간 금지).
@@ -23,10 +76,6 @@
 /* WP2 — chip row (the chips themselves live in form/ChoiceChip). */
 .choices { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
 
-.linePrice {
-  font-family: var(--font-grotesk); font-weight: 600; font-size: 1.1rem; color: var(--ink);
-  padding-top: var(--space-sm); border-top: 1px solid var(--line);
-}
 .qrNote { margin: 0; font-size: 0.82rem; color: var(--muted); }
 .photoStatus { margin: 0; font-family: var(--font-grotesk); font-size: 0.9rem; color: var(--accent); }
 
@@ -36,13 +85,39 @@
 }
 .summaryTitle { font-family: var(--font-serif-ko); font-size: 1.2rem; color: var(--ink); }
 .summaryRow { display: flex; justify-content: space-between; gap: var(--space-sm); font-size: 0.92rem; color: var(--grey); }
+/* F050 — a summary row the buyer hasn't reached yet ("—" / soft base price). */
+.summaryPending { color: var(--muted); }
+/* F050 — the review step's in-column summary copy: ≥1024px the sticky rail already
+   shows the same card (same component), so hide the duplicate there. */
+@media (min-width: 1024px) {
+  .summaryMobileOnly { display: none; }
+}
 
 /* Step nav — quiet text actions on the left, THE one navy pill on the right
    (DESIGN.md #4). Single row even on mobile; the pill may fill the leftover width. */
 .nav { display: flex; align-items: center; justify-content: space-between; gap: var(--space-sm); margin-top: var(--space-md); }
 .navGroup { display: flex; align-items: center; gap: var(--space-sm); flex: 1; justify-content: flex-end; }
+/* F050 — live 금액 beside the step's primary CTA (grotesk price, DESIGN.md typography.price). */
+.navPrice { margin: 0; font-family: var(--font-grotesk); font-weight: 600; font-size: 1.05rem; color: var(--ink); }
 @media (max-width: 480px) {
   .nav :global(.cta) { flex: 1; text-align: center; }
+}
+
+/* ── F050 — mobile (<1024px): the step's action row becomes a fixed bottom bar
+   (surface tone + top hairline — no shadow, R6) so 금액 + the step CTA stay visible
+   above the fold; iOS home-indicator clearance via env(safe-area-inset-bottom).
+   z-index 20 keeps it under the nav drawer (40/50). The wizard reserves matching
+   bottom space so no control ever hides behind the bar. */
+@media (max-width: 1023px) {
+  .wizard { padding-bottom: 140px; /* fixed-bar height + breathing room (ad-hoc: bar is viewport-fixed, no token maps to its cleared height) */ }
+  .nav {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    margin: 0;
+    padding: var(--space-sm) var(--gutter);
+    padding-bottom: calc(var(--space-sm) + env(safe-area-inset-bottom, 0px));
+    background: var(--surface);
+    border-top: 1px solid var(--line);
+  }
 }
 
 /* cart */

@@ -1,8 +1,9 @@
 "use client";
 import type { CatalogTemplate } from "../../catalog/templates";
-import { formatWon, COVER_LABEL } from "../format";
+import { formatWon } from "../format";
 import type { Draft } from "../OrderWizard";
 import { BackAction, CtaPrimary } from "../../Button";
+import { OrderSummary } from "../SummaryRail";
 import styles from "../order.module.css";
 
 export function ReviewStep({
@@ -16,17 +17,23 @@ export function ReviewStep({
 }) {
   return (
     <div className={styles.step}>
-      <div className={styles.summary} data-testid="order-review-summary">
-        <span className={styles.summaryTitle}>{template.label}</span>
-        <span className={styles.summaryRow}><span>아이</span><span>{draft.childName} · {draft.childGender === "MALE" ? "남아" : "여아"}</span></span>
-        <span className={styles.summaryRow}><span>커버</span><span>{COVER_LABEL[draft.coverType]}</span></span>
-        <span className={styles.summaryRow}><span>사진</span><span>{draft.photo ? "첨부됨" : "나중에 올리기"}</span></span>
-        <span className={styles.summaryRow}><span>QR 영상</span><span>{draft.qrVideoAddon ? "옵션 추가 (요금 추후 안내)" : "미포함"}</span></span>
-        <span className={styles.summaryRow}><span>금액</span><span>{formatWon(unitPriceWon)}</span></span>
-      </div>
+      {/* F050 — same summary component as the desktop rail (no drift). ≥1024px the
+          sticky rail already shows this card, so the in-column copy hides there
+          (summaryMobileOnly) instead of duplicating the same rows side by side. */}
+      <OrderSummary
+        template={template}
+        draft={draft}
+        stepIndex={3}
+        unitPriceWon={unitPriceWon}
+        testId="order-review-summary"
+        className={styles.summaryMobileOnly}
+      />
       <div className={styles.nav}>
         <BackAction data-testid="order-back" onClick={onBack} />
-        <CtaPrimary data-testid="order-add-to-cart" onClick={onAddToCart}>장바구니에 담기</CtaPrimary>
+        <div className={styles.navGroup}>
+          <p className={styles.navPrice} data-testid="order-line-price">{formatWon(unitPriceWon)}</p>
+          <CtaPrimary data-testid="order-add-to-cart" onClick={onAddToCart}>장바구니에 담기</CtaPrimary>
+        </div>
       </div>
     </div>
   );

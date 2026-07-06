@@ -39,11 +39,14 @@ export function CoverStep({
         checked={draft.qrVideoAddon} onChange={(e) => onPatch({ qrVideoAddon: e.target.checked })} />
       {draft.qrVideoAddon && <p className={styles.qrNote} data-testid="order-qr-note">기본 미포함 · 요금 추후 안내</p>}
 
-      <p className={styles.linePrice} data-testid="order-line-price">{formatWon(unitPriceWon)}</p>
-
+      {/* F050 — the live line price sits in the action row (the mobile fixed bar shows
+          금액 + CTA together from this step on; desktop reads it inline + in the rail). */}
       <div className={styles.nav}>
         <BackAction data-testid="order-back" onClick={onBack} />
-        <CtaPrimary data-testid="order-next" onClick={onNext}>다음</CtaPrimary>
+        <div className={styles.navGroup}>
+          <p className={styles.navPrice} data-testid="order-line-price">{formatWon(unitPriceWon)}</p>
+          <CtaPrimary data-testid="order-next" onClick={onNext}>다음</CtaPrimary>
+        </div>
       </div>
     </div>
   );

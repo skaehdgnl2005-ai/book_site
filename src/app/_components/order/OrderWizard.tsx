@@ -10,7 +10,16 @@ import { InfoStep } from "./steps/InfoStep";
 import { PhotoStep } from "./steps/PhotoStep";
 import { CoverStep } from "./steps/CoverStep";
 import { ReviewStep } from "./steps/ReviewStep";
+import { StepIndicator } from "./StepIndicator";
+import { SummaryRail } from "./SummaryRail";
 import styles from "./order.module.css";
+
+// F050 — compact funnel-header eyebrow: category + template, in Korean. (Rendered with
+// letter-spacing 0 via styles.koEyebrow — the global .eyebrow tracking is for Latin.)
+const CATEGORY_LABEL: Record<CatalogTemplate["category"], string> = {
+  ANNIVERSARY: "기념일",
+  FIRST_MOMENT: "첫 순간들",
+};
 
 export type Draft = {
   childName: string;
@@ -71,9 +80,16 @@ export function OrderWizard({ template }: { template: CatalogTemplate }) {
     <>
       <Nav />
       <main>
-        <section className="hero" aria-labelledby="order-title">
-          <p className="eyebrow">{template.label}</p>
-          <h1 className="hero__title" id="order-title">주문 만들기</h1>
+        {/* F050 — compact funnel header (replaces the tall .hero): the funnel is a work
+            surface, not a landing page. One h1 (a11y heading order): the 책 제목 alone is
+            serif — the DESIGN.md signature contrast — the rest stays grotesk. */}
+        <section className={styles.funnelHeader} aria-labelledby="order-title">
+          <p className={`eyebrow ${styles.koEyebrow}`}>
+            {CATEGORY_LABEL[template.category]} · {template.label}
+          </p>
+          <h1 className={styles.funnelTitle} id="order-title">
+            <span className={styles.funnelBookTitle}>『{template.label}』</span> 주문 만들기
+          </h1>
           {/* F048 — carry the template's story blurb into the funnel + say what's
               in the box and when it ships (entry line), before any field is asked. */}
           <p className={styles.contextBlurb}>{template.blurb}</p>
@@ -81,12 +97,18 @@ export function OrderWizard({ template }: { template: CatalogTemplate }) {
             자석 외함 · 축하 카드 기본 포함 — 주문 후 일주일 이내 제작해 보내 드립니다
           </p>
         </section>
-        <section className={styles.wizard} data-testid="order-wizard" data-step={step} aria-label="주문 단계">
-          {step === "info" && <InfoStep template={template} draft={state.draft} onPatch={patch} onNext={next} />}
-          {step === "photo" && <PhotoStep draft={state.draft} onPatch={patch} onNext={next} onBack={back} />}
-          {step === "cover" && <CoverStep template={template} draft={state.draft} unitPriceWon={unitPriceWon} onPatch={patch} onNext={next} onBack={back} />}
-          {step === "review" && <ReviewStep template={template} draft={state.draft} unitPriceWon={unitPriceWon} onBack={back} onAddToCart={addToCart} />}
-        </section>
+        {/* F050 — desktop ≥1024px: 7/5 split (DESIGN.md asymmetric rhythm) — the form
+            column left, the sticky book/summary rail right. Single column below. */}
+        <div className={styles.layout}>
+          <section className={styles.wizard} data-testid="order-wizard" data-step={step} aria-label="주문 단계">
+            <StepIndicator stepIndex={state.stepIndex} />
+            {step === "info" && <InfoStep template={template} draft={state.draft} onPatch={patch} onNext={next} />}
+            {step === "photo" && <PhotoStep draft={state.draft} onPatch={patch} onNext={next} onBack={back} />}
+            {step === "cover" && <CoverStep template={template} draft={state.draft} unitPriceWon={unitPriceWon} onPatch={patch} onNext={next} onBack={back} />}
+            {step === "review" && <ReviewStep template={template} draft={state.draft} unitPriceWon={unitPriceWon} onBack={back} onAddToCart={addToCart} />}
+          </section>
+          <SummaryRail template={template} draft={state.draft} stepIndex={state.stepIndex} unitPriceWon={unitPriceWon} />
+        </div>
       </main>
       <Footer />
     </>
