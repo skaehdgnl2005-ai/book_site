@@ -22,11 +22,11 @@ export function CartView() {
   // F051 — immediate, reversible line removal: pure removeLine + persist + re-render.
   // Reversible because the buyer can re-add from the template in seconds (no server state).
   function onRemove(lineId: string) {
-    setCart((prev) => {
-      const next = removeLine(prev, lineId);
-      saveCart(next);
-      return next;
-    });
+    // Side effects (persist + change event) stay OUT of the setState updater —
+    // React can run updaters during render, and saveCart notifies NavClient.
+    const next = removeLine(cart, lineId);
+    saveCart(next);
+    setCart(next);
   }
 
   return (
