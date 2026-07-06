@@ -3,7 +3,25 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- **Latest (2026-07-06): UI 개선 Wave 1 — 병렬 3트랙 구현·머지 DONE (WP1 CTA체계 · WP5 타이포 커버 · F049 내비 BAG+드로어).**
+- **Latest (2026-07-06, 오후): UI 개선 Wave 2 — 병렬 3트랙 구현·머지 DONE (WP2 폼 키트 · F050 위저드 리컴포지션 · F051 카트 삭제+폴리시 · WP8 콘텐츠).**
+  Wave 1과 같은 멀티에이전트 패턴(워크트리 병렬 → E2E 직렬 → 적대적 리뷰 → 수정 라운드; 중간에
+  세션 한도/크레딧 소진 2회로 resume + 슬림 마무리 워크플로우로 이어 완주). 내용: ① WP2 —
+  `_components/form/` 키트 4종(UnderlineField·ChoiceChip·ToggleRow·FileDrop, input은 opacity:0
+  오버레이로 Playwright/키보드 계약 보존) → 위저드·ContactForm·MypageLookup 적용(네이티브 컨트롤
+  해소); ② **F050(passing)** — 스텝 인디케이터(aria-current)+컴팩트 퍼널 헤더(『탄생』 세리프
+  강조)+데스크톱 7/5 sticky 요약 레일(타이포 커버+진행 요약)+모바일 sticky 하단 금액·CTA 바;
+  ③ **F051(passing)** — 카트 라인 삭제(removeLine 재사용)+타이포 커버 썸네일+헤어라인 요약+모바일
+  sticky 총액 바, 검증 중 실버그 2건 발견·수정(BAG 배지 stale → cart-changed 이벤트+NavClient
+  구독, onRemove setState-in-render); ④ WP8 — brand-story/custom/reviews 4/8 비대칭 분할,
+  FAQ +/– 아코디언 어포던스, 80% 스탯 탈박스, custom 경로 카드 → 어포던스. 리뷰 blocking 7건
+  전부 수정(한글 자간 재발 chipSub, funnelTitle weight 700, 확인 스텝 데스크톱 빈 칼럼, dropHint
+  대비 AA 미달, **모바일 fixed 바의 푸터 가림 → sticky 전환+390px 푸터 도달성 E2E 신설**, F051
+  stale evidence 재게이트). 머지: funnel→content→cart, 충돌 2파일(feature_list F050/F051 append,
+  order.module.css cart 구간 이전) 수동 해소 → **통합 게이트: 전체 E2E 110/110 + eval S1–S11
+  pass + perf p95 유지**. `Next:` Wave 3 = WP7 모바일 글로벌 패스(전역 토큰이라 단독 트랙) +
+  잔여 nit(FinishingClient 폼 키트 통일, 활성 내비 aria-current, 카테고리 eyebrow 한글 자간,
+  콘텐츠 split 공용 컴포넌트화 후보). 이후 UI 플랜 8개 WP 전체 완료 — 배포는 별도 승인.
+- **(2026-07-06): UI 개선 Wave 1 — 병렬 3트랙 구현·머지 DONE (WP1 CTA체계 · WP5 타이포 커버 · F049 내비 BAG+드로어).**
   UI 플랜(아래 항목)의 Wave 1을 트랙별 git worktree 병렬로 실행(멀티에이전트: 구현 3 ∥ →
   E2E 직렬(포트 3000) → 적대적 리뷰 6(design/contract) → 수정 3). 내용: ① WP1 —
   Button.tsx에 CtaPrimary/TextAction/BackAction 3종, 위저드 박스형 뒤로·건너뛰기를 텍스트
