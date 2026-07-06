@@ -43,7 +43,12 @@ export default function CustomLandingPage() {
                   <span className={styles.pathNo} aria-hidden="true">
                     No. 01
                   </span>
-                  <span className={styles.pathTitle}>전화로 상담 예약하기</span>
+                  <span className={styles.pathTitleRow}>
+                    <span className={styles.pathTitle}>전화로 상담 예약하기</span>
+                    <span className={styles.pathArrow} aria-hidden="true">
+                      →
+                    </span>
+                  </span>
                   <span className={styles.pathDesc}>
                     캘린더에서 원하는 시간을 고르면 상담사가 전화로 의뢰서를 함께 채웁니다. 글로 적기
                     어려우신 분께. <strong>예약은 무료 — 결제는 상담 후</strong>.
@@ -53,7 +58,12 @@ export default function CustomLandingPage() {
                   <span className={styles.pathNo} aria-hidden="true">
                     No. 02
                   </span>
-                  <span className={styles.pathTitle}>직접 작성하기</span>
+                  <span className={styles.pathTitleRow}>
+                    <span className={styles.pathTitle}>직접 작성하기</span>
+                    <span className={styles.pathArrow} aria-hidden="true">
+                      →
+                    </span>
+                  </span>
                   <span className={styles.pathDesc}>
                     6개 묶음 의뢰서를 차분히 직접 작성합니다. 밤에 천천히 적고 싶은 분께.{" "}
                     <strong>결제 후 제작 시작</strong>.
