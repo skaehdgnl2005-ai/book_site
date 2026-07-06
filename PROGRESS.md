@@ -3,7 +3,25 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- **Latest (2026-07-06, 오후): UI 개선 Wave 2 — 병렬 3트랙 구현·머지 DONE (WP2 폼 키트 · F050 위저드 리컴포지션 · F051 카트 삭제+폴리시 · WP8 콘텐츠).**
+- **Latest (2026-07-06, 저녁): UI 개선 Wave 3 — WP7 모바일 글로벌 패스 DONE → UI 플랜 8개 WP 전체 완료.**
+  전역 토큰을 만지는 단독 트랙(워크트리 병렬 불필요). impl 에이전트가 Fable 5 월 한도로 커밋
+  직전 사망 → **모델 Opus로 전환해 미커밋 24파일 작업을 복구·검증·커밋**(임시 스크린샷 스펙 제거
+  후 게이트 통과 확인). 내용: ① globals.css `--section` 모바일 하한 72→48px(DESIGN.md
+  spacing+Layout 동기 갱신 — P6 히어로 과대 여백); ② 터치 타깃 ≥44px(.nav-link·워드마크·푸터
+  링크에 padding+음수마진 상쇄 — 밀도 불변); ③ **한글 eyebrow 자간 전수 교정** — order의
+  `.koEyebrow` 이중클래스 핵을 globals의 재사용 `.eyebrow--ko`로 승격, 전 페이지 적용; ④ 활성
+  내비 — NavClient `usePathname`로 `aria-current="page"`(서브패스 포함) + DESIGN Nav 스펙
+  네이비+7px 밑줄(오버레이는 on-dark); ⑤ FinishingClient 폼 키트 통일 — 파일 인풋→FileDrop,
+  textarea→UnderlineTextarea, 아이템별 저장 `.cta` 필→TextAction(화면당 필 1개, testid 전부
+  포워딩 보존); ⑥ `accent-color:var(--accent)` 전역(네이티브 컨트롤 시스템 파랑 제거). 적대적
+  리뷰 design blocking 1건(orders 확인 페이지 `.meta` 한글 자간 0.04em — WP7이 놓친 퍼널 페이지)
+  수정(`c111f70`), contract approve. 머지 충돌 0 → **통합 게이트: check 0위반 + 전체 E2E 110/110
+  + eval S1–S11 pass + perf p95<2s**. 남은 nit(비차단): `.nav-link` 자간 0이 라틴 'BAG'의
+  트래킹도 제거(사소), FinishingClient 화면에 primary 필 0개(아이템별 작업면이라 의도적).
+  **`Next:` UI 플랜(docs/superpowers/specs/2026-07-05-ui-overhaul-plan-design.md) 8개 WP 전부
+  완료 — 배포는 별도 승인 시(pnpm approve deploy.production). 배포 시 F049/F050/F051 + 전 UI
+  개선이 함께 라이브.**
+- **(2026-07-06, 오후): UI 개선 Wave 2 — 병렬 3트랙 구현·머지 DONE (WP2 폼 키트 · F050 위저드 리컴포지션 · F051 카트 삭제+폴리시 · WP8 콘텐츠).**
   Wave 1과 같은 멀티에이전트 패턴(워크트리 병렬 → E2E 직렬 → 적대적 리뷰 → 수정 라운드; 중간에
   세션 한도/크레딧 소진 2회로 resume + 슬림 마무리 워크플로우로 이어 완주). 내용: ① WP2 —
   `_components/form/` 키트 4종(UnderlineField·ChoiceChip·ToggleRow·FileDrop, input은 opacity:0
