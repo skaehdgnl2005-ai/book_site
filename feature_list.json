@@ -643,7 +643,7 @@
       "verification": "pnpm test:e2e -- cart.spec.ts checkout-start.spec.ts",
       "state": "passing",
       "passes": true,
-      "evidence": "2026-07-06 full pnpm test:e2e 106/106 passed (1.4m) incl. cart.spec.ts + checkout-start.spec.ts; pnpm check green (lint+typecheck+unit 201 passed/10 skipped+constraints 0 violations); visual verify at 1440/390: cart line delete + empty state + typographic cover thumbnails + hairline summary + mobile sticky total/pay bar"
+      "evidence": "2026-07-06 full pnpm test:e2e 106/106 passed (1.4m) incl. cart.spec.ts + checkout-start.spec.ts; pnpm check green (lint+typecheck+unit 201 passed/10 skipped+constraints 0 violations); visual verify at 1440/390: cart line delete + empty state + typographic cover thumbnails + hairline summary + mobile sticky total/pay bar. Re-gated at branch tip (after 5134e7a nav BAG live-sync + 05afb7f onRemove side-effect move) 2026-07-06: pnpm check green (lint+typecheck+unit 201 passed/10 skipped+constraints 0 violations) + full pnpm test:e2e 106/106 passed (1.3m) — evidence now covers the branch tip, not just promote commit 0f075e1"
     }
   ]
 }
