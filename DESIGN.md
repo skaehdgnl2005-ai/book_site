@@ -45,7 +45,7 @@ spacing:                      # 8px 베이스, 큰 배수만 사용
   md: 24px
   lg: 48px
   xl: 80px
-  section: "clamp(72px,11vw,160px)"   # 섹션 수직 패딩
+  section: "clamp(48px,11vw,160px)"   # 섹션 수직 패딩 (모바일 하한 48px — WP7)
   gutter:  "clamp(20px,6vw,120px)"    # 외곽 여백(히어로/다크밴드만 풀블리드)
   maxWidth: 1280px
   gridCol: "clamp(20px,2.6vw,40px)"   # 상품 그리드 열간
@@ -122,7 +122,7 @@ YEOBAEK BOOKS의 **Atelier Sans**는 "절제된 고급 럭셔리 — 비싸 보�
 
 ## Layout
 
-12컬럼 사고, **콘텐츠 max-width 1280px**, 외곽 여백 `gutter`(80~120px desktop) — 본문은 절대 뷰포트 가장자리에 닿지 않는다. **히어로 이미지와 다크 에디토리얼 밴드만 풀블리드.** 섹션 수직 패딩은 `section`(96~160px desktop / 72px mobile).
+12컬럼 사고, **콘텐츠 max-width 1280px**, 외곽 여백 `gutter`(80~120px desktop) — 본문은 절대 뷰포트 가장자리에 닿지 않는다. **히어로 이미지와 다크 에디토리얼 밴드만 풀블리드.** 섹션 수직 패딩은 `section`(96~160px desktop / 48px mobile).
 
 비대칭 분할이 이 시안의 리듬이다: 인트로 **4/8**(좌측 sticky 라벨 / 우측 큰 산세 문장), 피처 **7/5**(이미지/텍스트), 컬렉션 헤드 **5/7**. 상품 그리드는 **타이트한 3단**(`gridCol` 열간 / `gridRow` 행간, **행간 > 열간**), 태블릿 2단·모바일 1단. 컬렉션 노트는 세로/가로 1px 헤어라인으로 칸을 나눈 3단 인덱스.
 

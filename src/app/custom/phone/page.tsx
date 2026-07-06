@@ -46,7 +46,7 @@ export default function PhonePage() {
       <Nav />
       <main>
         <section className="section" aria-labelledby="phone-title">
-          <p className="eyebrow">Full custom · 전화 상담</p>
+          <p className="eyebrow eyebrow--ko">Full custom · 전화 상담</p>
           <h1 id="phone-title">전화 상담 예약</h1>
           <p className={styles.lead}>
             원하는 시간을 고르시면 상담사가 전화로 6묶음 의뢰서를 함께 작성합니다. 예약은

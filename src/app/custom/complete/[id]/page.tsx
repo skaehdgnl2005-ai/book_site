@@ -66,7 +66,7 @@ export default async function CustomCompletePage({
       <Nav />
       <main>
         <section className="section" aria-labelledby="complete-title">
-          <p className="eyebrow">{eyebrow}</p>
+          <p className="eyebrow eyebrow--ko">{eyebrow}</p>
           <h1 id="complete-title">{heading}</h1>
 
           <dl className={styles.summary}>

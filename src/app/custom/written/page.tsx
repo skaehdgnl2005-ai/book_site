@@ -16,7 +16,7 @@ export default function WrittenPage() {
       <Nav />
       <main>
         <section className="section" aria-labelledby="written-title">
-          <p className="eyebrow">Full custom · 직접 작성</p>
+          <p className="eyebrow eyebrow--ko">Full custom · 직접 작성</p>
           <h1 id="written-title">의뢰서 작성</h1>
           <p className={styles.lead}>
             6개 묶음으로 차근차근 적어 주세요. 빈칸은 비워 두셔도 됩니다. 결제 후 제작이 시작되며,

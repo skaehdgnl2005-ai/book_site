@@ -9,7 +9,7 @@
   margin-top: var(--space-sm);
   font-family: var(--font-grotesk);
   font-size: 0.7rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  letter-spacing: 0; /* 한글 캡션(… · 준비 중) — 양수 자간 금지 (WP7) */
+  text-transform: none;
   color: var(--muted);
 }

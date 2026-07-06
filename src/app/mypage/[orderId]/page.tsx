@@ -36,7 +36,7 @@ export default async function MypageOrderPage({ params }: { params: Promise<{ or
         <Nav />
         <main>
           <section className="hero" aria-labelledby="mypage-gate-title">
-            <p className="eyebrow">마이페이지</p>
+            <p className="eyebrow eyebrow--ko">마이페이지</p>
             <h1 className="hero__title" id="mypage-gate-title" data-testid="mypage-access-prompt">
               주문을 먼저 조회해 주세요
             </h1>
@@ -60,7 +60,7 @@ export default async function MypageOrderPage({ params }: { params: Promise<{ or
       <Nav />
       <main>
         <section className="hero" aria-labelledby="mypage-title">
-          <p className="eyebrow">마이페이지</p>
+          <p className="eyebrow eyebrow--ko">마이페이지</p>
           <h1 className="hero__title" id="mypage-title">책 마무리하기</h1>
           <p className={styles.meta} data-testid="mypage-order-id">주문번호 {order.id}</p>
           <p className={styles.statusRow}>

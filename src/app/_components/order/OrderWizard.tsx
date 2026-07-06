@@ -15,7 +15,7 @@ import { SummaryRail } from "./SummaryRail";
 import styles from "./order.module.css";
 
 // F050 — compact funnel-header eyebrow: category + template, in Korean. (Rendered with
-// letter-spacing 0 via styles.koEyebrow — the global .eyebrow tracking is for Latin.)
+// letter-spacing 0 via the global .eyebrow--ko; styles.koEyebrow keeps the compact margin.)
 const CATEGORY_LABEL: Record<CatalogTemplate["category"], string> = {
   ANNIVERSARY: "기념일",
   FIRST_MOMENT: "첫 순간들",
@@ -84,7 +84,7 @@ export function OrderWizard({ template }: { template: CatalogTemplate }) {
             surface, not a landing page. One h1 (a11y heading order): the 책 제목 alone is
             serif — the DESIGN.md signature contrast — the rest stays grotesk. */}
         <section className={styles.funnelHeader} aria-labelledby="order-title">
-          <p className={`eyebrow ${styles.koEyebrow}`}>
+          <p className={`eyebrow eyebrow--ko ${styles.koEyebrow}`}>
             {CATEGORY_LABEL[template.category]} · {template.label}
           </p>
           <h1 className={styles.funnelTitle} id="order-title">

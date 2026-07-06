@@ -34,7 +34,8 @@
   --space-md: 24px;
   --space-lg: 48px;
   --space-xl: 80px;
-  --section: clamp(72px, 11vw, 160px);
+  /* Mobile floor 48px (WP7 — UI 리뷰 P6: 390px 히어로 과대 여백); desktop unchanged. */
+  --section: clamp(48px, 11vw, 160px);
   --gutter: clamp(20px, 6vw, 120px);
   --max-width: 1280px;
   --grid-col: clamp(20px, 2.6vw, 40px);
@@ -63,6 +64,9 @@ body {
   line-height: 1.7;
   /* Korean body copy: keep words intact (DESIGN.md ## Typography). */
   word-break: keep-all;
+  /* Native date/radio/checkbox remnants: tint with the single accent, never
+     the OS default blue (accent-color inherits to every form control). */
+  accent-color: var(--accent);
 }
 
 main {
@@ -109,10 +113,14 @@ img {
   border-bottom: 1px solid var(--line);
 }
 .site-nav__brand {
+  display: inline-block;
+  /* Touch target ≥44px (1.05rem × 1.7 ≈ 29px + 16px), density preserved. */
+  padding: 8px 4px;
+  margin: -8px -4px;
   font-family: var(--font-grotesk);
   font-weight: 600;
   font-size: 1.05rem;
-  letter-spacing: 0.06em;
+  letter-spacing: 0; /* 한글 워드마크(그림책 제작소) — 한글에 양수 자간 금지 */
   color: var(--ink);
   text-decoration: none;
 }
@@ -125,15 +133,28 @@ img {
   list-style: none;
 }
 .nav-link {
+  display: inline-block;
+  /* Touch target ≥44px without changing visual density: padding grows the hit
+     area, the matching negative margin cancels it in layout (WP7). */
+  padding: 12px 6px;
+  margin: -12px -6px;
   font-family: var(--font-grotesk);
   font-weight: 500;
   font-size: 0.82rem;
-  letter-spacing: 0.04em;
+  letter-spacing: 0; /* 한글 링크(기념일·주문 조회…) — 한글에 양수 자간 금지 */
   color: var(--grey);
   text-decoration: none;
 }
 .nav-link:hover {
   color: var(--accent);
+}
+/* Active page (DESIGN.md Nav: 네이비 텍스트 + 아래 1px 네이비 밑줄). */
+.nav-link[aria-current="page"] {
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 7px;
+  text-decoration-color: var(--accent);
 }
 
 .hero {
@@ -218,6 +239,12 @@ img {
 .site-nav--overlay .nav-link:hover {
   color: var(--on-dark);
 }
+/* Navy is illegible on the dark photo hero — the overlay nav marks the active
+   page with the on-dark tone instead (underline stays). */
+.site-nav--overlay .nav-link[aria-current="page"] {
+  color: var(--on-dark);
+  text-decoration-color: var(--on-dark);
+}
 .eyebrow {
   display: inline-flex;
   align-items: center;
@@ -235,6 +262,13 @@ img {
   width: 28px;
   height: 1px;
   background: var(--accent);
+}
+/* Korean eyebrow (마이페이지·결제 완료…): the +0.18em track above assumes
+   UPPERCASE LATIN — 한글에 양수 자간 금지, so this modifier zeroes it.
+   Promoted from order.module.css's .koEyebrow doubled-class hack (WP7). */
+.eyebrow--ko {
+  letter-spacing: 0;
+  text-transform: none;
 }
 .hero__title {
   margin: 0 0 var(--space-md);
@@ -412,7 +446,7 @@ img {
   border-top: 1px solid var(--line);
   font-family: var(--font-grotesk);
   font-size: 0.72rem;
-  letter-spacing: 0.08em;
+  letter-spacing: 0; /* 푸터는 전부 한글(그림책 제작소·링크) — 한글에 양수 자간 금지 */
   color: var(--muted);
 }
 .site-footer__brand {
@@ -430,6 +464,10 @@ img {
   list-style: none;
 }
 .site-footer__link {
+  display: inline-block;
+  /* Touch target ≥44px (0.72rem × 1.7 ≈ 20px + 26px), density preserved. */
+  padding: 13px 6px;
+  margin: -13px -6px;
   color: var(--muted);
   text-decoration: none;
   transition: color 240ms var(--ease);

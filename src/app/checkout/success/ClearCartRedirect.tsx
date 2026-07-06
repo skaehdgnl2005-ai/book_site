@@ -17,7 +17,7 @@ export function ClearCartRedirect({ orderId }: { orderId: string }) {
       <Nav />
       <main>
         <section className="hero" aria-labelledby="success-title">
-          <p className="eyebrow">결제 완료</p>
+          <p className="eyebrow eyebrow--ko">결제 완료</p>
           <h1 className="hero__title" id="success-title">주문을 확인하고 있어요…</h1>
         </section>
       </main>

@@ -26,9 +26,9 @@
   flex-direction: column;
   justify-content: center;
   gap: 5px;
-  width: 40px;
-  height: 40px;
-  padding: 10px;
+  width: 44px; /* touch target ≥44px (WP7) */
+  height: 44px;
+  padding: 12px;
   background: transparent;
   border: 0;
   border-radius: var(--radius);
@@ -126,6 +126,8 @@
   color: var(--on-dark-muted);
 }
 .closeButton {
+  min-width: 44px; /* touch target ≥44px (WP7) */
+  min-height: 44px;
   font-family: var(--font-grotesk);
   font-weight: 500;
   font-size: 0.78rem;
@@ -163,6 +165,14 @@
 .drawerLink:focus-visible {
   outline: 2px solid var(--on-dark);
   outline-offset: 2px;
+}
+/* Active page in the drawer — navy is illegible on the dark panel, so the
+   DESIGN.md active mark keeps its 1px underline but in the on-dark tone. */
+.drawerLink[aria-current="page"] {
+  color: var(--on-dark);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 7px;
 }
 
 /* Content pages (brand story · gallery · reviews · FAQ · contact) — quieter tier. */

@@ -111,8 +111,8 @@
   font-family: var(--font-grotesk);
   font-weight: 500;
   font-size: 0.62rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
+  letter-spacing: 0; /* 한글(주문 제작) — 양수 자간 금지 (WP7) */
+  text-transform: none;
   color: var(--muted);
 }
 .made::before {

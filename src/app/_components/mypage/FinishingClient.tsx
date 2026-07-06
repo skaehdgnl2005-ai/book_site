@@ -1,6 +1,9 @@
 "use client";
 import { useCallback, useEffect, useState, type ChangeEvent } from "react";
 import { saveDedication, uploadFinishingPhoto } from "@/app/mypage/_lib/actions";
+import { FileDrop } from "@/app/_components/form/FileDrop";
+import { UnderlineTextarea } from "@/app/_components/form/UnderlineField";
+import { TextAction } from "@/app/_components/Button";
 import styles from "./mypage.module.css";
 
 type ItemMeta = { index: number; templateLabel: string; coverLabel: string; unitPriceText: string };
@@ -143,6 +146,9 @@ function FinishingItem({
         <span className={styles.itemMeta}> · {meta.coverLabel} · {meta.unitPriceText}</span>
       </p>
 
+      {/* WP7 — form-kit unification: raw <input type=file> → FileDrop (the wizard's
+          photo band); the testid stays on the real overlaid input, so E2E
+          setInputFiles/toBeVisible contracts hold. No filename/blob ever logged (PII). */}
       <div className={styles.control}>
         <p className={styles.controlLabel}>아이 사진</p>
         {photoOnFile ? (
@@ -150,8 +156,9 @@ function FinishingItem({
             사진이 등록되었습니다
           </p>
         ) : (
-          <input
-            type="file"
+          <FileDrop
+            title={photoBusy ? "올리는 중…" : "사진 올리기"}
+            hint="눌러서 사진을 선택하세요"
             accept="image/*"
             aria-label={`${meta.templateLabel} 아이 사진 파일 선택`}
             data-testid={`mypage-photo-input-${meta.index}`}
@@ -164,13 +171,11 @@ function FinishingItem({
         ) : null}
       </div>
 
+      {/* WP7 — boxed textarea → underline kit; the per-item save is a quiet TextAction
+          (DESIGN.md #4: one navy pill per screen — with N items the old .cta repeated N times). */}
       <div className={styles.control}>
-        <label className={styles.controlLabel} htmlFor={`mypage-dedication-${meta.index}`}>
-          헌정 문구
-        </label>
-        <textarea
-          id={`mypage-dedication-${meta.index}`}
-          className={styles.textarea}
+        <UnderlineTextarea
+          label="헌정 문구"
           data-testid={`mypage-dedication-${meta.index}`}
           rows={3}
           value={dedication}
@@ -181,15 +186,13 @@ function FinishingItem({
           }}
         />
         <div className={styles.controlRow}>
-          <button
-            type="button"
-            className="cta"
+          <TextAction
             data-testid={`mypage-dedication-save-${meta.index}`}
             onClick={onSaveDedication}
             disabled={saving}
           >
             {saving ? "저장 중…" : "헌정 문구 저장"}
-          </button>
+          </TextAction>
           {saved ? (
             <span className={styles.savedNote} role="status" data-testid={`mypage-dedication-saved-${meta.index}`}>
               저장되었습니다

@@ -27,7 +27,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
       <Nav />
       <main>
         <section className="hero" aria-labelledby="order-title">
-          <p className="eyebrow">{paid ? "결제 완료" : "결제 대기"}</p>
+          <p className="eyebrow eyebrow--ko">{paid ? "결제 완료" : "결제 대기"}</p>
           <h1 className="hero__title" id="order-title">
             {paid ? "주문이 완료되었어요" : "결제가 완료되지 않았어요"}
           </h1>

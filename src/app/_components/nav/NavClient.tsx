@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { loadCart, CART_CHANGED_EVENT } from "@/lib/cart";
 import styles from "./nav.module.css";
@@ -46,6 +47,11 @@ function BagLabel({ count }: { count: number }) {
 }
 
 export function NavClient({ overlay = false }: { overlay?: boolean }) {
+  const pathname = usePathname();
+  // Active-page marker (WP7 — DESIGN.md Nav: 네이비 + 1px 밑줄). Subpaths count:
+  // /mypage/[orderId] keeps 주문 조회 lit, /cart keeps BAG lit.
+  const currentFor = (href: string) =>
+    pathname === href || pathname.startsWith(`${href}/`) ? ("page" as const) : undefined;
   const [bagCount, setBagCount] = useState(0); // 0 on SSR/first client render → "BAG"
   const [open, setOpen] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
@@ -138,7 +144,7 @@ export function NavClient({ overlay = false }: { overlay?: boolean }) {
         <ul className={`site-nav__links ${styles.links}`}>
           {CATEGORY_LINKS.map((l) => (
             <li key={l.href}>
-              <Link href={l.href} className="nav-link">
+              <Link href={l.href} className="nav-link" aria-current={currentFor(l.href)}>
                 {l.label}
               </Link>
             </li>
@@ -146,7 +152,7 @@ export function NavClient({ overlay = false }: { overlay?: boolean }) {
         </ul>
 
         {/* Cart entry point — text only (no badge/dot: quiet by design). */}
-        <Link href="/cart" className="nav-link" data-testid="nav-bag">
+        <Link href="/cart" className="nav-link" data-testid="nav-bag" aria-current={currentFor("/cart")}>
           <BagLabel count={bagCount} />
         </Link>
 
@@ -204,13 +210,23 @@ export function NavClient({ overlay = false }: { overlay?: boolean }) {
         <ul className={styles.drawerList}>
           {CATEGORY_LINKS.map((l) => (
             <li key={l.href}>
-              <Link href={l.href} className={styles.drawerLink} onClick={close}>
+              <Link
+                href={l.href}
+                className={styles.drawerLink}
+                aria-current={currentFor(l.href)}
+                onClick={close}
+              >
                 {l.label}
               </Link>
             </li>
           ))}
           <li>
-            <Link href="/cart" className={styles.drawerLink} onClick={close}>
+            <Link
+              href="/cart"
+              className={styles.drawerLink}
+              aria-current={currentFor("/cart")}
+              onClick={close}
+            >
               <BagLabel count={bagCount} />
             </Link>
           </li>
@@ -219,7 +235,12 @@ export function NavClient({ overlay = false }: { overlay?: boolean }) {
         <ul className={`${styles.drawerList} ${styles.drawerContentList}`}>
           {CONTENT_LINKS.map((l) => (
             <li key={l.href}>
-              <Link href={l.href} className={styles.drawerLink} onClick={close}>
+              <Link
+                href={l.href}
+                className={styles.drawerLink}
+                aria-current={currentFor(l.href)}
+                onClick={close}
+              >
                 {l.label}
               </Link>
             </li>

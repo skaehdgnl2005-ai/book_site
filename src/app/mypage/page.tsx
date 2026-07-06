@@ -20,7 +20,7 @@ export default function MypageLookupPage() {
       <Nav />
       <main>
         <section className="hero" aria-labelledby="mypage-lookup-title">
-          <p className="eyebrow">마이페이지</p>
+          <p className="eyebrow eyebrow--ko">마이페이지</p>
           <h1 className="hero__title" id="mypage-lookup-title">주문 조회</h1>
           <p className="hero__sub">
             주문번호와 결제 시 사용한 이메일을 입력하면 사진·헌정 문구·QR 영상 등 책 마무리를 이어갈 수 있어요.

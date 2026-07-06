@@ -42,7 +42,7 @@ export default function HomePage() {
       <section className="hero hero--image" aria-labelledby="hero-title">
         <HeroMedia />
         <div className="hero__content">
-          <p className="eyebrow">초개인화 그림책</p>
+          <p className="eyebrow eyebrow--ko">초개인화 그림책</p>
           <h1 className="hero__title" id="hero-title">
             세상에 한 아이만을 위해 만들어지는 책
           </h1>
