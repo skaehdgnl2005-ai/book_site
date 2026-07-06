@@ -1,6 +1,6 @@
 /* order confirmation — Atelier Sans. Tokens only (R6: no box-shadow; R7: no pure white/black). */
 .order { padding: var(--space-lg) 0; max-width: 720px; }
-.meta { margin: 0; font-family: var(--font-grotesk); font-size: 0.85rem; letter-spacing: 0.04em; color: var(--muted); }
+.meta { margin: 0; font-family: var(--font-grotesk); font-size: 0.85rem; letter-spacing: 0; color: var(--muted); } /* "주문번호 …" — 한글에 양수 자간 금지 (WP7) */
 .statusRow { margin: var(--space-xs) 0 var(--space-md); font-size: 0.92rem; color: var(--grey); }
 .status { font-family: var(--font-grotesk); font-weight: 700; letter-spacing: 0.06em; color: var(--accent); }
 
