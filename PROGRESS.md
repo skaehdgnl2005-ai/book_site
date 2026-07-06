@@ -3,7 +3,19 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- **Latest (2026-07-06, 저녁): UI 개선 Wave 3 — WP7 모바일 글로벌 패스 DONE → UI 플랜 8개 WP 전체 완료.**
+- **Latest (2026-07-06, 밤): 프로덕션 배포 — UI 전면 개선(플랜 8개 WP) 라이브.**
+  사용자 지시로 `pnpm approve deploy.production`(정확 확인 토큰 발급) → **비가역 배포 전 리스크
+  차단으로 `pnpm build` 로컬 프로덕션 빌드 컴파일 확인**(전 라우트 에러 0) → `vercel --prod --yes`.
+  배포 `dpl_GSXPwErUhWmSyn4a1zZedgc34gVF` READY, alias **https://storybook-shop.vercel.app**.
+  배포 코드 = master `4aad4b6`(check 0위반·E2E 110/110·eval 11/11 green). 워킹트리의 비커밋
+  2건(`.gitignore` +.env* / `app.json` Expo 설정)은 Next 빌드 무관. **카나리**: /, /anniversary,
+  /order/birth, /cart, /mypage, /faq, /custom 전부 200 + 홈 HTML에 nav-bag(F049)·주문 조회 확인;
+  라이브 스크린샷(모바일 주문 위저드 — BAG+햄버거·스텝 인디케이터·『탄생』 세리프·ChoiceChip·밑줄
+  폼·필 1개 / 데스크톱 카테고리 — 활성 내비 네이비 밑줄·타이포 커버) 판독 + 콘솔 에러 0.
+  이 배포로 F048(직전)~F049·F050·F051 + Wave 1~3 UI 개선 전부 첫 라이브. `Next:` 이메일 도메인
+  검증(EMAIL_FROM 정식 도메인 — 현 onboarding@resend.dev는 메이커 계정 메일만 수신); 원하면
+  디자인 '절제 완화' 방향(4갈래 레버, 현재 보류)을 다음에 재개.
+- **(2026-07-06, 저녁): UI 개선 Wave 3 — WP7 모바일 글로벌 패스 DONE → UI 플랜 8개 WP 전체 완료.**
   전역 토큰을 만지는 단독 트랙(워크트리 병렬 불필요). impl 에이전트가 Fable 5 월 한도로 커밋
   직전 사망 → **모델 Opus로 전환해 미커밋 24파일 작업을 복구·검증·커밋**(임시 스크린샷 스펙 제거
   후 게이트 통과 확인). 내용: ① globals.css `--section` 모바일 하한 72→48px(DESIGN.md
