@@ -1,6 +1,7 @@
 "use client";
 import { useActionState, useEffect, useState } from "react";
 import { requestAccessCode, verifyAccessCode, type LookupState } from "@/app/mypage/_lib/actions";
+import { UnderlineField } from "../form/UnderlineField";
 import styles from "./mypage.module.css";
 
 /**
@@ -23,19 +24,16 @@ export function MypageLookup() {
         <form className={styles.form} action={verAction}>
           <input type="hidden" name="orderId" defaultValue={req.orderId ?? ""} />
           <p className={styles.note} data-testid="mypage-otp-sent">{req.note}</p>
-          <label className={styles.field}>
-            인증 코드 (6자리)
-            <input
-              className={styles.input}
-              name="code"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={6}
-              pattern="\d{6}"
-              placeholder="예: 424242"
-              data-testid="mypage-otp-input"
-            />
-          </label>
+          <UnderlineField
+            label="인증 코드 (6자리)"
+            name="code"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            pattern="\d{6}"
+            placeholder="예: 424242"
+            data-testid="mypage-otp-input"
+          />
           {ver?.error ? (
             <p className={styles.error} role="alert" data-testid="mypage-otp-error">{ver.error}</p>
           ) : null}
@@ -50,28 +48,22 @@ export function MypageLookup() {
   return (
     <section className={styles.panel} aria-label="주문 조회">
       <form className={styles.form} action={reqAction}>
-        <label className={styles.field}>
-          주문번호
-          <input
-            className={styles.input}
-            name="orderId"
-            type="text"
-            inputMode="text"
-            autoComplete="off"
-            placeholder="예: ord_0001"
-            data-testid="mypage-lookup-orderid"
-          />
-        </label>
-        <label className={styles.field}>
-          결제 이메일
-          <input
-            className={styles.input}
-            name="email"
-            type="email"
-            autoComplete="off"
-            data-testid="mypage-lookup-email"
-          />
-        </label>
+        <UnderlineField
+          label="주문번호"
+          name="orderId"
+          type="text"
+          inputMode="text"
+          autoComplete="off"
+          placeholder="예: ord_0001"
+          data-testid="mypage-lookup-orderid"
+        />
+        <UnderlineField
+          label="결제 이메일"
+          name="email"
+          type="email"
+          autoComplete="off"
+          data-testid="mypage-lookup-email"
+        />
         {req?.error ? (
           <p className={styles.error} role="alert" data-testid="mypage-lookup-error">{req.error}</p>
         ) : null}

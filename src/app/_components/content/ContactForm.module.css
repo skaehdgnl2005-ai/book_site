@@ -1,36 +1,11 @@
-/* F028 ContactForm — underline-only fields (DESIGN: 폼은 밑줄 1줄, :focus = 네이비),
-   radius 0, tokens only. Korean labels keep letter-spacing 0 (no positive tracking). */
+/* F028 ContactForm — fields now come from the WP2 form kit (form/UnderlineField:
+   밑줄 1줄, :focus = 네이비, 한글 라벨 자간 0); only the form shell lives here. */
 
 .form {
   display: flex;
   flex-direction: column;
   gap: var(--space-md);
   max-width: 32rem;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-  font-family: var(--font-grotesk);
-  font-size: 0.8rem;
-  color: var(--muted);
-}
-
-.input {
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  border-radius: 0;
-  background: transparent;
-  padding: var(--space-xs) 0;
-  font-family: var(--font-sans);
-  font-size: 1rem;
-  letter-spacing: normal;
-  color: var(--ink);
-}
-.input:focus {
-  outline: none;
-  border-bottom-color: var(--accent);
 }
 
 .error {

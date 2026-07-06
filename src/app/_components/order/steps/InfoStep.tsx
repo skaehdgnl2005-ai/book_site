@@ -7,6 +7,8 @@ import {
   CHILD_GENDER_LABEL, CHILD_GENDER_LABEL_DEFAULT, type PersonalizationErrors,
 } from "../personalization";
 import { CtaPrimary } from "../../Button";
+import { UnderlineField } from "../../form/UnderlineField";
+import { ChoiceChip } from "../../form/ChoiceChip";
 import styles from "../order.module.css";
 
 export function InfoStep({
@@ -33,23 +35,22 @@ export function InfoStep({
 
   return (
     <div className={styles.step}>
-      <label className={styles.field}>
-        <span className={styles.label}>아이 이름</span>
-        <input className={styles.input} data-testid="order-name-input" value={draft.childName}
-          aria-invalid={errors.childName ? true : undefined}
-          aria-describedby={errors.childName ? "order-error-childName" : undefined}
-          onChange={(e) => onPatch({ childName: e.target.value })} />
-      </label>
+      <UnderlineField label="아이 이름" data-testid="order-name-input" value={draft.childName}
+        aria-invalid={errors.childName ? true : undefined}
+        aria-describedby={errors.childName ? "order-error-childName" : undefined}
+        onChange={(e) => onPatch({ childName: e.target.value })} />
       {errors.childName && <p className={styles.error} role="alert" id="order-error-childName" data-testid="order-error-childName">{errors.childName}</p>}
 
       <fieldset className={styles.field}
         aria-invalid={errors.childGender ? true : undefined}
         aria-describedby={errors.childGender ? "order-error-childGender" : undefined}>
         <legend className={styles.label}>{childGenderLabel}</legend>
-        <label><input type="radio" name="childGender" data-testid="order-gender-male"
-          checked={draft.childGender === "MALE"} onChange={() => onPatch({ childGender: "MALE" })} /> 남아</label>
-        <label><input type="radio" name="childGender" data-testid="order-gender-female"
-          checked={draft.childGender === "FEMALE"} onChange={() => onPatch({ childGender: "FEMALE" })} /> 여아</label>
+        <div className={styles.choices}>
+          <ChoiceChip label="남아" name="childGender" data-testid="order-gender-male"
+            checked={draft.childGender === "MALE"} onChange={() => onPatch({ childGender: "MALE" })} />
+          <ChoiceChip label="여아" name="childGender" data-testid="order-gender-female"
+            checked={draft.childGender === "FEMALE"} onChange={() => onPatch({ childGender: "FEMALE" })} />
+        </div>
       </fieldset>
       {errors.childGender && <p className={styles.error} role="alert" id="order-error-childGender" data-testid="order-error-childGender">{errors.childGender}</p>}
 
@@ -57,20 +58,21 @@ export function InfoStep({
         spec.inputType === "gender" ? (
           <fieldset className={styles.field}>
             <legend className={styles.label} data-testid="order-extravar-label">{spec.label}</legend>
-            <label><input type="radio" name="extraVar" data-testid="order-extravar-male"
-              checked={draft.extraVarValue === "MALE"} onChange={() => onPatch({ extraVarValue: "MALE" })} /> 남아</label>
-            <label><input type="radio" name="extraVar" data-testid="order-extravar-female"
-              checked={draft.extraVarValue === "FEMALE"} onChange={() => onPatch({ extraVarValue: "FEMALE" })} /> 여아</label>
+            <div className={styles.choices}>
+              <ChoiceChip label="남아" name="extraVar" data-testid="order-extravar-male"
+                checked={draft.extraVarValue === "MALE"} onChange={() => onPatch({ extraVarValue: "MALE" })} />
+              <ChoiceChip label="여아" name="extraVar" data-testid="order-extravar-female"
+                checked={draft.extraVarValue === "FEMALE"} onChange={() => onPatch({ extraVarValue: "FEMALE" })} />
+            </div>
           </fieldset>
         ) : (
-          <label className={styles.field}>
-            <span className={styles.label} data-testid="order-extravar-label">{spec.label}</span>
-            <input className={styles.input} data-testid="order-extravar-input"
-              type={spec.inputType === "date" ? "date" : spec.inputType === "number" ? "number" : "text"}
-              aria-invalid={errors.extraVar ? true : undefined}
-              aria-describedby={errors.extraVar ? "order-error-extraVar" : undefined}
-              value={draft.extraVarValue} onChange={(e) => onPatch({ extraVarValue: e.target.value })} />
-          </label>
+          <UnderlineField label={spec.label} labelTestId="order-extravar-label"
+            data-testid="order-extravar-input"
+            type={spec.inputType === "date" ? "date" : spec.inputType === "number" ? "number" : "text"}
+            hint={spec.inputType === "date" ? "예: 2025-11-20" : undefined}
+            aria-invalid={errors.extraVar ? true : undefined}
+            aria-describedby={errors.extraVar ? "order-error-extraVar" : undefined}
+            value={draft.extraVarValue} onChange={(e) => onPatch({ extraVarValue: e.target.value })} />
         )
       )}
       {errors.extraVar && <p className={styles.error} role="alert" id="order-error-extraVar" data-testid="order-error-extraVar">{errors.extraVar}</p>}

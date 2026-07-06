@@ -2,6 +2,8 @@
 import type { CatalogTemplate } from "../../catalog/templates";
 import type { Draft } from "../OrderWizard";
 import { BackAction, CtaPrimary } from "../../Button";
+import { ChoiceChip } from "../../form/ChoiceChip";
+import { ToggleRow } from "../../form/ToggleRow";
 import styles from "../order.module.css";
 import { formatWon, COVER_LABEL } from "../format";
 
@@ -20,16 +22,12 @@ export function CoverStep({
       <fieldset className={styles.field}>
         <legend className={styles.label}>커버 선택</legend>
         <div className={styles.choices}>
-          <label className={`${styles.choice} ${draft.coverType === "SOFT" ? styles.choiceActive : ""}`}>
-            <input type="radio" name="cover" data-testid="order-cover-soft"
-              checked={draft.coverType === "SOFT"} onChange={() => onPatch({ coverType: "SOFT" })} />
-            {COVER_LABEL.SOFT} <span className={styles.choicePrice}>{formatWon(template.softPriceWon)}</span>
-          </label>
-          <label className={`${styles.choice} ${draft.coverType === "HARD" ? styles.choiceActive : ""}`}>
-            <input type="radio" name="cover" data-testid="order-cover-hard"
-              checked={draft.coverType === "HARD"} onChange={() => onPatch({ coverType: "HARD" })} />
-            {COVER_LABEL.HARD} <span className={styles.choicePrice}>{formatWon(template.hardPriceWon)}</span>
-          </label>
+          <ChoiceChip label={COVER_LABEL.SOFT} sub={formatWon(template.softPriceWon)}
+            name="cover" data-testid="order-cover-soft"
+            checked={draft.coverType === "SOFT"} onChange={() => onPatch({ coverType: "SOFT" })} />
+          <ChoiceChip label={COVER_LABEL.HARD} sub={formatWon(template.hardPriceWon)}
+            name="cover" data-testid="order-cover-hard"
+            checked={draft.coverType === "HARD"} onChange={() => onPatch({ coverType: "HARD" })} />
         </div>
         {/* F048 — one honest line on what the choice means (no invented specs). */}
         <p className={styles.hint} data-testid="order-cover-hint">
@@ -37,13 +35,8 @@ export function CoverStep({
         </p>
       </fieldset>
 
-      <div className={styles.qrRow}>
-        <label>
-          <input type="checkbox" data-testid="order-qr-toggle"
-            checked={draft.qrVideoAddon} onChange={(e) => onPatch({ qrVideoAddon: e.target.checked })} />
-          {" "}QR 영상 인사 메시지 옵션
-        </label>
-      </div>
+      <ToggleRow label="QR 영상 인사 메시지 옵션" data-testid="order-qr-toggle"
+        checked={draft.qrVideoAddon} onChange={(e) => onPatch({ qrVideoAddon: e.target.checked })} />
       {draft.qrVideoAddon && <p className={styles.qrNote} data-testid="order-qr-note">기본 미포함 · 요금 추후 안내</p>}
 
       <p className={styles.linePrice} data-testid="order-line-price">{formatWon(unitPriceWon)}</p>

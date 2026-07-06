@@ -1,6 +1,7 @@
 "use client";
 import { useState, type FormEvent } from "react";
 import { untrusted } from "@/lib/guardrails";
+import { UnderlineField, UnderlineTextarea } from "../form/UnderlineField";
 import styles from "./ContactForm.module.css";
 
 // F028 contact form (client). Validates, tags input untrusted() at the trust
@@ -39,18 +40,9 @@ export function ContactForm() {
 
   return (
     <form className={styles.form} onSubmit={onSubmit} noValidate>
-      <label className={styles.field}>
-        이름
-        <input className={styles.input} name="name" type="text" />
-      </label>
-      <label className={styles.field}>
-        연락처
-        <input className={styles.input} name="contact" type="text" />
-      </label>
-      <label className={styles.field}>
-        문의 내용
-        <textarea className={styles.input} name="message" rows={4} />
-      </label>
+      <UnderlineField label="이름" name="name" type="text" />
+      <UnderlineField label="연락처" name="contact" type="text" />
+      <UnderlineTextarea label="문의 내용" name="message" rows={4} />
       {error ? (
         <p className={styles.error} role="alert">
           {error}

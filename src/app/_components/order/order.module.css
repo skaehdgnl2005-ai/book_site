@@ -4,40 +4,29 @@
 .step { display: flex; flex-direction: column; gap: var(--space-md); }
 
 .field { display: flex; flex-direction: column; gap: var(--space-xs); border: 0; margin: 0; padding: 0; }
+/* WP2 — matches the form-kit label (grotesk 500 · 자간 0: 한글 라벨에 양수 자간 금지).
+   Kept here for <legend>/<p> labels that sit outside UnderlineField. */
 .label {
-  font-family: var(--font-grotesk); font-weight: 600; font-size: 0.78rem;
-  letter-spacing: 0.04em; color: var(--ink);
+  font-family: var(--font-grotesk); font-weight: 500; font-size: 0.78rem;
+  letter-spacing: 0; color: var(--ink);
 }
-.input {
-  font-family: var(--font-sans); font-size: 1rem; color: var(--ink);
-  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
-  padding: 0.7em 0.9em;
-}
-.input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .error { margin: 0; font-size: 0.82rem; color: var(--accent); }
 
 /* F048 — funnel context microcopy (template blurb + what's-included + step hints). */
 .contextBlurb { margin: 0 0 var(--space-xs); max-width: 46ch; font-size: 1.05rem; line-height: 1.75; color: var(--grey); }
 .included {
   margin: 0; font-family: var(--font-grotesk); font-weight: 500; font-size: 0.75rem;
-  letter-spacing: 0.08em; color: var(--muted);
+  letter-spacing: 0; /* 한글 문장 — 양수 자간 금지 (Wave 1 review trap) */ color: var(--muted);
 }
 .hint { margin: 0; max-width: 52ch; font-size: 0.85rem; line-height: 1.7; color: var(--grey); }
 
+/* WP2 — chip row (the chips themselves live in form/ChoiceChip). */
 .choices { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
-.choice {
-  display: inline-flex; align-items: baseline; gap: var(--space-xs);
-  padding: 0.8em 1em; border: 1px solid var(--line); background: var(--surface);
-  font-family: var(--font-grotesk); font-size: 0.9rem; cursor: pointer;
-}
-.choiceActive { border-color: var(--accent); color: var(--accent); }
-.choicePrice { font-size: 0.78rem; color: var(--muted); }
 
 .linePrice {
   font-family: var(--font-grotesk); font-weight: 600; font-size: 1.1rem; color: var(--ink);
   padding-top: var(--space-sm); border-top: 1px solid var(--line);
 }
-.qrRow { display: flex; align-items: flex-start; gap: var(--space-sm); }
 .qrNote { margin: 0; font-size: 0.82rem; color: var(--muted); }
 .photoStatus { margin: 0; font-family: var(--font-grotesk); font-size: 0.9rem; color: var(--accent); }
 

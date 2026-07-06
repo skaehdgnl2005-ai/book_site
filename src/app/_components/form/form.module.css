@@ -1,0 +1,206 @@
+/* WP2 form-control kit — Atelier Sans (DESIGN.md ## Components #4: 폼은 밑줄 1줄,
+   :focus = 네이비). Tokens only; radius 0 (R6: no box-shadow; R7: no pure white/black).
+   Korean labels keep letter-spacing 0 — positive tracking is for UPPERCASE Latin only. */
+
+/* ── UnderlineField ─────────────────────────────────────────────────────── */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.labelWrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+.label {
+  font-family: var(--font-grotesk);
+  font-weight: 500;
+  font-size: 0.78rem;
+  letter-spacing: 0; /* 한글 라벨 — 양수 자간 금지 (DESIGN.md 자간 3단 규칙) */
+  color: var(--ink);
+}
+.input {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: transparent;
+  padding: 0.55em 0;
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  letter-spacing: normal;
+  color: var(--ink);
+  transition: border-color 240ms var(--ease);
+}
+/* Underline fields signal focus on the line itself (ContactForm precedent) —
+   the 2px outline ring is reserved for overlay controls below, where there is
+   no line to recolor. */
+.input:focus {
+  outline: none;
+  border-bottom-color: var(--accent);
+}
+.textarea {
+  line-height: 1.7;
+  resize: vertical;
+}
+.hint {
+  margin: 0;
+  font-size: 0.82rem; /* ≥12px — --muted allowed for labels/captions only */
+  line-height: 1.6;
+  color: var(--muted);
+}
+
+/* ── Overlay input (shared by ChoiceChip / ToggleRow / FileDrop) ──────────
+   The real input covers the whole control, transparent but NOT display:none /
+   visibility:hidden — Playwright click()/check()/setInputFiles and native
+   keyboard/label semantics must keep working on [data-testid] targets. */
+.overlayInput {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.overlayInput:disabled {
+  cursor: default;
+}
+
+/* ── ChoiceChip (radio replacement) ─────────────────────────────────────── */
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-height: 44px; /* touch target */
+  padding: 0.6em 1.1em;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color 240ms var(--ease);
+}
+.chipLabel {
+  font-family: var(--font-grotesk);
+  font-weight: 500;
+  font-size: 0.9rem;
+  letter-spacing: 0; /* 한글 */
+  color: var(--ink);
+  transition: color 240ms var(--ease);
+}
+.chipSub {
+  font-family: var(--font-grotesk);
+  font-size: 0.78rem;
+  letter-spacing: 0.01em; /* price token — digits, not 한글 */
+  color: var(--muted);
+}
+.chip:has(.overlayInput:checked) {
+  border-color: var(--accent);
+}
+.chip:has(.overlayInput:checked) .chipLabel {
+  color: var(--accent);
+}
+.chip:has(.overlayInput:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── ToggleRow (checkbox replacement) ───────────────────────────────────── */
+.toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  min-height: 44px;
+  padding: 0.8em 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+.toggleLabel {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--ink);
+}
+.toggleState {
+  flex-shrink: 0;
+  font-family: var(--font-grotesk);
+  font-weight: 500;
+  font-size: 0.78rem;
+  letter-spacing: 0; /* 한글 상태 라벨 */
+  color: var(--muted);
+}
+.stateOn {
+  display: none;
+  color: var(--accent);
+}
+.toggle:has(.overlayInput:checked) .stateOn {
+  display: inline;
+}
+.toggle:has(.overlayInput:checked) .stateOff {
+  display: none;
+}
+.toggle:has(.overlayInput:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ── FileDrop (file-input replacement) — low panel band, not a 4:5 mat ───── */
+.drop {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  min-height: 96px;
+  padding: var(--space-sm) var(--space-md);
+  border: 1px solid var(--line);
+  background: var(--panel);
+  transition: border-color 240ms var(--ease);
+}
+.drop:hover {
+  border-color: var(--accent);
+}
+.drop:has(.overlayInput:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.drop:has(.overlayInput:disabled) {
+  opacity: 0.6; /* opacity-only state change (motion rule) */
+}
+.drop:has(.overlayInput:disabled):hover {
+  border-color: var(--line);
+}
+.dropThumb {
+  flex-shrink: 0;
+  width: 64px;
+  height: 80px; /* small 4:5 echo of the product mats */
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.dropThumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.dropCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px; /* caption pairing tighter than --space-xs — sub-8px pair, deliberate */
+}
+.dropTitle {
+  font-family: var(--font-grotesk);
+  font-weight: 500;
+  font-size: 0.9rem;
+  letter-spacing: 0; /* 한글 */
+  color: var(--ink);
+}
+.dropHint {
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--grey);
+}
