@@ -641,9 +641,9 @@
         "모바일에서 총액과 결제 CTA가 하단 고정 바에 보인다"
       ],
       "verification": "pnpm test:e2e -- cart.spec.ts checkout-start.spec.ts",
-      "state": "in_progress",
-      "passes": false,
-      "evidence": ""
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-06 full pnpm test:e2e 106/106 passed (1.4m) incl. cart.spec.ts + checkout-start.spec.ts; pnpm check green (lint+typecheck+unit 201 passed/10 skipped+constraints 0 violations); visual verify at 1440/390: cart line delete + empty state + typographic cover thumbnails + hairline summary + mobile sticky total/pay bar"
     }
   ]
 }
