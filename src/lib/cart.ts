@@ -98,9 +98,17 @@ export function loadCart(): Cart {
   }
 }
 
+/** Fired on every same-tab saveCart so live readers (nav BAG count) can re-read.
+ *  The native "storage" event only fires in OTHER tabs — this fills the same-tab gap. */
+export const CART_CHANGED_EVENT = "gpms:cart-changed";
+
 export function saveCart(cart: Cart): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cart));
+  // Tolerate partial window shims (unit tests stub only localStorage).
+  if (typeof window.dispatchEvent === "function") {
+    window.dispatchEvent(new Event(CART_CHANGED_EVENT));
+  }
 }
 
 /** Empty + persist. Per the handoff contract, called ONLY after F013 PAID — never on checkout start. */

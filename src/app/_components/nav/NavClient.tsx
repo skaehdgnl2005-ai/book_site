@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { loadCart } from "@/lib/cart";
+import { loadCart, CART_CHANGED_EVENT } from "@/lib/cart";
 import styles from "./nav.module.css";
 
 // F049 — nav with a BAG (cart) entry point + the mobile drawer from the DESIGN.md Nav
@@ -54,7 +54,16 @@ export function NavClient({ overlay = false }: { overlay?: boolean }) {
   const wasOpenRef = useRef(false);
 
   useEffect(() => {
-    setBagCount(loadCart().lines.length);
+    const sync = () => setBagCount(loadCart().lines.length);
+    sync();
+    // Same-tab cart mutations (e.g. F051 line delete on /cart) fire CART_CHANGED_EVENT;
+    // "storage" covers other-tab changes. Both re-read so the BAG count never goes stale.
+    window.addEventListener(CART_CHANGED_EVENT, sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener(CART_CHANGED_EVENT, sync);
+      window.removeEventListener("storage", sync);
+    };
   }, []);
 
   // Focus management: into the drawer on open, back to the hamburger on close.
