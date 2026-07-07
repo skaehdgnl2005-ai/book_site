@@ -732,9 +732,9 @@
       "e2e_via": [
         "F013"
       ],
-      "state": "not_started",
-      "passes": false,
-      "evidence": ""
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-07 pnpm check green (lint+typecheck+unit 238 passed/10 skipped+constraints 0 violations) — order-confirmation.test.ts 5 tests(confirm→webhook·webhook→confirm 경합 각 1회 발송, FAILED 0회, replay 0회, CUSTOM settle 1회) + email.test.ts kind 유니온·본문 조성(주문번호/상품/금액/마이페이지 안내, PII 미포함은 메시지 타입 구조로 보장); 전체 pnpm test:e2e 112/112 + eval S1–S11 pass. markPaid가 {order, transitioned} 반환(원자적 조건부 쓰기 count===1 = exactly-once 진실원천), SettlementNotifier 주입(confirm/webhook/settle 3경로 공용), notifier는 after()+catch+redact(OTP 발송 관용구, R3-safe send()). prod 미프로비저닝 시 fail-closed로 결제 무영향. 사용자 대면 플로우는 e2e_via F013"
     },
     {
       "id": "F056",

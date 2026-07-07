@@ -12,11 +12,14 @@ import { isProductionRuntime } from "./env";
  *
  * The OTP `code` is sensitive: it is carried here but MUST never be written to a log/trace (redact() has no
  * numeric rule — protection is by-construction omission, not masking).
+ *
+ * F055 — messages are a discriminated union by `kind`. The order-confirmation payload carries ONLY
+ * PII-minimal commerce facts (orderId / PII-free orderName / amount): child name, dedication, and the
+ * shipping address are excluded BY CONSTRUCTION (the fields do not exist on the message type).
  */
-export interface EmailMessage {
-  to: string;
-  code: string;
-}
+export type EmailMessage =
+  | { kind: "mypage_otp"; to: string; code: string }
+  | { kind: "order_confirmation"; to: string; orderId: string; orderName: string; amountWon: number };
 
 export interface EmailAdapter {
   send(msg: EmailMessage): Promise<void>;
@@ -28,7 +31,7 @@ export function mockEmailAdapter(): EmailAdapter & { outbox: EmailMessage[] } {
   return {
     outbox,
     async send(msg) {
-      outbox.push({ to: msg.to, code: msg.code });
+      outbox.push({ ...msg });
     },
   };
 }
@@ -50,6 +53,30 @@ const RESEND_SEND_URL = "https://api.resend.com/emails";
 const OTP_SUBJECT = "[그림책 제작소] 마이페이지 인증 코드";
 function otpEmailBody(code: string): string {
   return `마이페이지 인증 코드는 ${code} 입니다.\n10분 안에 입력해 주세요. 본인이 요청하지 않았다면 이 메일은 무시하셔도 됩니다.`;
+}
+
+// F055 — order confirmation: commerce facts only (no child name / dedication / address by construction).
+const ORDER_CONFIRMATION_SUBJECT = "[그림책 제작소] 주문이 접수되었습니다";
+function orderConfirmationBody(msg: { orderId: string; orderName: string; amountWon: number }): string {
+  return [
+    "주문이 접수되었습니다. 소중한 이야기를 정성껏 만들게요.",
+    "",
+    `주문번호  ${msg.orderId}`,
+    `주문 상품  ${msg.orderName}`,
+    `결제 금액  ${msg.amountWon.toLocaleString("ko-KR")}원`,
+    "",
+    "사진·헌정 문구 마무리는 마이페이지(주문번호 + 결제 이메일로 조회)에서 이어갈 수 있어요.",
+  ].join("\n");
+}
+
+/** kind → subject/text. Exhaustive switch: a new EmailMessage kind fails typecheck until composed here. */
+function composeEmail(msg: EmailMessage): { subject: string; text: string } {
+  switch (msg.kind) {
+    case "mypage_otp":
+      return { subject: OTP_SUBJECT, text: otpEmailBody(msg.code) };
+    case "order_confirmation":
+      return { subject: ORDER_CONFIRMATION_SUBJECT, text: orderConfirmationBody(msg) };
+  }
 }
 
 /** Minimal `Response`-shaped result the adapter needs (real `fetch` satisfies it). Mirrors TossResponseLike. */
@@ -88,6 +115,7 @@ export function resendEmailAdapter(config: ResendConfig): EmailAdapter {
   const sendUrl = config.sendUrl ?? RESEND_SEND_URL;
   return {
     async send(msg) {
+      const { subject, text } = composeEmail(msg);
       const res = await transport(sendUrl, {
         method: "POST",
         headers: {
@@ -97,8 +125,8 @@ export function resendEmailAdapter(config: ResendConfig): EmailAdapter {
         body: JSON.stringify({
           from: config.from,
           to: msg.to,
-          subject: OTP_SUBJECT,
-          text: otpEmailBody(msg.code),
+          subject,
+          text,
         }),
       });
       if (!res.ok) {

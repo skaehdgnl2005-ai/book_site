@@ -247,6 +247,6 @@ describe("createOrderRepo — explicit id / kind", () => {
     expect(custom.kind).toBe("CUSTOM");
     expect(custom.status).toBe("CREATED");
     expect((await repo.get("cr_zz01"))?.amountWon).toBe(119000);
-    expect((await repo.markPaid("cr_zz01", "pk_c"))?.status).toBe("PAID");
+    expect((await repo.markPaid("cr_zz01", "pk_c")).order?.status).toBe("PAID");
   });
 });

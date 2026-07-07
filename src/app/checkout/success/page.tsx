@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { confirmPayment, checkoutProvider } from "../../api/payments/_lib/checkout";
 import { orderRepo } from "../../api/payments/_lib/orders";
+import { orderConfirmationNotifier } from "../../api/payments/_lib/notify";
 import { ClearCartRedirect } from "./ClearCartRedirect";
 
 export const dynamic = "force-dynamic";
@@ -17,7 +18,7 @@ export default async function CheckoutSuccessPage({
   searchParams: Promise<{ paymentKey?: string; orderId?: string }>;
 }) {
   const { paymentKey, orderId } = await searchParams;
-  const res = await confirmPayment(orderRepo(), checkoutProvider(), { orderId, paymentKey });
+  const res = await confirmPayment(orderRepo(), checkoutProvider(), { orderId, paymentKey }, orderConfirmationNotifier());
   if (res.status !== 200 || res.body.status !== "PAID") {
     redirect("/checkout/failed?code=CONFIRM_FAILED");
   }

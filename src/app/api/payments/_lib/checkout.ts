@@ -21,10 +21,18 @@ import type {
   OrderDraft,
   OrderItemDraft,
   OrderRepo,
+  StoredOrder,
   WebhookLedger,
   ExtraVarValue,
 } from "./orders";
 import { isPaidFamily } from "./status";
+
+/**
+ * F055 — called EXACTLY ONCE per order, on the markPaid call whose atomic conditional write
+ * actually moved CREATED→PAID (confirm and webhook race; only the winner notifies). Injected
+ * so this module stays pure — the route/page layer supplies the after()-scheduled email.
+ */
+export type SettlementNotifier = (order: StoredOrder) => void;
 
 // ── webhook auth: a shared URL token, constant-time ───────────────────────────
 // Toss does NOT sign PAYMENT_STATUS_CHANGED webhooks (only payout/seller events carry a
@@ -167,6 +175,7 @@ export async function confirmPayment(
   repo: OrderRepo,
   provider: PaymentProvider,
   input: { orderId: unknown; paymentKey: unknown },
+  notify?: SettlementNotifier,
 ): Promise<{ status: number; body: Record<string, unknown> }> {
   const orderId = asString(input.orderId);
   const paymentKey = asString(input.paymentKey);
@@ -183,7 +192,8 @@ export async function confirmPayment(
   const conf = await provider.confirm({ paymentKey, orderId: order.id, amount: order.amountWon });
   if (conf.status !== "PAID") return { status: 402, body: { status: conf.status } }; // F015: no PAID order
   const paid = await repo.markPaid(order.id, conf.paymentKey);
-  return { status: 200, body: { status: "PAID", orderId: paid?.id ?? order.id } };
+  if (paid.transitioned && paid.order) notify?.(paid.order); // F055: exactly-once (atomic write is truth)
+  return { status: 200, body: { status: "PAID", orderId: paid.order?.id ?? order.id } };
 }
 
 // Toss PAYMENT_STATUS_CHANGED payload: { eventType, createdAt, data:{ paymentKey, orderId, status } }.
@@ -198,6 +208,7 @@ export async function processWebhook(
   repo: OrderRepo,
   ledger: WebhookLedger,
   lookup: PaymentLookup,
+  notify?: SettlementNotifier,
 ): Promise<{ status: number; body: Record<string, unknown> }> {
   if (!verifyWebhookToken(token, secret)) {
     return { status: 401, body: { errors: ["웹훅 인증에 실패했습니다."] } };
@@ -236,7 +247,8 @@ export async function processWebhook(
   // body can't poison a later genuine DONE. markPaid is itself idempotent (CREATED→PAID only,
   // never downgrades), so the success-callback confirm and this webhook converge on one order.
   await ledger.record(dedupeKey);
-  await repo.markPaid(order.id, paymentKey);
+  const paid = await repo.markPaid(order.id, paymentKey);
+  if (paid.transitioned && paid.order) notify?.(paid.order); // F055: only if the confirm didn't win first
   return { status: 200, body: { status: "PAID", orderId: order.id } };
 }
 

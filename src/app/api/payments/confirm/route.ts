@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { untrusted } from "@/lib/guardrails";
 import { confirmPayment, checkoutProvider } from "../_lib/checkout";
 import { orderRepo } from "../_lib/orders";
+import { orderConfirmationNotifier } from "../_lib/notify";
 
 export const dynamic = "force-dynamic";
 
@@ -19,9 +20,11 @@ export async function POST(req: Request): Promise<Response> {
     return NextResponse.json({ errors: ["잘못된 요청입니다."] }, { status: 400 });
   }
   const v = untrusted(body).value as { orderId?: unknown; paymentKey?: unknown };
-  const res = await confirmPayment(orderRepo(), checkoutProvider(), {
-    orderId: v?.orderId,
-    paymentKey: v?.paymentKey,
-  });
+  const res = await confirmPayment(
+    orderRepo(),
+    checkoutProvider(),
+    { orderId: v?.orderId, paymentKey: v?.paymentKey },
+    orderConfirmationNotifier(), // F055: exactly-once via markPaid.transitioned
+  );
   return NextResponse.json(res.body, { status: res.status });
 }

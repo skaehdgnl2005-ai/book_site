@@ -58,7 +58,7 @@ export async function requestAccessCode(_prev: LookupState, formData: FormData):
       const to = order.buyerEmail;
       after(async () => {
         try {
-          await emailAdapter().send({ to, code });
+          await emailAdapter().send({ kind: "mypage_otp", to, code });
         } catch (e) {
           console.warn("otp send failed:", redact(String(e))); // recoverable by re-request; never surfaced
         }

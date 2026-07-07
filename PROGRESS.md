@@ -3,7 +3,21 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- **Latest (2026-07-07, 밤): F054 주문 상태 머신 7상태 확장 DONE.**
+- **Latest (2026-07-07, 밤): F055 주문 확인 이메일 DONE — Wave 2(배송·주문 기본기) 완료.**
+  PAID 전이 시 구매자에게 확인 메일 정확히 1회. **진실원천 = `markPaid`의 원자적 조건부 쓰기**
+  (`{order, transitioned}` 반환; Prisma updateMany count===1 ⟺ 이 호출이 전이) — confirm/webhook이
+  경합해도 승자만 `SettlementNotifier`를 호출(주입식, checkout.ts 순수 유지). notifier는 라우트/페이지
+  레이어에서 `after()`+catch+`redact()`(OTP 발송 관용구; 발송 실패가 결제 응답을 절대 막지 않음).
+  `EmailMessage`를 kind 유니온으로 확장(`mypage_otp`|`order_confirmation`) — 확인 메일 본문은
+  주문번호/PII-free 상품명/금액/마이페이지 안내만(아이 이름·헌정·주소는 **메시지 타입에 필드가 없어**
+  구조적으로 배제). CUSTOM 정산(settle)도 동일 notifier 경유. 유닛 238(신규 order-confirmation 5:
+  양방향 경합·FAILED·replay·CUSTOM) + 전체 E2E 112/112 + eval S1–S11. e2e_via F013.
+  **참고**: F053의 375px 체크아웃 오버플로가 경계선상(간헐 1px)이었음이 이번 풀 E2E에서 드러나 확정
+  수정(`eaeab0d` — shipRow 인풋 min-width:0). **prod 실발송은 EMAIL_FROM 도메인 프로비저닝 대기**
+  (미설정 시 fail-closed, 결제 무영향 — HITL 잔여). `Next:` Wave 2 배포 체크포인트(마이그레이션
+  contactEmail·shipZip 2건 `prisma migrate deploy` + `pnpm approve deploy.production` 사람 실행) 또는
+  바로 Wave 3 F056(회원 기반) 착수.
+- **(2026-07-07, 밤): F054 주문 상태 머신 7상태 확장 DONE.**
   앱 레이어 이진(CREATED|PAID)을 DB enum 기예약 7상태로 확장(마이그레이션 0). 신규
   `api/payments/_lib/status.ts`: `canTransition` 전이표(PAID→IN_PRODUCTION→SHIPPED→COMPLETED,
   PAID|IN_PRODUCTION→REFUNDED, CREATED→CANCELLED — **CREATED→PAID는 의도적으로 표에 없음**: 결제는

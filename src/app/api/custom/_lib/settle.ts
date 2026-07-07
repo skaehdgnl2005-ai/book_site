@@ -19,6 +19,7 @@ import {
 } from "../../../../lib/customRequest";
 import type { PaymentProvider } from "../../../../lib/payments";
 import type { OrderRepo } from "../../payments/_lib/orders";
+import type { SettlementNotifier } from "../../payments/_lib/checkout";
 import { isPaidFamily } from "../../payments/_lib/status";
 
 export type CustomStore = Pick<CustomBackend, "get" | "markSubmitted" | "linkOrder">;
@@ -50,6 +51,7 @@ export async function settleWrittenPayment(
   repo: OrderRepo,
   provider: PaymentProvider,
   input: { id: unknown; paymentKey: unknown },
+  notify?: SettlementNotifier,
 ): Promise<SettleResult> {
   const id = asString(input.id);
   const paymentKey = asString(input.paymentKey);
@@ -66,7 +68,8 @@ export async function settleWrittenPayment(
     // SERVER-held amount — the ?amount= query param is display-only and never trusted.
     const conf = await provider.confirm({ paymentKey, orderId: rec.id, amount: rec.amountWon });
     if (conf.status !== "PAID") return { status: 402, body: { status: conf.status } };
-    await repo.markPaid(rec.id, conf.paymentKey);
+    const paid = await repo.markPaid(rec.id, conf.paymentKey);
+    if (paid.transitioned && paid.order) notify?.(paid.order); // F055: exactly-once, CUSTOM too
   }
   await store.linkOrder(rec.id, rec.id); // Order.id === CustomRequest.id (F052 invariant)
   const updated = await store.markSubmitted(rec.id);

@@ -280,24 +280,28 @@ describe("orderRepo.markPaid", () => {
     expect(order.id).toMatch(/^ord_/);
   });
 
-  it("marks a CREATED order PAID and stores the payment key", async () => {
+  it("marks a CREATED order PAID and stores the payment key (transitioned: the exactly-once signal, F055)", async () => {
     const { repo, order } = await paidOrder();
     const paid = await repo.markPaid(order.id, "pk_1");
-    expect(paid?.status).toBe("PAID");
-    expect(paid?.tossPaymentKey).toBe("pk_1");
+    expect(paid.transitioned).toBe(true);
+    expect(paid.order?.status).toBe("PAID");
+    expect(paid.order?.tossPaymentKey).toBe("pk_1");
   });
 
-  it("is idempotent: a second markPaid keeps the FIRST key (no overwrite)", async () => {
+  it("is idempotent: a second markPaid keeps the FIRST key and reports transitioned:false", async () => {
     const { repo, order } = await paidOrder();
     await repo.markPaid(order.id, "pk_1");
     const again = await repo.markPaid(order.id, "pk_2");
-    expect(again?.status).toBe("PAID");
-    expect(again?.tossPaymentKey).toBe("pk_1"); // defensive against replay
+    expect(again.transitioned).toBe(false); // the replay must NOT re-fire settlement effects
+    expect(again.order?.status).toBe("PAID");
+    expect(again.order?.tossPaymentKey).toBe("pk_1"); // defensive against replay
   });
 
-  it("returns undefined for an unknown order id", async () => {
+  it("returns no order (and no transition) for an unknown order id", async () => {
     const { repo } = await paidOrder();
-    expect(await repo.markPaid("ord_nope", "pk")).toBeUndefined();
+    const res = await repo.markPaid("ord_nope", "pk");
+    expect(res.order).toBeUndefined();
+    expect(res.transitioned).toBe(false);
   });
 });
 

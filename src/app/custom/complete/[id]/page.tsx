@@ -4,6 +4,7 @@ import { Nav } from "../../../_components/Nav";
 import { Footer } from "../../../_components/Footer";
 import { customRequestStore, customTossProvider } from "@/lib/customRequest";
 import { orderRepo } from "../../../api/payments/_lib/orders";
+import { orderConfirmationNotifier } from "../../../api/payments/_lib/notify";
 import { settleWrittenPayment, reconcileWrittenFromOrder } from "../../../api/custom/_lib/settle";
 import styles from "./page.module.css";
 
@@ -33,7 +34,13 @@ export default async function CustomCompletePage({
 
   if (paymentKey) {
     // Settle (idempotent). A non-PAID result falls through to the honest 결제 대기 view below.
-    await settleWrittenPayment(customRequestStore, orderRepo(), customTossProvider(), { id, paymentKey });
+    await settleWrittenPayment(
+      customRequestStore,
+      orderRepo(),
+      customTossProvider(),
+      { id, paymentKey },
+      orderConfirmationNotifier(), // F055: CUSTOM orders confirm by email too
+    );
     redirect(`/custom/complete/${id}`);
   }
 

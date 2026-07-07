@@ -6,6 +6,7 @@ import {
   type PaymentLookup,
 } from "../_lib/checkout";
 import { orderRepo, webhookLedger } from "../_lib/orders";
+import { orderConfirmationNotifier } from "../_lib/notify";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +32,7 @@ export async function POST(req: Request): Promise<Response> {
   const provider = checkoutProvider();
   const lookup: PaymentLookup = (paymentKey) => provider.lookupPayment(paymentKey);
   try {
-    const res = await processWebhook(rawBody, token, secret, orderRepo(), webhookLedger(), lookup);
+    const res = await processWebhook(rawBody, token, secret, orderRepo(), webhookLedger(), lookup, orderConfirmationNotifier());
     return NextResponse.json(res.body, { status: res.status });
   } catch {
     // Transient re-query / DB error → 5xx so Toss RETRIES (it retries non-2xx up to 7× over

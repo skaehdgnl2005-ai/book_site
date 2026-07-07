@@ -80,11 +80,13 @@ export interface OrderRepo {
   get(id: string): Promise<StoredOrder | undefined>;
   /**
    * Idempotent PAID transition (both the sync confirm and the async webhook call it):
-   * unknown id → undefined; CREATED → set key + PAID; already PAID → no-op keeping the
-   * FIRST key (defensive against replay; the schema's `tossPaymentKey @unique` forbids
-   * overwrite anyway).
+   * unknown id → order undefined; CREATED → set key + PAID; already settled → no-op keeping
+   * the FIRST key (defensive against replay; the schema's `tossPaymentKey @unique` forbids
+   * overwrite anyway). `transitioned` is true ONLY for the single call that actually moved
+   * CREATED→PAID — the atomic conditional write is the truth source for exactly-once effects
+   * (F055: the confirmation email fires exactly once even when confirm and webhook race).
    */
-  markPaid(id: string, paymentKey: string): Promise<StoredOrder | undefined>;
+  markPaid(id: string, paymentKey: string): Promise<{ order: StoredOrder | undefined; transitioned: boolean }>;
   /**
    * F054 — conditional status transition: applies only while the current status is in `from`
    * (updateMany-style conditional write — two admins double-clicking apply exactly once).
@@ -121,12 +123,11 @@ export function createOrderRepo(): OrderRepo {
     },
     async markPaid(id, paymentKey) {
       const order = map.get(id);
-      if (!order) return undefined;
-      if (order.status === "CREATED") {
-        order.status = "PAID";
-        order.tossPaymentKey = paymentKey;
-      }
-      return order;
+      if (!order) return { order: undefined, transitioned: false };
+      if (order.status !== "CREATED") return { order, transitioned: false };
+      order.status = "PAID";
+      order.tossPaymentKey = paymentKey;
+      return { order, transitioned: true };
     },
     async transition(id, from, to) {
       const order = map.get(id);
@@ -373,12 +374,13 @@ export function createPrismaOrderRepo(getDb: () => Promise<Db>): OrderRepo {
       const db = await getDb();
       // Idempotent: only a CREATED order transitions; an already-PAID order is untouched
       // (count:0), preserving the first paymentKey. The DB row is then re-read + mapped.
-      await (db.order as OrderDelegate).updateMany({
+      // count===1 ⟺ THIS call made the transition (the atomic exactly-once signal, F055).
+      const res = await (db.order as OrderDelegate).updateMany({
         where: { id, status: "CREATED" },
         data: { status: "PAID", tossPaymentKey: paymentKey },
       });
       const row = await (db.order as OrderDelegate).findUnique({ where: { id }, include: ORDER_INCLUDE });
-      return row ? mapOrderRow(row) : undefined;
+      return { order: row ? mapOrderRow(row) : undefined, transitioned: res.count === 1 };
     },
     async transition(id, from, to) {
       const db = await getDb();

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { untrusted } from "@/lib/guardrails";
 import { customRequestStore, customTossProvider } from "@/lib/customRequest";
 import { orderRepo } from "../../../payments/_lib/orders";
+import { orderConfirmationNotifier } from "../../../payments/_lib/notify";
 import { settleWrittenPayment } from "../../_lib/settle";
 
 /**
@@ -21,9 +22,12 @@ export async function POST(req: Request): Promise<Response> {
   }
 
   const data = untrusted(body).value as { id?: unknown; paymentKey?: unknown };
-  const res = await settleWrittenPayment(customRequestStore, orderRepo(), customTossProvider(), {
-    id: data.id,
-    paymentKey: data.paymentKey,
-  });
+  const res = await settleWrittenPayment(
+    customRequestStore,
+    orderRepo(),
+    customTossProvider(),
+    { id: data.id, paymentKey: data.paymentKey },
+    orderConfirmationNotifier(),
+  );
   return NextResponse.json(res.body, { status: res.status });
 }

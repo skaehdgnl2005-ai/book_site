@@ -5,11 +5,11 @@ import { redact } from "../../src/lib/env";
 describe("F046 email adapter", () => {
   it("mock records to its outbox; no external effect", async () => {
     const a = mockEmailAdapter();
-    await a.send({ to: "parent@example.com", code: "424242" });
-    expect(a.outbox).toEqual([{ to: "parent@example.com", code: "424242" }]);
+    await a.send({ kind: "mypage_otp", to: "parent@example.com", code: "424242" });
+    expect(a.outbox).toEqual([{ kind: "mypage_otp", to: "parent@example.com", code: "424242" }]);
   });
   it("fail-closed prod stub throws (a security email must never silently no-op)", async () => {
-    await expect(failClosedProdAdapter().send({ to: "a@b.com", code: "111111" })).rejects.toThrow(/provider/i);
+    await expect(failClosedProdAdapter().send({ kind: "mypage_otp", to: "a@b.com", code: "111111" })).rejects.toThrow(/provider/i);
   });
   it("factory selects the mock in non-prod", () => {
     const a = emailAdapter({ APP_ENV: "development" }) as ReturnType<typeof mockEmailAdapter>;
@@ -17,7 +17,7 @@ describe("F046 email adapter", () => {
   });
   it("factory returns the fail-closed stub in prod (no provider wired yet)", async () => {
     const a = emailAdapter({ APP_ENV: "production" });
-    await expect(a.send({ to: "a@b.com", code: "111111" })).rejects.toThrow(/provider/i);
+    await expect(a.send({ kind: "mypage_otp", to: "a@b.com", code: "111111" })).rejects.toThrow(/provider/i);
   });
   it("PII: email is redact()-masked; a 6-digit code passes redact() UNCHANGED (so the code must never be traced)", () => {
     expect(redact("to parent@example.com")).toContain("***@***");
@@ -32,7 +32,7 @@ describe("F046 email adapter", () => {
       }),
     );
     try {
-      await mockEmailAdapter().send({ to: "parent@example.com", code: "424242" });
+      await mockEmailAdapter().send({ kind: "mypage_otp", to: "parent@example.com", code: "424242" });
     } finally {
       spies.forEach((s) => s.mockRestore());
     }
@@ -48,6 +48,7 @@ describe("F047 Resend email adapter", () => {
       return { ok: true, status: 200 };
     };
     await resendEmailAdapter({ apiKey: "re_secret_123", from: "no-reply@gpcs.kr", transport }).send({
+      kind: "mypage_otp",
       to: "parent@example.com",
       code: "424242",
     });
@@ -64,14 +65,14 @@ describe("F047 Resend email adapter", () => {
   it("resend: a non-2xx response THROWS (a security email must never silently no-op)", async () => {
     const transport: EmailTransport = async () => ({ ok: false, status: 422 });
     await expect(
-      resendEmailAdapter({ apiKey: "re_x", from: "no-reply@gpcs.kr", transport }).send({ to: "a@b.com", code: "111111" }),
+      resendEmailAdapter({ apiKey: "re_x", from: "no-reply@gpcs.kr", transport }).send({ kind: "mypage_otp", to: "a@b.com", code: "111111" }),
     ).rejects.toThrow(/422|resend|email/i);
   });
 
   it("resend: the thrown error carries the HTTP status ONLY — never the code or recipient (PII omission)", async () => {
     const transport: EmailTransport = async () => ({ ok: false, status: 500 });
     const err = await resendEmailAdapter({ apiKey: "re_x", from: "no-reply@gpcs.kr", transport })
-      .send({ to: "parent@example.com", code: "424242" })
+      .send({ kind: "mypage_otp", to: "parent@example.com", code: "424242" })
       .catch((e: unknown) => e);
     expect(String(err)).not.toContain("424242");
     expect(String(err)).not.toContain("parent@example.com");
@@ -88,7 +89,7 @@ describe("F047 Resend email adapter", () => {
     const transport: EmailTransport = async () => ({ ok: false, status: 502 });
     try {
       await resendEmailAdapter({ apiKey: "re_x", from: "f@x.com", transport })
-        .send({ to: "parent@example.com", code: "424242" })
+        .send({ kind: "mypage_otp", to: "parent@example.com", code: "424242" })
         .catch(() => undefined);
     } finally {
       spies.forEach((s) => s.mockRestore());
@@ -104,7 +105,7 @@ describe("F047 Resend email adapter", () => {
         APP_ENV: "production",
         RESEND_API_KEY: "re_live_key",
         EMAIL_FROM: "no-reply@gpcs.kr",
-      }).send({ to: "parent@example.com", code: "424242" });
+      }).send({ kind: "mypage_otp", to: "parent@example.com", code: "424242" });
       expect(fetchSpy).toHaveBeenCalledTimes(1);
       expect(fetchSpy).toHaveBeenCalledWith("https://api.resend.com/emails", expect.anything());
     } finally {
@@ -114,12 +115,12 @@ describe("F047 Resend email adapter", () => {
 
   it("factory: a half-configured provider does NOT half-send — only RESEND_API_KEY (no EMAIL_FROM) stays fail-closed in prod", async () => {
     const a = emailAdapter({ APP_ENV: "production", RESEND_API_KEY: "re_live_key" });
-    await expect(a.send({ to: "a@b.com", code: "111111" })).rejects.toThrow(/provider/i);
+    await expect(a.send({ kind: "mypage_otp", to: "a@b.com", code: "111111" })).rejects.toThrow(/provider/i);
   });
 
   it("factory: only EMAIL_FROM (no RESEND_API_KEY) also stays fail-closed in prod", async () => {
     const a = emailAdapter({ APP_ENV: "production", EMAIL_FROM: "no-reply@gpcs.kr" });
-    await expect(a.send({ to: "a@b.com", code: "111111" })).rejects.toThrow(/provider/i);
+    await expect(a.send({ kind: "mypage_otp", to: "a@b.com", code: "111111" })).rejects.toThrow(/provider/i);
   });
 
   it("redact(): masks a Resend API key (re_… prefix), leaving no secret tail", () => {
@@ -139,5 +140,42 @@ describe("F047 Resend email adapter", () => {
 
   it("redact(): the re_ rule does NOT mask intra-word matches (more_/secret_/pre_ stay intact)", () => {
     expect(redact("more_data secret_value pre_render")).toBe("more_data secret_value pre_render");
+  });
+});
+
+describe("F055 order-confirmation email", () => {
+  const CONF = {
+    kind: "order_confirmation",
+    to: "parent@example.com",
+    orderId: "ord_0001",
+    orderName: "탄생",
+    amountWon: 43000,
+  } as const;
+
+  it("mock outbox records the confirmation message", async () => {
+    const a = mockEmailAdapter();
+    await a.send(CONF);
+    expect(a.outbox).toEqual([CONF]);
+  });
+
+  it("resend composes an order-confirmation subject/body: 주문번호·상품·금액만 (PII-minimal by construction)", async () => {
+    const calls: { init: { body: string } }[] = [];
+    const transport: EmailTransport = async (_url, init) => {
+      calls.push({ init });
+      return { ok: true, status: 200 };
+    };
+    await resendEmailAdapter({ apiKey: "re_x", from: "no-reply@gpcs.kr", transport }).send(CONF);
+    const body = JSON.parse(calls[0].init.body) as { to: string; subject: string; text: string };
+    expect(body.to).toBe("parent@example.com");
+    expect(body.subject).toContain("주문");
+    expect(body.text).toContain("ord_0001");
+    expect(body.text).toContain("탄생");
+    expect(body.text).toContain("43,000원");
+    expect(body.text).toContain("마이페이지"); // finishing guidance
+  });
+
+  it("resend still throws on non-2xx for a confirmation (no silent drop; caller catch keeps payment green)", async () => {
+    const transport: EmailTransport = async () => ({ ok: false, status: 500 });
+    await expect(resendEmailAdapter({ apiKey: "re_x", from: "f@x.com", transport }).send(CONF)).rejects.toThrow(/500/);
   });
 });
