@@ -7,6 +7,7 @@ import { formatWon, COVER_LABEL } from "../../../_components/order/format";
 import { orderRepo } from "../../../api/payments/_lib/orders";
 import { ORDER_STATUS_LABEL, isPaidFamily } from "../../../api/payments/_lib/status";
 import { getSessionUser } from "../../_lib/sessionUser";
+import { CancelRequestPanel } from "../../../_components/order/CancelRequestPanel";
 import styles from "../../account.module.css";
 
 export const dynamic = "force-dynamic";
@@ -86,6 +87,13 @@ export default async function AccountOrderPage({ params }: { params: Promise<{ i
               책 마무리하기 (사진·헌정 문구)
             </Link>
           ) : null}
+          <CancelRequestPanel
+            orderId={order.id}
+            status={order.status}
+            cancelRequestedAt={order.cancelRequestedAt ?? null}
+          />
+        </section>
+        <section className={styles.panel} aria-label="돌아가기">
           <p className={styles.note}>
             <Link href="/account">← 내 계정으로</Link>
           </p>

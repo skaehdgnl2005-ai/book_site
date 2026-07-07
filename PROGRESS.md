@@ -3,7 +3,17 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- **Latest (2026-07-07, 밤): F061 관리자 맞춤 의뢰·상담 관리 DONE — Wave 4(관리자) 완료.**
+- **Latest (2026-07-07, 밤): F062 구매자 취소 요청 DONE — Wave 5 시작.**
+  `requestCancel` = **단일 조건부 쓰기**: `status ∈ {PAID, IN_PRODUCTION} && cancelRequestedAt IS
+  NULL`일 때만 접수(중복·배송후·미결제는 정직한 no-op, 첫 사유 보존). 게이트는 F057의
+  `hasOrderAccess` 재사용 — 게스트(capability 쿠키)와 회원(세션 소유) 양쪽에서 동일 액션.
+  UI: `CancelRequestPanel` 공용 컴포넌트(account 상세 + mypage) — 접수됨 안내 / 사유 폼(제작
+  착수 후 거부 가능 고지) / SHIPPED 이후 고객센터 안내 3분기. 관리자: 목록 취소요청 배지 +
+  상세 사유(렌더만). 컬럼 `cancelRequestedAt/cancelReason`(`20260707150000_order_cancel_request`).
+  검증: check green(유닛 273) + E2E 136/136(cancel 2 신규) + eval S1–S11. `Next:` F063 환불 집행
+  (PaymentProvider.cancelPayment + requireApproval(toss.refund.live) + 웹훅 CANCELED 수렴) —
+  로드맵 마지막 항목.
+- **(2026-07-07, 밤): F061 관리자 맞춤 의뢰·상담 관리 DONE — Wave 4(관리자) 완료.**
   `/admin/custom` 목록(경로·상태 필터)·상세(6묶음 의뢰서 `CUSTOM_FORM_GROUPS` 재사용, 연락처
   PII 렌더만, F052 링크로 결제 주문 상세 왕복). 의뢰 상태는 `canTransitionCustom` 전이표
   (SUBMITTED→IN_REVIEW→IN_PRODUCTION→COMPLETED|CANCELLED; **PENDING_PAYMENT→SUBMITTED는

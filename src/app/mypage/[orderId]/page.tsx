@@ -5,6 +5,7 @@ import { Nav } from "../../_components/Nav";
 import { Footer } from "../../_components/Footer";
 import { formatWon, COVER_LABEL } from "../../_components/order/format";
 import { FinishingClient } from "../../_components/mypage/FinishingClient";
+import { CancelRequestPanel } from "../../_components/order/CancelRequestPanel";
 import { orderRepo } from "@/app/api/payments/_lib/orders";
 import { isPaidFamily } from "@/app/api/payments/_lib/status";
 import { hasOrderAccess } from "../_lib/orderAccess";
@@ -73,16 +74,25 @@ export default async function MypageOrderPage({ params }: { params: Promise<{ or
           ) : null}
         </section>
         {paid ? (
-          <FinishingClient
-            orderId={order.id}
-            qrAddon={order.qrVideoAddon}
-            items={order.items.map((it, index) => ({
-              index,
-              templateLabel: it.templateLabel,
-              coverLabel: COVER_LABEL[it.coverType],
-              unitPriceText: formatWon(it.unitPriceWon),
-            }))}
-          />
+          <>
+            <FinishingClient
+              orderId={order.id}
+              qrAddon={order.qrVideoAddon}
+              items={order.items.map((it, index) => ({
+                index,
+                templateLabel: it.templateLabel,
+                coverLabel: COVER_LABEL[it.coverType],
+                unitPriceText: formatWon(it.unitPriceWon),
+              }))}
+            />
+            <section className={styles.panel} aria-label="주문 취소">
+              <CancelRequestPanel
+                orderId={order.id}
+                status={order.status}
+                cancelRequestedAt={order.cancelRequestedAt ?? null}
+              />
+            </section>
+          </>
         ) : (
           <section className={styles.panel} aria-label="결제 대기">
             <p className={styles.note} data-testid="mypage-not-paid">

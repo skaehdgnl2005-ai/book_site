@@ -60,7 +60,12 @@ export default async function AdminOrdersPage({
                       {order.kind === "CUSTOM" ? "[맞춤] " : ""}
                       {order.orderName} · {order.buyerName}
                     </span>
-                    <span className={styles.rowStatus}>{ORDER_STATUS_LABEL[order.status]}</span>
+                    <span className={styles.rowStatus}>
+                      {order.cancelRequestedAt ? (
+                        <span data-testid="admin-cancel-badge">취소요청 · </span>
+                      ) : null}
+                      {ORDER_STATUS_LABEL[order.status]}
+                    </span>
                     <span className={styles.rowMeta}>
                       {order.createdAt.slice(0, 10)} · {order.id}
                     </span>

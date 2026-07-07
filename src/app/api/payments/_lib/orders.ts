@@ -58,6 +58,9 @@ export type OrderDraft = {
   /** F060 — shipment record (admin-entered at the SHIPPED transition). */
   trackingCarrier?: string;
   trackingNumber?: string;
+  /** F062 — buyer cancel request (refund EXECUTION is F063's approval-gated flow). */
+  cancelRequestedAt?: string;
+  cancelReason?: string;
   items: OrderItemDraft[];
 };
 
@@ -110,6 +113,11 @@ export interface OrderRepo {
   listRecent(opts?: { status?: OrderStatus; take?: number }): Promise<StoredOrder[]>;
   /** F060 — record the shipment (carrier + tracking number) ahead of the SHIPPED transition. */
   setTracking(id: string, carrier: string, trackingNumber: string): Promise<StoredOrder | undefined>;
+  /**
+   * F062 — record the buyer's cancel request ONCE: a conditional write that applies only while
+   * the order is still cancellable (PAID/IN_PRODUCTION — pre-shipment) and no request exists.
+   */
+  requestCancel(id: string, reason: string, now?: number): Promise<{ ok: boolean }>;
 }
 
 export interface WebhookLedger {
@@ -181,6 +189,15 @@ export function createOrderRepo(): OrderRepo {
       order.trackingCarrier = carrier;
       order.trackingNumber = trackingNumber;
       return order;
+    },
+    async requestCancel(id, reason, now = Date.now()) {
+      const order = map.get(id);
+      if (!order || order.cancelRequestedAt || !["PAID", "IN_PRODUCTION"].includes(order.status)) {
+        return { ok: false };
+      }
+      order.cancelRequestedAt = new Date(now).toISOString();
+      order.cancelReason = reason;
+      return { ok: true };
     },
   };
 }
@@ -317,6 +334,8 @@ export type OrderRow = {
   userId?: string | null;
   trackingCarrier?: string | null;
   trackingNumber?: string | null;
+  cancelRequestedAt?: Date | string | null;
+  cancelReason?: string | null;
   createdAt: Date | string;
   items: OrderRowItem[];
 };
@@ -379,6 +398,12 @@ export function mapOrderRow(row: OrderRow): StoredOrder {
     userId: row.userId ?? undefined,
     trackingCarrier: row.trackingCarrier ?? undefined,
     trackingNumber: row.trackingNumber ?? undefined,
+    cancelRequestedAt: row.cancelRequestedAt
+      ? typeof row.cancelRequestedAt === "string"
+        ? row.cancelRequestedAt
+        : row.cancelRequestedAt.toISOString()
+      : undefined,
+    cancelReason: row.cancelReason ?? undefined,
     items,
   };
 }
@@ -400,7 +425,7 @@ type OrderDelegate = {
   }): Promise<OrderRow[]>;
   updateMany(args: {
     where:
-      | { id: string; status?: "CREATED" | { in: OrderStatus[] } }
+      | { id: string; status?: "CREATED" | { in: OrderStatus[] }; cancelRequestedAt?: null }
       | { buyerEmail: { equals: string; mode: "insensitive" }; userId: null };
     data: {
       status?: OrderStatus;
@@ -408,6 +433,8 @@ type OrderDelegate = {
       userId?: string;
       trackingCarrier?: string;
       trackingNumber?: string;
+      cancelRequestedAt?: Date;
+      cancelReason?: string;
     };
   }): Promise<{ count: number }>;
 };
@@ -496,6 +523,15 @@ export function createPrismaOrderRepo(getDb: () => Promise<Db>): OrderRepo {
       });
       const row = await (db.order as OrderDelegate).findUnique({ where: { id }, include: ORDER_INCLUDE });
       return row ? mapOrderRow(row) : undefined;
+    },
+    async requestCancel(id, reason, now = Date.now()) {
+      const db = await getDb();
+      // ONE conditional write: cancellable status + no prior request (duplicate = honest no-op).
+      const res = await (db.order as OrderDelegate).updateMany({
+        where: { id, status: { in: ["PAID", "IN_PRODUCTION"] }, cancelRequestedAt: null },
+        data: { cancelRequestedAt: new Date(now), cancelReason: reason },
+      });
+      return { ok: res.count === 1 };
     },
   };
 }

@@ -64,6 +64,36 @@ describe("orderRepo.listRecent (F059)", () => {
   });
 });
 
+describe("orderRepo.requestCancel (F062)", () => {
+  it("records ONCE while cancellable (PAID/IN_PRODUCTION); duplicates, shipped, unknown → no-op", async () => {
+    const repo = createOrderRepo();
+    const order = await repo.create(draft());
+    expect((await repo.requestCancel(order.id, "사유")).ok).toBe(false); // CREATED — not paid yet
+
+    await repo.markPaid(order.id, "pk_1");
+    expect((await repo.requestCancel(order.id, "아이 이름 오타")).ok).toBe(true);
+    const stored = await repo.get(order.id);
+    expect(stored?.cancelReason).toBe("아이 이름 오타");
+    expect(stored?.cancelRequestedAt).toBeTruthy();
+    expect((await repo.requestCancel(order.id, "다른 사유")).ok).toBe(false); // duplicate
+    expect((await repo.get(order.id))?.cancelReason).toBe("아이 이름 오타"); // first reason kept
+
+    const shipped = await repo.create(draft());
+    await repo.markPaid(shipped.id, "pk_2");
+    await repo.transition(shipped.id, ["PAID"], "IN_PRODUCTION");
+    expect((await repo.requestCancel(shipped.id, "r")).ok).toBe(true); // IN_PRODUCTION still cancellable
+    await repo.transition(shipped.id, ["IN_PRODUCTION"], "SHIPPED");
+
+    const late = await repo.create(draft());
+    await repo.markPaid(late.id, "pk_3");
+    await repo.transition(late.id, ["PAID"], "IN_PRODUCTION");
+    await repo.transition(late.id, ["IN_PRODUCTION"], "SHIPPED");
+    expect((await repo.requestCancel(late.id, "너무 늦음")).ok).toBe(false); // SHIPPED — CS only
+
+    expect((await repo.requestCancel("ord_nope", "r")).ok).toBe(false);
+  });
+});
+
 describe("orderRepo.setTracking (F060)", () => {
   it("records carrier + number; unknown id → undefined", async () => {
     const repo = createOrderRepo();

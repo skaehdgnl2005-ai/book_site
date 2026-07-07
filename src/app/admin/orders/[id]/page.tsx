@@ -93,6 +93,14 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
                 </dd>
               </div>
             ) : null}
+            {order.cancelRequestedAt ? (
+              <div className={styles.row}>
+                <dt className={styles.dt}>취소 요청</dt>
+                <dd className={styles.dd} data-testid="admin-order-cancel-request">
+                  {order.cancelRequestedAt.slice(0, 10)} · {order.cancelReason}
+                </dd>
+              </div>
+            ) : null}
           </dl>
           <TransitionPanel orderId={order.id} status={order.status} />
           <p className={styles.note}>

@@ -849,9 +849,9 @@
         "관리자 주문 목록에 취소 요청 표시가 보인다"
       ],
       "verification": "pnpm test:e2e -- cancel-request.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": ""
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-07 pnpm check green (lint+typecheck+unit 273 passed/10 skipped+constraints 0 violations); full pnpm test:e2e 136/136 passed incl. cancel-request.spec.ts 2/2(사유 접수→폼 소멸·리로드 영속·mypage 동기 표시·관리자 배지+사유, SHIPPED 이후 폼 대신 고객센터 안내) + eval S1–S11 pass. requestCancel = 단일 조건부 쓰기(PAID|IN_PRODUCTION && 미접수 — 중복·배송후·CREATED no-op, 첫 사유 보존; 유닛 전수), 게이트는 hasOrderAccess(게스트 capability OR 세션 소유) 재사용으로 account 상세·mypage 양 표면 공용, cancelRequestedAt/cancelReason 컬럼(마이그레이션 20260707150000). 환불 집행은 F063"
     },
     {
       "id": "F063",
