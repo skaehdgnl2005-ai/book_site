@@ -475,3 +475,26 @@ img {
 .site-footer__link:hover {
   color: var(--accent);
 }
+
+/* ── Route-transition loading view (category segments' loading.tsx) — quiet by
+   design. Instant feedback while the navigated-to segment renders. Kept OFF the
+   root: a root boundary streams notFound() pages as HTTP 200 (F007/F014 contract).
+   Opacity-only pulse, 700ms per leg on --ease; silenced by the global
+   prefers-reduced-motion guard above. */
+.loading-view {
+  min-height: 60vh;
+  display: grid;
+  place-items: center;
+  padding: var(--section) var(--gutter);
+}
+.loading-view__label {
+  animation: loading-pulse 1.4s var(--ease) infinite alternate;
+}
+@keyframes loading-pulse {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.35;
+  }
+}

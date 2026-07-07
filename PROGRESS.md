@@ -3,7 +3,23 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- **Latest (2026-07-06, 밤): 프로덕션 배포 — UI 전면 개선(플랜 8개 WP) 라이브.**
+- **Latest (2026-07-07): 카테고리 페이지 로딩 지연 — 조사 + 성능 수정 3건 (/change; 미커밋, 커밋·배포 대기).**
+  사용자 보고 "기념일/첫순간들 클릭 시 로딩 지연" → 계통 조사: 프로덕션 TTFB 측정으로 재현
+  (/anniversary·/first-moments **매 요청 1.2~1.6s** vs 정적 /·/custom 0.1~0.3s; 연속 8요청에도
+  1.19s 하한 = 콜드스타트 아님), `X-Vercel-Id: icn1::iad1`로 **함수가 미국 동부(기본 리전)에서
+  실행**되며 서울 Supabase까지 매 요청 왕복임을 확정(대조: 같은 쿼리를 한국에서 직접 실행 시
+  콜드 313ms/웜 83ms — 쿼리 자체는 저렴). 수정: ① vercel.json `"regions":["icn1"]`(서울 고정 —
+  카테고리뿐 아니라 주문·결제·mypage 전 동적 경로 혜택, **다음 배포부터 유효**); ② 카테고리
+  2페이지 `force-dynamic` → `revalidate = 300`(ISR — 준정적 8행 카탈로그, 라이브 DB 반영 의도는
+  5분 창으로 유지); ③ 카테고리 세그먼트 loading.tsx 2개 + globals `.loading-view`(클릭 즉시
+  피드백; opacity-only 펄스, reduced-motion 전역 가드). **함정 기록: 루트 loading.tsx 금지** —
+  전 라우트 위 Suspense 경계로 스트리밍이 켜져 notFound() 페이지가 셸을 HTTP 200으로 먼저
+  흘려보냄 → F007/F014 unknown-id E2E 2건이 404→200 회귀로 잡아냄(세그먼트 스코프로 재설계해
+  해소; 근거 주석 loading.tsx·globals.css에 남김). 검증: pnpm check 0위반 + **전체 E2E 110/110**
+  + `pnpm build` 라우트 테이블에서 두 페이지 `○ … Revalidate 5m` 확인. feature_list 무변경(성능
+  국소 수정). `Next:` 커밋 → `pnpm approve deploy.production` → `pnpm build` 확인 → `vercel
+  --prod --yes` → 카나리: X-Vercel-Id `icn1::icn1` + 카테고리 TTFB<300ms + /orders/unknown 404.
+- **(2026-07-06, 밤): 프로덕션 배포 — UI 전면 개선(플랜 8개 WP) 라이브.**
   사용자 지시로 `pnpm approve deploy.production`(정확 확인 토큰 발급) → **비가역 배포 전 리스크
   차단으로 `pnpm build` 로컬 프로덕션 빌드 컴파일 확인**(전 라우트 에러 0) → `vercel --prod --yes`.
   배포 `dpl_GSXPwErUhWmSyn4a1zZedgc34gVF` READY, alias **https://storybook-shop.vercel.app**.

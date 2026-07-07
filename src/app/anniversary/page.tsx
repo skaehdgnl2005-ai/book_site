@@ -10,9 +10,11 @@ export const metadata: Metadata = {
   description: "탄생·백일·돌·생일·입학 — 누군가의 가장 빛나는 하루를 위한 단 하나의 그림책.",
 };
 
-// Render per request so the live-DB read (when configured) is honored, rather than
-// baking a build-time snapshot. Hermetic builds still render the seed mirror.
-export const dynamic = "force-dynamic";
+// ISR: serve the statically cached page, re-render (honoring the live-DB read when
+// configured) at most every 5 minutes. force-dynamic here made every request pay a
+// function + DB round trip (~1.3s TTFB cross-region) for an 8-row catalogue that
+// almost never changes; hermetic builds still render the seed mirror.
+export const revalidate = 300;
 
 export default async function AnniversaryPage() {
   const templates = await getTemplatesByCategory("ANNIVERSARY");
