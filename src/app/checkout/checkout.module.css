@@ -26,9 +26,11 @@
   font-family: var(--font-grotesk); font-weight: 600; font-size: 0.78rem;
   letter-spacing: 0; /* 한글 라벨 — 양수 자간 금지 (WP7) */ color: var(--ink);
 }
-.shipRow { display: flex; gap: var(--space-sm); }
-.shipRow > .field:first-child { flex: 0 0 8.5em; }
+.shipRow { display: flex; gap: var(--space-sm); min-width: 0; }
+.shipRow > .field:first-child { flex: 0 0 7em; }
 .shipRowGrow { flex: 1; min-width: 0; }
+/* inputs must shrink with their flex item — their intrinsic size (~20ch) would overflow 375px */
+.shipRow .input { width: 100%; min-width: 0; }
 .error { margin: 0; font-size: 0.82rem; color: var(--accent); }
 /* 필수 안내 문구 — microLabel 톤(작게·muted). 한글이므로 자간 0·대문자 변환 없음. */
 .note {
