@@ -233,6 +233,41 @@ describe("mapOrderRow", () => {
   });
 });
 
+// ── F057: member linkage — claim-by-email + listByUser + userId passthrough ──────
+describe("createOrderRepo — claimByEmail / listByUser (F057)", () => {
+  it("claims only UNCLAIMED orders whose buyerEmail matches case-insensitively; idempotent", async () => {
+    const { createOrderRepo } = await import("../../src/app/api/payments/_lib/orders");
+    const repo = createOrderRepo();
+    const mine = await repo.create(draft({ buyerEmail: "Member@Example.com" }));
+    const other = await repo.create(draft({ buyerEmail: "other@example.com" }));
+    const taken = await repo.create(draft({ buyerEmail: "member@example.com", userId: "usr_prev" }));
+
+    expect((await repo.claimByEmail("member@example.com", "usr_me")).count).toBe(1);
+    expect((await repo.get(mine.id))?.userId).toBe("usr_me");
+    expect((await repo.get(other.id))?.userId).toBeUndefined();
+    expect((await repo.get(taken.id))?.userId).toBe("usr_prev"); // never re-homed
+    expect((await repo.claimByEmail("member@example.com", "usr_me")).count).toBe(0); // idempotent
+  });
+
+  it("listByUser returns only the member's orders, newest first", async () => {
+    const { createOrderRepo } = await import("../../src/app/api/payments/_lib/orders");
+    const repo = createOrderRepo();
+    const a = await repo.create(draft({ userId: "usr_me" }));
+    await repo.create(draft({ userId: "usr_other" }));
+    const b = await repo.create(draft({ userId: "usr_me" }));
+    const list = await repo.listByUser("usr_me");
+    expect(list.map((o) => o.id).sort()).toEqual([a.id, b.id].sort());
+    expect(list.every((o) => o.userId === "usr_me")).toBe(true);
+  });
+
+  it("buildOrderCreateData / mapOrderRow carry userId (null/undefined when guest)", () => {
+    expect(buildOrderCreateData(draft({ userId: "usr_me" }), "ord_u", idForKey).userId).toBe("usr_me");
+    expect(buildOrderCreateData(draft(), "ord_g", idForKey).userId).toBeNull();
+    expect(mapOrderRow(row({ userId: "usr_me" })).userId).toBe("usr_me");
+    expect(mapOrderRow(row()).userId).toBeUndefined();
+  });
+});
+
 // ── in-memory repo: explicit id + kind (F052 — CUSTOM orders reuse the same repo) ──
 describe("createOrderRepo — explicit id / kind", () => {
   it("uses a caller-provided id (CUSTOM: = CustomRequest.id) and defaults kind to ENTRY", async () => {

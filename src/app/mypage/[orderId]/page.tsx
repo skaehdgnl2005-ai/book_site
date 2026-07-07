@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { Nav } from "../../_components/Nav";
 import { Footer } from "../../_components/Footer";
@@ -8,7 +7,7 @@ import { formatWon, COVER_LABEL } from "../../_components/order/format";
 import { FinishingClient } from "../../_components/mypage/FinishingClient";
 import { orderRepo } from "@/app/api/payments/_lib/orders";
 import { isPaidFamily } from "@/app/api/payments/_lib/status";
-import { cookieName, verifyAccess } from "../_lib/access";
+import { hasOrderAccess } from "../_lib/orderAccess";
 import styles from "../../_components/mypage/mypage.module.css";
 
 export const dynamic = "force-dynamic";
@@ -30,8 +29,8 @@ export const metadata: Metadata = {
 export default async function MypageOrderPage({ params }: { params: Promise<{ orderId: string }> }) {
   const { orderId } = await params;
 
-  const token = (await cookies()).get(cookieName(orderId))?.value ?? null;
-  if (!verifyAccess(orderId, token)) {
+  // Capability cookie (guest OTP, checked first — no lookup) OR session ownership (F057).
+  if (!(await hasOrderAccess(orderId))) {
     return (
       <>
         <Nav />

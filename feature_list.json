@@ -766,9 +766,9 @@
         "비로그인 게스트의 주문번호+OTP 조회 경로는 기존과 동일하게 동작한다"
       ],
       "verification": "pnpm test:e2e -- account-orders.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": ""
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-07 pnpm check green (lint+typecheck+unit 251 passed/10 skipped+constraints 0 violations); full pnpm test:e2e 122/122 passed incl. account-orders.spec.ts 3/3(게스트 주문 로그인 소급 연결→상세→OTP 없이 mypage 마무리 진입, 로그인 결제 이메일 프리필+즉시 연결, 비소유 회원 mypage 균일 게이트+상세 404) + 기존 게스트 OTP mypage 스펙 무회귀; pnpm eval S1–S11 pass. Order.userId FK+index(마이그레이션 20260707130000_order_user_link), claimByEmail(대소문자 무시·미연결 행만·멱등 조건부 updateMany, 유닛 3 tests), listByUser(최신순), /account 내 주문 목록·/account/orders/[id] 상세(소유자만·본인 배송지 표시), hasOrderAccess(capability 쿠키 우선→세션 소유) 공유 게이트로 mypage 페이지·state 라우트·finishing 액션 통일"
     },
     {
       "id": "F058",

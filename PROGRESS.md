@@ -3,7 +3,18 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- **Latest (2026-07-07, 밤): F056 회원 기반(이메일 OTP 로그인 + 전역 세션) DONE — Wave 3 시작.**
+- **Latest (2026-07-07, 밤): F057 게스트 주문 소급 연결 + 내 주문 DONE.**
+  `Order.userId` FK(+index, `20260707130000_order_user_link`). 연결 경로 2개: ① 로그인 결제는
+  create 라우트에서 세션 유저를 draft에 부착(+체크아웃 이메일 프리필 — /checkout이 서버 컴포넌트로
+  세션 읽음), ② 게스트 주문은 이메일 소유 증명 시점(로그인 OTP 성공)에 `claimByEmail` 소급 연결
+  (대소문자 무시, **미연결 행만** — 주문이 소유자를 바꾸는 일 없음, 멱등). `/account`에 내 주문
+  목록(최신순), `/account/orders/[id]` 상세(엄격 소유 게이트 404; 소유자 본인 배송지 표시 —
+  비인증 /orders/[id]의 PII 미노출 원칙은 그대로). **mypage 게이트 통일**: `hasOrderAccess` =
+  capability 쿠키(게스트 OTP, 룩업 없이 우선 — 존재 오라클 규율 유지) OR 세션 소유 — 페이지·state
+  라우트·finishing 액션 3곳 공용, 회원은 상세에서 OTP 없이 마무리 화면 직행. 검증: check green
+  (유닛 251) + E2E 122/122(account-orders 3 신규) + eval S1–S11. `Next:` F058 카카오 로그인
+  (프로덕션 활성화는 카카오 앱 등록 HITL 필요 — sandbox로 E2E 완주).
+- **(2026-07-07, 밤): F056 회원 기반(이메일 OTP 로그인 + 전역 세션) DONE — Wave 3 시작.**
   ADR-0023 실행: passwordless 회원(로그인=가입 통합, 비밀번호 없음). **기존 스택 일반화 — 신규
   의존성 0**: 세션은 access.ts 패턴의 전역판(stateless HMAC 쿠키 `account_session`,
   `userId.epoch.exp.hmac`, TTL 30일, 시크릿은 `MYPAGE_ACCESS_SECRET` 재사용, `User.sessionEpoch`+1

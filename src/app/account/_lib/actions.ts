@@ -10,6 +10,7 @@ import { accessSecret } from "../../mypage/_lib/access";
 import { loginOtpStore, loginSubject } from "./loginOtp";
 import { userRepo, normalizeEmail } from "./users";
 import { getSessionUser, setSessionCookie, clearSessionCookie } from "./sessionUser";
+import { orderRepo } from "../../api/payments/_lib/orders";
 
 /**
  * F056 server actions — 이메일 OTP 로그인(=가입 통합). Thin glue over the audited otp.ts core
@@ -63,6 +64,9 @@ export async function verifyLoginCode(_prev: LoginState, formData: FormData): Pr
   }
 
   const user = await userRepo().upsertByEmail(email); // login == signup (email ownership proven)
+  // F057 — email ownership is proven RIGHT NOW: retroactively claim this email's guest orders
+  // (idempotent conditional write; an already-claimed order never changes owners).
+  await orderRepo().claimByEmail(email, user.id);
   if (!(await setSessionCookie(user))) {
     return { stage: "verify", email, error: LOGIN_CLOSED };
   }

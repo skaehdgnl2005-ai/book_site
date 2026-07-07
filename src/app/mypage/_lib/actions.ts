@@ -7,7 +7,8 @@ import { receiveUpload, storeAsset, type AssetKind } from "@/lib/assets";
 import { putObject } from "@/lib/storage";
 import { orderRepo } from "@/app/api/payments/_lib/orders";
 import { isPaidFamily } from "@/app/api/payments/_lib/status";
-import { ACCESS_TTL_MS, cookieName, mintAccess, verifyAccess } from "./access";
+import { ACCESS_TTL_MS, cookieName, mintAccess } from "./access";
+import { hasOrderAccess } from "./orderAccess";
 import { finishingStore } from "./finishing";
 import { after } from "next/server";
 import { generateCode, hashCode, otpStore, verifyAndConsume } from "./otp";
@@ -25,10 +26,9 @@ function normalizeEmail(v: unknown): string {
   return (typeof v === "string" ? v : "").trim().toLowerCase();
 }
 
-/** Read + verify the httpOnly capability cookie for this order (await cookies() — Next 15). */
+/** Capability cookie OR session ownership (F057) — the shared predicate, re-checked per WRITE. */
 async function requireAccess(orderId: string): Promise<boolean> {
-  const token = (await cookies()).get(cookieName(orderId))?.value ?? null;
-  return verifyAccess(orderId, token);
+  return hasOrderAccess(orderId);
 }
 
 const UNIFORM_LOOKUP_NOTE = "입력하신 정보와 일치하는 주문이 있으면 인증 코드를 메일로 보냈습니다.";

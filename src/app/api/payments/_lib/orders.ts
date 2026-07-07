@@ -53,6 +53,8 @@ export type OrderDraft = {
   shipPhone?: string;
   shipZip?: string;
   shipAddress?: string;
+  /** F057 — owning member (set at create for a signed-in buyer; claimed later for guests). */
+  userId?: string;
   items: OrderItemDraft[];
 };
 
@@ -93,6 +95,14 @@ export interface OrderRepo {
    * Callers gate the PAIR against `canTransition` (./status); this method enforces atomicity.
    */
   transition(id: string, from: readonly OrderStatus[], to: OrderStatus): Promise<{ ok: boolean }>;
+  /**
+   * F057 — retroactively claim guest orders for a member whose EMAIL OWNERSHIP was just proven
+   * (login OTP / verified Kakao email). Case-insensitive on buyerEmail; only unclaimed rows
+   * (userId null) take the link — idempotent, and an order never silently changes owners.
+   */
+  claimByEmail(email: string, userId: string): Promise<{ count: number }>;
+  /** F057 — the member's orders, newest first. */
+  listByUser(userId: string): Promise<StoredOrder[]>;
 }
 
 export interface WebhookLedger {
@@ -134,6 +144,22 @@ export function createOrderRepo(): OrderRepo {
       if (!order || !from.includes(order.status)) return { ok: false };
       order.status = to;
       return { ok: true };
+    },
+    async claimByEmail(email, userId) {
+      const norm = email.trim().toLowerCase();
+      let count = 0;
+      for (const order of map.values()) {
+        if (order.userId == null && order.buyerEmail.trim().toLowerCase() === norm) {
+          order.userId = userId;
+          count += 1;
+        }
+      }
+      return { count };
+    },
+    async listByUser(userId) {
+      return [...map.values()]
+        .filter((o) => o.userId === userId)
+        .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
     },
   };
 }
@@ -182,6 +208,7 @@ export type OrderCreateData = {
   shipPhone: string | null;
   shipZip: string | null;
   shipAddress: string | null;
+  userId: string | null;
   items: { create: OrderItemCreate[] };
 };
 
@@ -236,6 +263,7 @@ export function buildOrderCreateData(
     shipPhone: draft.shipPhone ?? null,
     shipZip: draft.shipZip ?? null,
     shipAddress: draft.shipAddress ?? null,
+    userId: draft.userId ?? null,
     items: { create: items },
   };
 }
@@ -265,6 +293,7 @@ export type OrderRow = {
   shipPhone?: string | null;
   shipZip?: string | null;
   shipAddress?: string | null;
+  userId?: string | null;
   createdAt: Date | string;
   items: OrderRowItem[];
 };
@@ -324,6 +353,7 @@ export function mapOrderRow(row: OrderRow): StoredOrder {
     shipPhone: row.shipPhone ?? undefined,
     shipZip: row.shipZip ?? undefined,
     shipAddress: row.shipAddress ?? undefined,
+    userId: row.userId ?? undefined,
     items,
   };
 }
@@ -337,9 +367,16 @@ type TemplateDelegate = {
 type OrderDelegate = {
   create(args: { data: OrderCreateData; include: unknown }): Promise<OrderRow>;
   findUnique(args: { where: { id: string }; include: unknown }): Promise<OrderRow | null>;
+  findMany(args: {
+    where: { userId: string };
+    orderBy: { createdAt: "desc" };
+    include: unknown;
+  }): Promise<OrderRow[]>;
   updateMany(args: {
-    where: { id: string; status: "CREATED" | { in: OrderStatus[] } };
-    data: { status: OrderStatus; tossPaymentKey?: string };
+    where:
+      | { id: string; status: "CREATED" | { in: OrderStatus[] } }
+      | { buyerEmail: { equals: string; mode: "insensitive" }; userId: null };
+    data: { status?: OrderStatus; tossPaymentKey?: string; userId?: string };
   }): Promise<{ count: number }>;
 };
 type ProcessedWebhookDelegate = {
@@ -389,6 +426,25 @@ export function createPrismaOrderRepo(getDb: () => Promise<Db>): OrderRepo {
         data: { status: to },
       });
       return { ok: res.count === 1 };
+    },
+    async claimByEmail(email, userId) {
+      const db = await getDb();
+      // Conditional write: only unclaimed rows with the (case-insensitively) matching buyer
+      // email take the link — idempotent across repeated logins.
+      const res = await (db.order as OrderDelegate).updateMany({
+        where: { buyerEmail: { equals: email.trim().toLowerCase(), mode: "insensitive" }, userId: null },
+        data: { userId },
+      });
+      return { count: res.count };
+    },
+    async listByUser(userId) {
+      const db = await getDb();
+      const rows = await (db.order as OrderDelegate).findMany({
+        where: { userId },
+        orderBy: { createdAt: "desc" },
+        include: ORDER_INCLUDE,
+      });
+      return rows.map(mapOrderRow);
     },
   };
 }

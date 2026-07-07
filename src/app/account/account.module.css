@@ -18,3 +18,21 @@
 }
 .quiet:hover { color: var(--ink); }
 .note { margin: var(--space-md) 0 0; font-size: 0.85rem; color: var(--muted); }
+
+/* F057 — 내 주문 목록: hairline rows (no boxes), grid columns collapse on mobile. */
+.sectionTitle {
+  margin: 0 0 var(--space-sm);
+  font-family: var(--font-grotesk); font-weight: 600; font-size: 0.95rem;
+  letter-spacing: 0; color: var(--ink);
+}
+.orderList { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.orderRow { border-bottom: 1px solid var(--line); }
+.orderLink {
+  display: grid; grid-template-columns: 1fr auto; gap: 2px var(--space-sm);
+  padding: var(--space-sm) 0; text-decoration: none; color: inherit;
+}
+.orderLink:hover .orderName { text-decoration: underline; text-underline-offset: 3px; }
+.orderName { font-size: 0.95rem; color: var(--ink); }
+.orderMeta { grid-row: 2; font-family: var(--font-grotesk); font-size: 0.75rem; letter-spacing: 0; color: var(--muted); }
+.orderStatus { justify-self: end; font-family: var(--font-grotesk); font-weight: 600; font-size: 0.78rem; letter-spacing: 0; color: var(--accent); }
+.orderAmount { grid-row: 2; justify-self: end; font-family: var(--font-grotesk); font-weight: 600; font-size: 0.88rem; color: var(--ink); }

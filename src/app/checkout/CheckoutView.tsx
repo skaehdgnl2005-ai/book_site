@@ -16,11 +16,11 @@ import styles from "./checkout.module.css";
  * ADR-0011 handoff), and POSTs to /api/payments/create. On success it forwards the server-issued
  * checkout fields to requestTossPayment, which opens the real TossPayments hosted payment window.
  */
-export function CheckoutView() {
+export function CheckoutView({ defaultBuyerEmail = "" }: { defaultBuyerEmail?: string }) {
   const [cart, setCart] = useState<Cart>({ lines: [], qrVideoAddon: false });
   const [ready, setReady] = useState(false);
   const [buyerName, setBuyerName] = useState("");
-  const [buyerEmail, setBuyerEmail] = useState("");
+  const [buyerEmail, setBuyerEmail] = useState(defaultBuyerEmail); // F057 — member prefill
   // F053 — shipping destination (PII; posted to the server, never logged).
   const [shipName, setShipName] = useState("");
   const [shipPhone, setShipPhone] = useState("");

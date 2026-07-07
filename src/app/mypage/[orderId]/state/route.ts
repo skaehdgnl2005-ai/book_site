@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { cookies } from "next/headers";
 import { orderRepo } from "@/app/api/payments/_lib/orders";
-import { cookieName, verifyAccess } from "../../_lib/access";
+import { hasOrderAccess } from "../../_lib/orderAccess";
 import { finishingStore } from "../../_lib/finishing";
 
 export const dynamic = "force-dynamic";
@@ -18,8 +17,8 @@ export async function GET(
   { params }: { params: Promise<{ orderId: string }> },
 ): Promise<Response> {
   const { orderId } = await params;
-  const token = (await cookies()).get(cookieName(orderId))?.value ?? null;
-  if (!verifyAccess(orderId, token)) {
+  // Capability cookie OR session ownership (F057) — the shared mypage predicate.
+  if (!(await hasOrderAccess(orderId))) {
     return NextResponse.json({ error: "접근 권한이 없습니다." }, { status: 401, headers: NO_STORE });
   }
   const order = await orderRepo().get(orderId);

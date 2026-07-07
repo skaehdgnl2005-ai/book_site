@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { untrusted } from "@/lib/guardrails";
 import { getTemplateByKey } from "@/app/_components/catalog/templates";
+import { getSessionUser } from "@/app/account/_lib/sessionUser";
 import { buildOrderDraft, checkoutProvider } from "../_lib/checkout";
 import { orderRepo } from "../_lib/orders";
 
@@ -22,6 +23,10 @@ export async function POST(req: Request): Promise<Response> {
 
   const built = await buildOrderDraft(untrusted(body).value, getTemplateByKey);
   if (!built.ok) return NextResponse.json({ errors: built.errors }, { status: built.status });
+
+  // F057 — a signed-in buyer's order is theirs from birth (guests link later via claim).
+  const sessionUser = await getSessionUser();
+  if (sessionUser) built.draft.userId = sessionUser.id;
 
   const order = await orderRepo().create(built.draft);
   const origin = new URL(req.url).origin;

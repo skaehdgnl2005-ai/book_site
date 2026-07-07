@@ -59,8 +59,13 @@ model Order {
   items         OrderItem[]
   customRequest CustomRequest?
   assets        Asset[]
+  // F057 — 회원 연결(선택): 로그인 결제 시 즉시, 게스트 주문은 이메일 소유 증명 시 소급 claim.
+  user          User?       @relation(fields: [userId], references: [id])
+  userId        String?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+
+  @@index([userId])
 }
 
 // One personalized book within an ENTRY order.
@@ -105,6 +110,7 @@ model User {
   displayName     String?
   kakaoId         String?   @unique // F058
   sessionEpoch    Int       @default(0) // +1 = 모든 기기 로그아웃 (stateless HMAC 세션 무효화)
+  orders          Order[] // F057 — 이메일 소유 증명 시점에 소급 연결(claim); 게스트 주문은 null
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 }

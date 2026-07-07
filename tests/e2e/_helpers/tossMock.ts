@@ -56,9 +56,9 @@ export async function addBirthToCart(page: Page, opts: { coverHard?: boolean; qr
   await page.waitForURL("**/cart");
 }
 
-async function fillBuyer(page: Page): Promise<void> {
+async function fillBuyer(page: Page, email = "parent@example.com"): Promise<void> {
   await page.getByTestId("checkout-buyer-name").fill("김부모");
-  await page.getByTestId("checkout-buyer-email").fill("parent@example.com");
+  await page.getByTestId("checkout-buyer-email").fill(email);
   // F053 — shipping is required on an ENTRY order (single funnel point for every checkout spec).
   await page.getByTestId("checkout-ship-name").fill("김수취");
   await page.getByTestId("checkout-ship-phone").fill("010-2222-3333");
@@ -68,18 +68,21 @@ async function fillBuyer(page: Page): Promise<void> {
 }
 
 /** From a populated /cart, walk checkout and trigger requestPayment. The SDK mock MUST already be installed. */
-export async function checkoutFromCart(page: Page): Promise<void> {
+export async function checkoutFromCart(page: Page, opts: { email?: string } = {}): Promise<void> {
   await page.getByTestId("cart-checkout").click();
   await page.waitForURL("**/checkout");
-  await fillBuyer(page);
+  await fillBuyer(page, opts.email);
   await page.getByTestId("checkout-pay").click();
 }
 
 /** Build a cart + pay successfully; returns the PAID orderId (from the /orders/[id] landing). */
-export async function completePaidOrder(page: Page, opts: { coverHard?: boolean; qrOn?: boolean } = {}): Promise<string> {
+export async function completePaidOrder(
+  page: Page,
+  opts: { coverHard?: boolean; qrOn?: boolean; email?: string } = {},
+): Promise<string> {
   await installTossMock(page, "success");
   await addBirthToCart(page, opts);
-  await checkoutFromCart(page);
+  await checkoutFromCart(page, { email: opts.email });
   await page.waitForURL(/\/orders\/ord_/);
   return new URL(page.url()).pathname.split("/").pop() as string;
 }
