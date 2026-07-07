@@ -3,7 +3,7 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- **Latest (2026-07-07): 카테고리 페이지 로딩 지연 — 조사 + 성능 수정 3건 (/change; 미커밋, 커밋·배포 대기).**
+- **Latest (2026-07-07): 카테고리 페이지 로딩 지연 — 조사 + 성능 수정 3건 (/change; 커밋 `d0e467a`, 배포는 사용자 보류).**
   사용자 보고 "기념일/첫순간들 클릭 시 로딩 지연" → 계통 조사: 프로덕션 TTFB 측정으로 재현
   (/anniversary·/first-moments **매 요청 1.2~1.6s** vs 정적 /·/custom 0.1~0.3s; 연속 8요청에도
   1.19s 하한 = 콜드스타트 아님), `X-Vercel-Id: icn1::iad1`로 **함수가 미국 동부(기본 리전)에서
@@ -17,8 +17,9 @@
   흘려보냄 → F007/F014 unknown-id E2E 2건이 404→200 회귀로 잡아냄(세그먼트 스코프로 재설계해
   해소; 근거 주석 loading.tsx·globals.css에 남김). 검증: pnpm check 0위반 + **전체 E2E 110/110**
   + `pnpm build` 라우트 테이블에서 두 페이지 `○ … Revalidate 5m` 확인. feature_list 무변경(성능
-  국소 수정). `Next:` 커밋 → `pnpm approve deploy.production` → `pnpm build` 확인 → `vercel
-  --prod --yes` → 카나리: X-Vercel-Id `icn1::icn1` + 카테고리 TTFB<300ms + /orders/unknown 404.
+  국소 수정). 배포 대행은 안전 분류기가 HITL 자가 주입으로 차단(정상) — 사람이 직접
+  `pnpm approve deploy.production` 실행 필요. `Next:` (승인 후) `vercel --prod --yes` →
+  카나리: X-Vercel-Id `icn1::icn1` + 카테고리 TTFB<300ms + /orders/unknown 404 유지.
 - **(2026-07-06, 밤): 프로덕션 배포 — UI 전면 개선(플랜 8개 WP) 라이브.**
   사용자 지시로 `pnpm approve deploy.production`(정확 확인 토큰 발급) → **비가역 배포 전 리스크
   차단으로 `pnpm build` 로컬 프로덕션 빌드 컴파일 확인**(전 라우트 에러 0) → `vercel --prod --yes`.
