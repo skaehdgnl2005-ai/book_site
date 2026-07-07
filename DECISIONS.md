@@ -697,3 +697,42 @@ never-NEXT_PUBLIC + hygiene lists updated) — all folded.
 `DECISIONS.md`). **No** `actions.ts` / payments / F045 / `guardrails.ts` / `check-constraints.mjs` touched.
 **Deploy:** the maker provisions `RESEND_API_KEY` + `EMAIL_FROM` (Resend-verified domain) in Vercel prod env,
 then a single `vercel --prod` carries F046+F047 together; canary as above.
+
+## 2026-07-07 — ADR-0023 — 회원 시스템 도입 (F056–F058): ADR-0021 D1 "no accounts" 번복
+> 메이커 결정(플랜 승인): 로그인·내 주문·소셜(카카오)을 갖춘 표준 쇼핑몰 경험이 필요하다.
+> ADR-0021의 "one-shot keepsake guest checkout" 모델은 **게스트 경로를 유지한 채** 회원을 선택지로 얹는
+> 방식으로 번복한다. 게스트 체크아웃·주문번호+OTP mypage 조회는 영구 유지 — 로그인은 순수 opt-in.
+
+- **D1 비밀번호 없음:** 이메일 OTP(로그인=가입 통합) + 카카오 OAuth 두 경로만. bcrypt/비밀번호 재설정
+  플로우를 만들지 않는다 — 기존 otp.ts 소유증명 코어가 이미 이 모델을 검증했다(ADR-0021 D2).
+- **D2 라이브러리 미도입:** Auth.js/lucia 대신 기존 자체 스택 일반화. 근거: 런타임 의존성 5개 철학,
+  hermetic Prisma/in-memory 이중 백엔드(ADR-0002)와 어댑터 스키마 강제의 부조화, 코드형 OTP는 어차피
+  자체 구현 유지 필요. OAuth 3콜은 injectable transport(TossTransport 전례)로 hermetic 단위테스트.
+- **D3 세션 = stateless HMAC 쿠키:** `account_session`(path=/, httpOnly, sameSite=lax, TTL 30일),
+  토큰 `${userId}.${epoch}.${exp}.${hmac}` — access.ts 패턴의 전역 일반화. 시크릿은
+  `MYPAGE_ACCESS_SECRET` 재사용(ADR-0021 D3 "no new secret" 전례). `User.sessionEpoch` 불일치 = 무효
+  → "모든 기기에서 로그아웃"은 epoch+1. Session 테이블 없음 — 기기별 개별 revoke를 포기하는 대신
+  마이그레이션·이중 백엔드·요청당 조회를 아낀다(비밀번호 없는 OTP 시스템에서 수용 가능).
+- **D4 카카오 연결 규칙:** kakaoId 일치 → 로그인. 없으면 카카오가 `is_email_valid && is_email_verified`
+  로 보증한 이메일만 기존 User에 자동 연결(미검증 이메일 자동 연결은 계정 탈취 벡터라 금지). 이메일
+  미동의/미검증 → email=null 신규 User + /account에서 사후 OTP 이메일 연결(성공 시 D5 claim 실행).
+- **D5 주문 연결:** `Order.userId?` FK. 이메일 소유가 OTP로 증명되는 모든 시점에
+  `updateMany({where:{buyerEmail(insensitive), userId:null}, data:{userId}})` 소급 연결(멱등).
+  mypage `requireAccess` = 기존 capability 쿠키 **OR** 세션 소유(order.userId === user.id) — 기존
+  게스트 경로 코드 무변경으로 mypage E2E 무회귀.
+- **D6 LoginOtp 분리:** 주문-스코프 `OtpCode` 테이블은 불변(R9 정신). 유저-스코프 OTP는 동일 구조의
+  `LoginOtp`(subject PK `login:<email>`) 신설 — otp.ts의 `verifyAndConsume`/`hashCode`/상수 재사용.
+
+## 2026-07-07 — ADR-0024 — 관리자 백오피스 웹 편입 (F059–F061): "backstage out of web scope" 부분 번복
+> PRODUCT_BRIEF는 운영(주문관리·제작)을 백스테이지로 뒀다. 주문 상태 확장(F054)·배송(F053)·환불(F063)이
+> 웹에 들어오면서 운영자가 상태를 전이할 표면이 필요해졌다 — /admin을 웹 스코프로 편입한다.
+
+- **D1 인증:** 별도 admin 인증체계 없음 — 전역 세션(ADR-0023) 재사용 + `ADMIN_EMAILS` env allowlist
+  (콤마 구분, lowercase 비교). `requireAdmin()` 실패는 `notFound()`(404 — 존재 은닉).
+- **D2 PII:** 관리자 화면은 구매자·배송지·의뢰서 PII를 **렌더만** 한다 — 어떤 admin 코드 경로도 PII를
+  console/trace에 남기지 않는다(E3 유지). noindex + force-dynamic.
+- **D3 전이 안전:** 모든 상태 변경은 `canTransition` 전이표 + 조건부 updateMany(`repo.transition`) —
+  관리자 2명 동시 클릭에도 단 한 번만 적용. 상담 확정·환불 집행은 `requireApproval()` 게이트
+  (guardrails.ts 기존 액션명 `consultation.book`/`toss.refund.live`, 목록 무변경).
+- **D4 middleware.ts 계속 미도입:** 레이아웃 가드 + 서버액션별 재검증(이중 가드) — actions.ts
+  defense-in-depth 전례.

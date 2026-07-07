@@ -661,6 +661,214 @@
       "state": "passing",
       "passes": true,
       "evidence": "2026-07-06 full pnpm test:e2e 106/106 passed (1.4m) incl. cart.spec.ts + checkout-start.spec.ts; pnpm check green (lint+typecheck+unit 201 passed/10 skipped+constraints 0 violations); visual verify at 1440/390: cart line delete + empty state + typographic cover thumbnails + hairline summary + mobile sticky total/pay bar. Re-gated at branch tip (after 5134e7a nav BAG live-sync + 05afb7f onRemove side-effect move) 2026-07-06: pnpm check green (lint+typecheck+unit 201 passed/10 skipped+constraints 0 violations) + full pnpm test:e2e 106/106 passed (1.3m) — evidence now covers the branch tip, not just promote commit 0f075e1"
+    },
+    {
+      "id": "F052",
+      "category": "custom",
+      "track": "product",
+      "priority": 2,
+      "description": "맞춤 직접작성(WRITTEN) 결제 영속화 — 결제 승인 시 Order(kind=CUSTOM, PAID) 생성·tossPaymentKey 저장·CustomRequest 연결(멱등) + 실 Toss SDK 결제창(F044 parity, 하드코딩 paymentKey 제거) + 연락 이메일 수집. 프로덕션 맞춤 결제 불능·환불 불가 결함 수정",
+      "steps": [
+        "WRITTEN 폼이 연락 이메일을 수집하고 형식을 검증한다",
+        "결제 버튼이 실 Toss SDK 결제창(테스트 키)을 연다 — 하드코딩 paymentKey 없음",
+        "결제 승인 시 Order(kind=CUSTOM, PAID) 레코드가 생성되고 tossPaymentKey·금액이 저장된다",
+        "CustomRequest.orderId가 생성된 Order에 연결되며, 중복 confirm에도 Order는 1개(멱등)"
+      ],
+      "verification": "pnpm test:e2e -- custom-written.spec.ts",
+      "state": "not_started",
+      "passes": false,
+      "evidence": ""
+    },
+    {
+      "id": "F053",
+      "category": "checkout",
+      "track": "product",
+      "priority": 1,
+      "description": "체크아웃 배송지 수집 — 수취인 이름·연락처·우편번호·주소 입력(dormant shipName/shipPhone/shipAddress 컬럼 활성 + shipZip 추가), ENTRY 주문 필수 검증, 비인증 /orders/[id]에는 배송지 미노출(PII 원칙 유지)",
+      "steps": [
+        "체크아웃 폼에 배송 블록(수취인 이름·연락처·우편번호·기본주소·상세주소)이 보인다",
+        "배송지 필수 입력 미충족 시 결제 시작이 차단되고 안내가 보인다",
+        "결제된 주문에 배송지가 저장된다",
+        "비인증 주문 확인 페이지(/orders/[id])에는 배송지가 노출되지 않는다"
+      ],
+      "verification": "pnpm test:e2e -- checkout-start.spec.ts checkout-success.spec.ts",
+      "state": "not_started",
+      "passes": false,
+      "evidence": ""
+    },
+    {
+      "id": "F054",
+      "category": "order",
+      "track": "product",
+      "priority": 1,
+      "description": "주문 상태 머신 확장 — 앱 레이어 7상태(CREATED/PAID/IN_PRODUCTION/SHIPPED/COMPLETED/CANCELLED/REFUNDED — DB enum 기예약), 전이표 canTransition(PAID→IN_PRODUCTION→SHIPPED→COMPLETED, PAID|IN_PRODUCTION→REFUNDED, CREATED→CANCELLED), OrderRepo.transition(조건부 updateMany, 양 백엔드), paid-family 게이트 일반화(주문 확인·mypage)",
+      "steps": [
+        "PAID 이후 상태(IN_PRODUCTION/SHIPPED/COMPLETED)의 주문도 주문 확인·mypage 마무리에 접근할 수 있다",
+        "전이표에 없는 상태 변경(예: SHIPPED→PAID)은 거부된다",
+        "결제 직후 주문 확인 페이지 표시는 기존과 동일하다(무회귀)"
+      ],
+      "verification": "유닛(전이표 전수·transition 양 백엔드·paid-family 게이트) + 전체 pnpm test:e2e 무회귀; 전이를 밟는 사용자 대면 화면은 e2e_via 의존 스펙이 커버",
+      "e2e_via": [
+        "F060",
+        "F062"
+      ],
+      "state": "not_started",
+      "passes": false,
+      "evidence": ""
+    },
+    {
+      "id": "F055",
+      "category": "checkout",
+      "track": "product",
+      "priority": 1,
+      "description": "주문 확인 이메일 — CREATED→PAID 전이 시 정확히 1회 발송(markPaid의 원자적 transitioned 반환이 진실원천, confirm/webhook 경합 멱등), EmailMessage discriminated union 확장, 본문에 민감 PII(아이 이름·헌정문구) 미포함, 발송 실패가 결제 응답을 막지 않음",
+      "steps": [
+        "주문이 PAID로 전이되면 구매자 이메일로 주문 확인 메일이 발송된다(비프로덕션 mock outbox 검증)",
+        "confirm과 webhook이 경합해도 발송은 정확히 1회다",
+        "메일 본문에 아이 이름·헌정문구 등 민감 PII가 포함되지 않는다",
+        "메일 발송 실패는 결제 성공 응답을 막지 않는다"
+      ],
+      "verification": "유닛(멱등 발송·kind 분기·PII 부재·실패 무영향) + docker Postgres gated 통합(경합 원자성); 사용자 대면 결제 플로우는 기존 체크아웃 E2E 경유",
+      "e2e_via": [
+        "F013"
+      ],
+      "state": "not_started",
+      "passes": false,
+      "evidence": ""
+    },
+    {
+      "id": "F056",
+      "category": "account",
+      "track": "product",
+      "priority": 2,
+      "description": "회원 기반 — User·LoginOtp 모델(+마이그레이션 RLS), 이메일 OTP 로그인(로그인=가입 통합, 기존 otp.ts 원자 코어 재사용, 비프로덕션 결정 코드), stateless HMAC 세션 쿠키 account_session(httpOnly·30일·sessionEpoch 전기기 무효화, MYPAGE_ACCESS_SECRET 재사용), /login·/account·로그아웃. ADR-0023(ADR-0021 D1 번복, 게스트 체크아웃 유지)",
+      "steps": [
+        "/login에서 이메일 입력 → 6자리 코드 검증 → 로그인된다(신규 이메일은 자동 가입)",
+        "로그인 후 /account에 프로필(이메일)과 로그아웃이 보인다",
+        "로그아웃하면 세션이 무효화되어 /account가 로그인 유도로 돌아간다",
+        "세션 쿠키는 httpOnly·HMAC 서명이며 위조·만료 토큰은 거부된다"
+      ],
+      "verification": "pnpm test:e2e -- account-login.spec.ts",
+      "state": "not_started",
+      "passes": false,
+      "evidence": ""
+    },
+    {
+      "id": "F057",
+      "category": "account",
+      "track": "product",
+      "priority": 2,
+      "description": "게스트 주문 소급 연결 + 내 주문 — Order.userId FK(+index), 이메일 소유 증명 시점마다 소급 연결(멱등 updateMany, buyerEmail 대소문자 무시), 로그인 상태 체크아웃 자동 연결·이메일 프리필, /account/orders 목록·상세, mypage requireAccess에 세션 소유 경로 추가(게스트 OTP 경로 무변경)",
+      "steps": [
+        "로그인하면 같은 이메일로 결제된 기존 게스트 주문이 내 주문 목록에 나타난다",
+        "로그인 상태로 결제하면 주문이 자동으로 계정에 연결되고 이메일이 프리필된다",
+        "내 주문 상세에서 OTP 없이 mypage 마무리 화면으로 이동할 수 있다",
+        "비로그인 게스트의 주문번호+OTP 조회 경로는 기존과 동일하게 동작한다"
+      ],
+      "verification": "pnpm test:e2e -- account-orders.spec.ts",
+      "state": "not_started",
+      "passes": false,
+      "evidence": ""
+    },
+    {
+      "id": "F058",
+      "category": "account",
+      "track": "product",
+      "priority": 2,
+      "description": "카카오 소셜 로그인 — 수동 OAuth(kauth authorize→token→kapi user/me, injectable transport, 비프로덕션 sandbox provider), state HMAC 쿠키 CSRF 방어, 연결 규칙: kakaoId 우선 → 카카오 검증(is_email_valid&&is_email_verified) 이메일만 기존 계정 자동 연결 → 미동의/미검증은 email=null 신규 + /account 사후 OTP 이메일 연결 배너. env: KAKAO_REST_API_KEY/KAKAO_CLIENT_SECRET(+redact)",
+      "steps": [
+        "/login에 카카오로 시작하기가 보이고 OAuth 왕복(비프로덕션 sandbox) 후 로그인된다",
+        "state 불일치 콜백은 거부된다",
+        "카카오 검증 이메일이 기존 계정과 일치하면 자동 연결된다",
+        "이메일 미동의면 email 없는 계정으로 로그인되고 /account에 이메일 연결 안내가 보인다"
+      ],
+      "verification": "pnpm test:e2e -- account-kakao.spec.ts",
+      "state": "not_started",
+      "passes": false,
+      "evidence": ""
+    },
+    {
+      "id": "F059",
+      "category": "admin",
+      "track": "product",
+      "priority": 3,
+      "description": "관리자 인증 + 주문 관리 — ADMIN_EMAILS env allowlist(전역 세션 재사용, requireAdmin, 비관리자·비로그인은 404 은닉), /admin/orders 목록(상태 필터·최신순 커서)·상세(구매자·배송지·품목 — 화면 렌더만, 로그/트레이스 미기록), OrderRepo.list 양 백엔드. ADR-0024(백오피스 웹 스코프 편입)",
+      "steps": [
+        "ADMIN_EMAILS에 포함된 계정으로 로그인하면 /admin/orders에 주문 목록이 보인다",
+        "비관리자·비로그인 접근은 404를 받는다",
+        "주문 상세에 구매자·배송지·품목·결제 정보가 보인다",
+        "상태 필터로 주문을 좁힐 수 있다"
+      ],
+      "verification": "pnpm test:e2e -- admin-orders.spec.ts",
+      "state": "not_started",
+      "passes": false,
+      "evidence": ""
+    },
+    {
+      "id": "F060",
+      "category": "admin",
+      "track": "product",
+      "priority": 3,
+      "description": "관리자 주문 상태 전이 + 운송장 — canTransition 가드 + repo.transition(조건부 updateMany, 동시 클릭 안전), SHIPPED 전이 시 운송장(택배사·번호) 입력(trackingCarrier/trackingNumber 컬럼), 구매자 노출은 /account·mypage에서만(비인증 /orders/[id] 미노출)",
+      "steps": [
+        "관리자가 PAID 주문을 제작중→배송중→배송완료로 순서대로 전이할 수 있다",
+        "배송중 전이 시 운송장 정보를 입력하면 구매자 주문 화면에 표시된다",
+        "허용되지 않은 전이는 거부된다"
+      ],
+      "verification": "pnpm test:e2e -- admin-transitions.spec.ts",
+      "state": "not_started",
+      "passes": false,
+      "evidence": ""
+    },
+    {
+      "id": "F061",
+      "category": "admin",
+      "track": "product",
+      "priority": 3,
+      "description": "관리자 맞춤제작·상담 관리 — /admin/custom 목록(경로·상태 필터)·상세(6묶음 의뢰서 렌더, CUSTOM_FORM_GROUPS 재사용), 의뢰 상태 전이(SUBMITTED→IN_REVIEW→IN_PRODUCTION→COMPLETED|CANCELLED, customRequestStore.list/updateStatus 양 백엔드), 상담 확정은 requireApproval(consultation.book) 게이트",
+      "steps": [
+        "관리자가 맞춤 의뢰 목록과 상세(의뢰서 6묶음)를 볼 수 있다",
+        "의뢰 상태를 전이할 수 있고 허용되지 않은 전이는 거부된다",
+        "상담 확정은 승인 토큰 없이는 실행되지 않는다"
+      ],
+      "verification": "pnpm test:e2e -- admin-custom.spec.ts",
+      "state": "not_started",
+      "passes": false,
+      "evidence": ""
+    },
+    {
+      "id": "F062",
+      "category": "order",
+      "track": "product",
+      "priority": 2,
+      "description": "구매자 취소 요청 — status∈{PAID,IN_PRODUCTION}에서만 mypage·/account 주문 상세에 취소 요청(사유 입력, 제작 착수 후 거부될 수 있음 안내; SHIPPED 이후는 고객센터 안내), cancelRequestedAt/cancelReason 저장(멱등 updateMany), /admin 목록에 요청 배지",
+      "steps": [
+        "결제 완료(배송 전) 주문에서 취소 요청이 사유와 함께 접수된다",
+        "배송중 이후 주문에는 취소 요청 대신 고객센터 안내가 보인다",
+        "중복 취소 요청은 한 번만 기록된다",
+        "관리자 주문 목록에 취소 요청 표시가 보인다"
+      ],
+      "verification": "pnpm test:e2e -- cancel-request.spec.ts",
+      "state": "not_started",
+      "passes": false,
+      "evidence": ""
+    },
+    {
+      "id": "F063",
+      "category": "checkout",
+      "track": "product",
+      "priority": 2,
+      "description": "환불 집행 — PaymentProvider.cancelPayment(Toss POST /v1/payments/{paymentKey}/cancel, Idempotency-Key: refund-<orderId>, 전액 취소만), 관리자 환불 승인 = requireApproval(toss.refund.live) 게이트(비프로덕션 자동 토큰, 프로덕션은 pnpm approve 발급 토큰 입력) → REFUNDED 전이 → 환불 확인 메일(after), processWebhook의 CANCELED 재조회 수렴(Toss 대시보드 직접 취소 대응). CUSTOM 주문도 동일 파이프라인(F052 의존)",
+      "steps": [
+        "관리자가 취소 요청 주문을 환불 승인하면 Toss 취소(비프로덕션 sandbox)가 실행되고 주문이 REFUNDED로 전이된다",
+        "환불 승인은 승인 토큰 게이트를 통과해야 실행된다",
+        "중복 환불 집행은 멱등으로 차단된다",
+        "환불 후 구매자 화면에 환불 완료 상태가 보인다"
+      ],
+      "verification": "pnpm test:e2e -- refund.spec.ts",
+      "state": "not_started",
+      "passes": false,
+      "evidence": ""
     }
   ]
 }
