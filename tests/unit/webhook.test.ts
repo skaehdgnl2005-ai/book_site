@@ -71,10 +71,23 @@ function line(over: Partial<Record<string, unknown>> = {}) {
   };
 }
 
+/** Valid shipping block (F053) — a physical keepsake needs a destination. */
+function shipping(over: Partial<Record<string, unknown>> = {}) {
+  return {
+    shipName: "김수취",
+    shipPhone: "010-2222-3333",
+    shipZip: "04524",
+    shipAddress: "서울특별시 중구 세종대로 110",
+    shipAddressDetail: "101동 1001호",
+    ...over,
+  };
+}
+
 function payload(over: Partial<Record<string, unknown>> = {}) {
   return {
     buyerName: "김부모",
     buyerEmail: "parent@example.com",
+    ...shipping(),
     qrVideoAddon: false,
     lines: [line()],
     ...over,
@@ -211,6 +224,50 @@ describe("buildOrderDraft (server price recompute)", () => {
     if (!r.ok) return;
     expect(r.draft.orderName).not.toContain("비밀이름");
     expect(r.draft.orderName).not.toContain("도윤"); // childName must not leak into orderName
+  });
+});
+
+// ── F053: shipping address — a physical keepsake needs a destination ────────────
+describe("buildOrderDraft (shipping — F053)", () => {
+  it("carries the shipping block onto the draft, merging the optional detail line", async () => {
+    const r = await buildOrderDraft(payload(), resolver);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.draft.shipName).toBe("김수취");
+    expect(r.draft.shipPhone).toBe("010-2222-3333");
+    expect(r.draft.shipZip).toBe("04524");
+    expect(r.draft.shipAddress).toBe("서울특별시 중구 세종대로 110, 101동 1001호");
+  });
+
+  it("keeps the base address as-is when no detail line is given", async () => {
+    const r = await buildOrderDraft(payload(shipping({ shipAddressDetail: "" })), resolver);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.draft.shipAddress).toBe("서울특별시 중구 세종대로 110");
+  });
+
+  it("rejects a blank recipient name (400)", async () => {
+    const r = await buildOrderDraft(payload({ shipName: "  " }), resolver);
+    expect(r.ok).toBe(false);
+  });
+
+  it("rejects a malformed recipient phone (digits+hyphens, 9–13 chars)", async () => {
+    for (const bad of ["", "12", "phone-num", "010 1234 5678", "010-1234-5678-9999"]) {
+      const r = await buildOrderDraft(payload({ shipPhone: bad }), resolver);
+      expect(r.ok, `expected "${bad}" to be rejected`).toBe(false);
+    }
+  });
+
+  it("rejects a non-5-digit postal code", async () => {
+    for (const bad of ["", "1234", "123456", "abcde"]) {
+      const r = await buildOrderDraft(payload({ shipZip: bad }), resolver);
+      expect(r.ok, `expected "${bad}" to be rejected`).toBe(false);
+    }
+  });
+
+  it("rejects a blank base address (400)", async () => {
+    const r = await buildOrderDraft(payload({ shipAddress: "   " }), resolver);
+    expect(r.ok).toBe(false);
   });
 });
 

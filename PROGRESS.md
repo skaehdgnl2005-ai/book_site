@@ -3,7 +3,17 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- **Latest (2026-07-07, 밤): 쇼핑몰 갭 로드맵 착수(F052~F063 append) + F052 맞춤 결제 영속화 DONE.**
+- **Latest (2026-07-07, 밤): F053 체크아웃 배송지 수집 DONE (Wave 2 시작).**
+  실물 기념물인데 이름+이메일만 받던 체크아웃에 배송지 블록 추가 — 받는 분 이름/연락처(숫자·하이픈
+  9~13자)/우편번호(5자리)/주소(+상세주소 선택, 서버에서 ", "로 병합). `buildOrderDraft`가 ENTRY 주문
+  필수 검증(400 + 한국어 안내), dormant `shipName/shipPhone/shipAddress` 활성 + `shipZip` 컬럼
+  (`20260707110000_order_ship_zip` — ALTER, R10 미해당). CUSTOM 주문은 미수집(의뢰서 free-text 유지,
+  draft 필드 optional). **비인증 /orders/[id]에는 배송지 미노출**(E2E가 수취인·주소 부재 단언).
+  Daum postcode 위젯은 의도적 비도입(외부 CDN이 hermetic E2E 파괴 — 설계 스펙 §핵심결정 5).
+  E2E 회귀 반경은 `fillBuyer()` 한 함수 확장으로 봉쇄(전 체크아웃 스펙 공용). 검증: pnpm check
+  green(유닛 222/10 skip, 0위반) + **전체 E2E 112/112**(배송 필드·차단·미노출 +1) + eval S1–S11.
+  `Next:` F054 주문 상태 머신 확장.
+- **(2026-07-07, 밤): 쇼핑몰 갭 로드맵 착수(F052~F063 append) + F052 맞춤 결제 영속화 DONE.**
   메이커 요청 "로그인~장바구니 쇼핑몰 조건 갭 탐구+계획" → 플랜 승인(설계 스펙
   `docs/superpowers/specs/2026-07-07-shop-gaps-design.md`, ADR-0023 회원 도입/ADR-0024 관리자 웹 편입,
   feature_list에 F052~F063 12건 append — R9 0위반). **F052 (Wave 1, 결함 수정)**: WRITTEN 맞춤 결제가

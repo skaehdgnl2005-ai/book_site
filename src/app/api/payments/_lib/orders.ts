@@ -46,6 +46,12 @@ export type OrderDraft = {
   qrVideoAddon: boolean;
   buyerName: string; // PII — never logged/traced
   buyerEmail: string; // PII — never logged/traced
+  // F053 — shipping destination (PII — never logged/traced). Required on ENTRY drafts by
+  // buildOrderDraft; absent on CUSTOM drafts (recipient lives in the 의뢰서 free text).
+  shipName?: string;
+  shipPhone?: string;
+  shipZip?: string;
+  shipAddress?: string;
   items: OrderItemDraft[];
 };
 
@@ -149,6 +155,10 @@ export type OrderCreateData = {
   qrVideoAddon: boolean;
   buyerName: string;
   buyerEmail: string;
+  shipName: string | null;
+  shipPhone: string | null;
+  shipZip: string | null;
+  shipAddress: string | null;
   items: { create: OrderItemCreate[] };
 };
 
@@ -199,6 +209,10 @@ export function buildOrderCreateData(
     qrVideoAddon: draft.qrVideoAddon,
     buyerName: draft.buyerName,
     buyerEmail: draft.buyerEmail,
+    shipName: draft.shipName ?? null,
+    shipPhone: draft.shipPhone ?? null,
+    shipZip: draft.shipZip ?? null,
+    shipAddress: draft.shipAddress ?? null,
     items: { create: items },
   };
 }
@@ -224,6 +238,10 @@ export type OrderRow = {
   qrVideoAddon: boolean;
   buyerName: string;
   buyerEmail: string;
+  shipName?: string | null;
+  shipPhone?: string | null;
+  shipZip?: string | null;
+  shipAddress?: string | null;
   createdAt: Date | string;
   items: OrderRowItem[];
 };
@@ -279,6 +297,10 @@ export function mapOrderRow(row: OrderRow): StoredOrder {
     qrVideoAddon: row.qrVideoAddon,
     buyerName: row.buyerName,
     buyerEmail: row.buyerEmail,
+    shipName: row.shipName ?? undefined,
+    shipPhone: row.shipPhone ?? undefined,
+    shipZip: row.shipZip ?? undefined,
+    shipAddress: row.shipAddress ?? undefined,
     items,
   };
 }

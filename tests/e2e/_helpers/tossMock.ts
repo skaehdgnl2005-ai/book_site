@@ -59,6 +59,12 @@ export async function addBirthToCart(page: Page, opts: { coverHard?: boolean; qr
 async function fillBuyer(page: Page): Promise<void> {
   await page.getByTestId("checkout-buyer-name").fill("김부모");
   await page.getByTestId("checkout-buyer-email").fill("parent@example.com");
+  // F053 — shipping is required on an ENTRY order (single funnel point for every checkout spec).
+  await page.getByTestId("checkout-ship-name").fill("김수취");
+  await page.getByTestId("checkout-ship-phone").fill("010-2222-3333");
+  await page.getByTestId("checkout-ship-zip").fill("04524");
+  await page.getByTestId("checkout-ship-address").fill("서울특별시 중구 세종대로 110");
+  await page.getByTestId("checkout-ship-address-detail").fill("101동 1001호");
 }
 
 /** From a populated /cart, walk checkout and trigger requestPayment. The SDK mock MUST already be installed. */

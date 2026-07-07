@@ -54,6 +54,9 @@ export type TemplateResolver = (
 type DraftResult = { ok: true; draft: OrderDraft } | { ok: false; status: number; errors: string[] };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// F053 — shipping (PII, sensitive): lenient KR phone (digits+hyphens), 5-digit postal code.
+const SHIP_PHONE_RE = /^[0-9-]{9,13}$/;
+const SHIP_ZIP_RE = /^\d{5}$/;
 
 function asString(v: unknown): string {
   return typeof v === "string" ? v : "";
@@ -94,6 +97,29 @@ export async function buildOrderDraft(value: unknown, resolve: TemplateResolver)
     return { ok: false, status: 400, errors: ["올바른 이메일을 입력해 주세요."] };
   }
 
+  // F053 — shipping is REQUIRED on an ENTRY order (physical keepsake: magnetic case + card).
+  const shipName = asString(body.shipName).trim();
+  if (!shipName || shipName.length > 120) {
+    return { ok: false, status: 400, errors: ["받는 분 이름을 입력해 주세요."] };
+  }
+  const shipPhone = asString(body.shipPhone).trim();
+  if (!SHIP_PHONE_RE.test(shipPhone)) {
+    return { ok: false, status: 400, errors: ["받는 분 연락처를 확인해 주세요. (숫자와 - 만, 9~13자)"] };
+  }
+  const shipZip = asString(body.shipZip).trim();
+  if (!SHIP_ZIP_RE.test(shipZip)) {
+    return { ok: false, status: 400, errors: ["우편번호 5자리를 입력해 주세요."] };
+  }
+  const shipBase = asString(body.shipAddress).trim();
+  if (!shipBase || shipBase.length > 400) {
+    return { ok: false, status: 400, errors: ["배송지 주소를 입력해 주세요."] };
+  }
+  const shipDetail = asString(body.shipAddressDetail).trim();
+  if (shipDetail.length > 200) {
+    return { ok: false, status: 400, errors: ["상세주소는 200자 이내로 입력해 주세요."] };
+  }
+  const shipAddress = shipDetail ? `${shipBase}, ${shipDetail}` : shipBase;
+
   const rawLines = Array.isArray(body.lines) ? body.lines : [];
   if (rawLines.length === 0) return { ok: false, status: 400, errors: ["장바구니가 비어 있습니다."] };
 
@@ -129,7 +155,10 @@ export async function buildOrderDraft(value: unknown, resolve: TemplateResolver)
   const firstLabel = items[0].templateLabel;
   const orderName = items.length === 1 ? firstLabel : `${firstLabel} 외 ${items.length - 1}건`;
 
-  return { ok: true, draft: { amountWon, orderName, qrVideoAddon, buyerName, buyerEmail, items } };
+  return {
+    ok: true,
+    draft: { amountWon, orderName, qrVideoAddon, buyerName, buyerEmail, shipName, shipPhone, shipZip, shipAddress, items },
+  };
 }
 
 // ── F013/F015: synchronous confirm. Amount is server-held (never the client's). ──

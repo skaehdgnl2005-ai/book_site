@@ -15,6 +15,20 @@
   padding: 0.7em 0.9em;
 }
 .input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* F053 — 배송지 group: hairline separation (no box), same vertical rhythm as .form. */
+.shipGroup {
+  border: 0; margin: 0; padding: var(--space-md) 0 0; min-width: 0;
+  border-top: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: var(--space-md);
+}
+.shipLegend {
+  padding: 0; margin-bottom: var(--space-xs);
+  font-family: var(--font-grotesk); font-weight: 600; font-size: 0.78rem;
+  letter-spacing: 0; /* 한글 라벨 — 양수 자간 금지 (WP7) */ color: var(--ink);
+}
+.shipRow { display: flex; gap: var(--space-sm); }
+.shipRow > .field:first-child { flex: 0 0 8.5em; }
+.shipRowGrow { flex: 1; min-width: 0; }
 .error { margin: 0; font-size: 0.82rem; color: var(--accent); }
 /* 필수 안내 문구 — microLabel 톤(작게·muted). 한글이므로 자간 0·대문자 변환 없음. */
 .note {

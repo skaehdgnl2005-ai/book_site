@@ -21,6 +21,12 @@ export function CheckoutView() {
   const [ready, setReady] = useState(false);
   const [buyerName, setBuyerName] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
+  // F053 — shipping destination (PII; posted to the server, never logged).
+  const [shipName, setShipName] = useState("");
+  const [shipPhone, setShipPhone] = useState("");
+  const [shipZip, setShipZip] = useState("");
+  const [shipAddress, setShipAddress] = useState("");
+  const [shipAddressDetail, setShipAddressDetail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -42,6 +48,11 @@ export function CheckoutView() {
         body: JSON.stringify({
           buyerName,
           buyerEmail,
+          shipName,
+          shipPhone,
+          shipZip,
+          shipAddress,
+          shipAddressDetail,
           qrVideoAddon: cart.qrVideoAddon,
           lines: cart.lines,
         }),
@@ -119,6 +130,71 @@ export function CheckoutView() {
                       autoComplete="email"
                     />
                   </div>
+                  {/* F053 — 배송지 (실물 기념물: 자석 케이스 + 카드). 헤어라인으로 구획. */}
+                  <fieldset className={styles.shipGroup}>
+                    <legend className={styles.shipLegend}>배송지</legend>
+                    <div className={styles.field}>
+                      <label className={styles.label} htmlFor="ship-name">받는 분 이름</label>
+                      <input
+                        id="ship-name"
+                        className={styles.input}
+                        data-testid="checkout-ship-name"
+                        value={shipName}
+                        onChange={(e) => setShipName(e.target.value)}
+                        autoComplete="shipping name"
+                      />
+                    </div>
+                    <div className={styles.field}>
+                      <label className={styles.label} htmlFor="ship-phone">받는 분 연락처</label>
+                      <input
+                        id="ship-phone"
+                        type="tel"
+                        className={styles.input}
+                        data-testid="checkout-ship-phone"
+                        value={shipPhone}
+                        onChange={(e) => setShipPhone(e.target.value)}
+                        autoComplete="shipping tel"
+                        placeholder="010-0000-0000"
+                      />
+                    </div>
+                    <div className={styles.shipRow}>
+                      <div className={styles.field}>
+                        <label className={styles.label} htmlFor="ship-zip">우편번호</label>
+                        <input
+                          id="ship-zip"
+                          className={styles.input}
+                          data-testid="checkout-ship-zip"
+                          value={shipZip}
+                          onChange={(e) => setShipZip(e.target.value)}
+                          autoComplete="shipping postal-code"
+                          inputMode="numeric"
+                          maxLength={5}
+                          placeholder="00000"
+                        />
+                      </div>
+                      <div className={`${styles.field} ${styles.shipRowGrow}`}>
+                        <label className={styles.label} htmlFor="ship-address">주소</label>
+                        <input
+                          id="ship-address"
+                          className={styles.input}
+                          data-testid="checkout-ship-address"
+                          value={shipAddress}
+                          onChange={(e) => setShipAddress(e.target.value)}
+                          autoComplete="shipping street-address"
+                        />
+                      </div>
+                    </div>
+                    <div className={styles.field}>
+                      <label className={styles.label} htmlFor="ship-address-detail">상세주소 (선택)</label>
+                      <input
+                        id="ship-address-detail"
+                        className={styles.input}
+                        data-testid="checkout-ship-address-detail"
+                        value={shipAddressDetail}
+                        onChange={(e) => setShipAddressDetail(e.target.value)}
+                      />
+                    </div>
+                  </fieldset>
                   {error && (
                     <p className={styles.error} data-testid="checkout-error" role="alert">{error}</p>
                   )}

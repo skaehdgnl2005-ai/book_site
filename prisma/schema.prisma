@@ -54,6 +54,7 @@ model Order {
   buyerPhone    String?
   shipName      String?
   shipPhone     String?
+  shipZip       String? // 우편번호 (F053)
   shipAddress   String?
   items         OrderItem[]
   customRequest CustomRequest?

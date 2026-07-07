@@ -99,6 +99,21 @@ describe("buildOrderCreateData", () => {
     expect(data.items.create).toEqual([]);
     expect(data.amountWon).toBe(119000);
   });
+
+  it("carries the shipping block (F053) — null when absent (CUSTOM/legacy drafts)", () => {
+    const shipped = buildOrderCreateData(
+      draft({ shipName: "김수취", shipPhone: "010-2222-3333", shipZip: "04524", shipAddress: "서울특별시 중구 세종대로 110" }),
+      "ord_s",
+      idForKey,
+    );
+    expect(shipped.shipName).toBe("김수취");
+    expect(shipped.shipPhone).toBe("010-2222-3333");
+    expect(shipped.shipZip).toBe("04524");
+    expect(shipped.shipAddress).toBe("서울특별시 중구 세종대로 110");
+    const bare = buildOrderCreateData(draft(), "ord_b", idForKey);
+    expect(bare.shipName).toBeNull();
+    expect(bare.shipZip).toBeNull();
+  });
 });
 
 // ── mapOrderRow: Prisma row (with includes) → app StoredOrder (pure) ─────────────
@@ -199,6 +214,19 @@ describe("mapOrderRow", () => {
     expect(custom.kind).toBe("CUSTOM");
     expect(custom.orderName).toBe("맞춤 제작 그림책"); // no items to recompute from — fixed, PII-free
     expect(custom.items).toEqual([]);
+  });
+
+  it("passes the shipping block through (F053) — undefined when the row has none", () => {
+    const shipped = mapOrderRow(
+      row({ shipName: "김수취", shipPhone: "010-2222-3333", shipZip: "04524", shipAddress: "서울특별시 중구 세종대로 110" }),
+    );
+    expect(shipped.shipName).toBe("김수취");
+    expect(shipped.shipPhone).toBe("010-2222-3333");
+    expect(shipped.shipZip).toBe("04524");
+    expect(shipped.shipAddress).toBe("서울특별시 중구 세종대로 110");
+    const bare = mapOrderRow(row());
+    expect(bare.shipName).toBeUndefined();
+    expect(bare.shipAddress).toBeUndefined();
   });
 });
 
