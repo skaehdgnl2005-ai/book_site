@@ -800,9 +800,9 @@
         "상태 필터로 주문을 좁힐 수 있다"
       ],
       "verification": "pnpm test:e2e -- admin-orders.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": ""
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-07 pnpm check green (lint+typecheck+unit 267 passed/10 skipped+constraints 0 violations); full pnpm test:e2e 129/129 passed incl. admin-orders.spec.ts 3/3(비관리자·비로그인 404 은닉, 관리자 목록→상세 구매자/배송지/품목/결제키, 상태 필터) + eval S1–S11 pass. ADMIN_EMAILS allowlist(프로덕션 미설정 전면 deny; 비프로덕션은 admin+<tag>@example.com 결정 폴백 패밀리 — 병렬 E2E가 스펙별 고유 관리자 신원을 갖게 해 단일사용 OTP·발송캡 경합 제거), requireAdmin=notFound() 게이트(admin/layout.tsx + 액션 재검증 예정), OrderRepo.listRecent(상태 필터·take, 양 백엔드). PII는 렌더만(로그 0). ADR-0024"
     },
     {
       "id": "F060",

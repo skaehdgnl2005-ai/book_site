@@ -1,0 +1,31 @@
+/* admin — Atelier Sans. Tokens only (R6: no box-shadow; R7: no pure white/black); hairlines. */
+.panel { padding: var(--space-lg) 0; max-width: 880px; }
+
+/* status filter — quiet inline links, active = ink + underline */
+.filters { display: flex; flex-wrap: wrap; gap: var(--space-sm); margin: 0 0 var(--space-md); padding: 0; list-style: none; }
+.filterLink {
+  font-family: var(--font-grotesk); font-weight: 600; font-size: 0.78rem; letter-spacing: 0;
+  color: var(--muted); text-decoration: none;
+}
+.filterLink:hover { color: var(--ink); }
+.filterActive { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
+
+.list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); }
+.rowItem { border-bottom: 1px solid var(--line); }
+.rowLink {
+  display: grid; grid-template-columns: 1fr auto; gap: 2px var(--space-sm);
+  padding: var(--space-sm) 0; text-decoration: none; color: inherit;
+}
+.rowLink:hover .rowTitle { text-decoration: underline; text-underline-offset: 3px; }
+.rowTitle { font-size: 0.95rem; color: var(--ink); }
+.rowMeta { grid-row: 2; font-family: var(--font-grotesk); font-size: 0.75rem; letter-spacing: 0; color: var(--muted); }
+.rowStatus { justify-self: end; font-family: var(--font-grotesk); font-weight: 600; font-size: 0.78rem; letter-spacing: 0; color: var(--accent); }
+.rowAmount { grid-row: 2; justify-self: end; font-family: var(--font-grotesk); font-weight: 600; font-size: 0.88rem; color: var(--ink); }
+.empty { margin: var(--space-md) 0 0; font-size: 0.9rem; color: var(--muted); }
+
+/* detail rows */
+.rows { display: flex; flex-direction: column; border-top: 1px solid var(--line); margin: 0 0 var(--space-md); }
+.row { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-sm); padding: var(--space-sm) 0; border-bottom: 1px solid var(--line); }
+.dt { font-family: var(--font-grotesk); font-weight: 600; font-size: 0.78rem; letter-spacing: 0; color: var(--muted); flex: none; }
+.dd { margin: 0; font-size: 0.95rem; color: var(--ink); text-align: right; overflow-wrap: anywhere; }
+.note { margin: var(--space-md) 0 0; font-size: 0.85rem; color: var(--muted); }

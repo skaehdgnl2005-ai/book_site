@@ -3,7 +3,16 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- **Latest (2026-07-07, 밤): F058 카카오 로그인 DONE — Wave 3(회원) 완료.**
+- **Latest (2026-07-07, 밤): F059 관리자 인증 + 주문 관리 DONE — Wave 4 시작.**
+  ADR-0024 실행: 별도 admin 인증 없음 — 전역 세션 + `ADMIN_EMAILS` allowlist(콤마·lowercase),
+  실패는 `notFound()`(존재 은닉 404). 프로덕션 미설정 = 전면 deny(fail-closed); **비프로덕션 폴백은
+  `admin(+<tag>)?@example.com` 패밀리** — fullyParallel E2E가 스펙별 고유 관리자 신원을 쓰게 해
+  단일사용 OTP·시간당 발송캡의 크로스-스펙 경합을 구조적으로 제거(실제로 F059 E2E가 공유 계정
+  경합으로 1회 실패 후 재설계). `/admin/orders` 목록(최신순 50·상태 필터 링크)·`/admin/orders/[id]`
+  상세(구매자·배송지·아이 개인화·결제키 — **렌더만, 로그 0**, E3). `OrderRepo.listRecent` 양 백엔드.
+  검증: check green(유닛 267) + E2E 129/129(admin 3 신규) + eval S1–S11. **배포 시 Vercel env
+  `ADMIN_EMAILS` 설정 + 실 로그인 카나리(HITL)**. `Next:` F060 관리자 상태 전이 + 운송장.
+- **(2026-07-07, 밤): F058 카카오 로그인 DONE — Wave 3(회원) 완료.**
   수동 OAuth 3콜(kauth authorize→token→kapi user/me) — injectable transport로 hermetic 유닛,
   비프로덕션은 **sandbox 라운드트립**(start가 state 쿠키 발급 후 자체 콜백으로 즉시 리다이렉트,
   `sbx_id/sbx_email` 쿼리가 프로필 결정 — isProductionRuntime 게이트로 프로덕션 도달 불가;

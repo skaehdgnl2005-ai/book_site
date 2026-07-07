@@ -37,6 +37,9 @@ const schema = z.object({
   // matching the email-provider rollout pattern. Non-prod uses the sandbox provider (no network).
   KAKAO_REST_API_KEY: z.string().optional(),
   KAKAO_CLIENT_SECRET: z.string().optional(),
+  // 관리자 allowlist (F059, ADR-0024): 콤마 구분 이메일, lowercase 비교. 프로덕션 미설정 ⇒
+  // /admin 전면 deny(404). 비프로덕션은 hermetic E2E용 결정적 폴백(admin@example.com — adminAuth.ts).
+  ADMIN_EMAILS: z.string().optional(),
 });
 
 /**
