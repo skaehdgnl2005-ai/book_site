@@ -79,6 +79,13 @@ export default async function AccountPage() {
               </button>
             </form>
           </div>
+          {user.email == null ? (
+            /* F058 — 카카오 이메일 미동의 계정: OTP로 이메일을 연결해야 게스트 주문이 나타난다 */
+            <p className={styles.note} data-testid="account-connect-email">
+              이메일을 연결하면 그 이메일로 결제한 주문이 자동으로 나타나요.{" "}
+              <Link href="/login">이메일 인증하고 연결하기</Link>
+            </p>
+          ) : null}
         </section>
         <section className={styles.panel} aria-labelledby="account-orders-title">
           <h2 className={styles.sectionTitle} id="account-orders-title">내 주문</h2>

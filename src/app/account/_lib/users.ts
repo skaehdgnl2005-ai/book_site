@@ -28,6 +28,15 @@ export interface UserRepo {
   upsertByEmail(email: string, now?: number): Promise<StoredUser>;
   /** "모든 기기에서 로그아웃": every outstanding session token carries the OLD epoch → invalid. */
   bumpSessionEpoch(id: string): Promise<StoredUser | undefined>;
+  // ── F058 Kakao ──
+  findByKakaoId(kakaoId: string): Promise<StoredUser | undefined>;
+  /** First-wins: only a user WITHOUT a kakaoId takes the link (never overwritten). */
+  attachKakao(id: string, kakaoId: string): Promise<StoredUser | undefined>;
+  /** Kakao signup — email null when consent was withheld (verified email otherwise). */
+  createKakaoUser(input: { kakaoId: string; email: string | null }, now?: number): Promise<StoredUser>;
+  /** Post-signup email attach (kakao-only accounts): only when the user has NO email and no
+   *  other account owns it — undefined on conflict (accounts are never merged). */
+  attachEmail(id: string, email: string, now?: number): Promise<StoredUser | undefined>;
 }
 
 // ── In-memory backend (hermetic) ────────────────────────────────────────────────
@@ -65,6 +74,37 @@ export function createInMemoryUserRepo(): UserRepo {
       user.sessionEpoch += 1;
       return user;
     },
+    async findByKakaoId(kakaoId) {
+      return [...byId.values()].find((u) => u.kakaoId === kakaoId);
+    },
+    async attachKakao(id, kakaoId) {
+      const user = byId.get(id);
+      if (!user) return undefined;
+      if (user.kakaoId == null) user.kakaoId = kakaoId; // first-wins
+      return user;
+    },
+    async createKakaoUser(input, now = Date.now()) {
+      const user: StoredUser = {
+        id: `usr_${(++seq).toString(36).padStart(4, "0")}`,
+        email: input.email ? normalizeEmail(input.email) : null,
+        emailVerifiedAt: input.email ? new Date(now).toISOString() : null,
+        displayName: null,
+        kakaoId: input.kakaoId,
+        sessionEpoch: 0,
+        createdAt: new Date(now).toISOString(),
+      };
+      byId.set(user.id, user);
+      return user;
+    },
+    async attachEmail(id, email, now = Date.now()) {
+      const user = byId.get(id);
+      const norm = normalizeEmail(email);
+      if (!user || user.email != null) return undefined;
+      if (findEmail(norm)) return undefined; // owned by another account — never merge
+      user.email = norm;
+      user.emailVerifiedAt = new Date(now).toISOString();
+      return user;
+    },
   };
 }
 
@@ -79,13 +119,18 @@ type UserRow = {
   createdAt: Date | string;
 };
 type UserDelegate = {
-  findUnique(a: { where: { id: string } | { email: string } }): Promise<UserRow | null>;
+  findUnique(a: { where: { id: string } | { email: string } | { kakaoId: string } }): Promise<UserRow | null>;
   upsert(a: {
     where: { email: string };
     update: Record<string, never>;
     create: { email: string; emailVerifiedAt: Date };
   }): Promise<UserRow>;
+  create(a: { data: { kakaoId: string; email: string | null; emailVerifiedAt: Date | null } }): Promise<UserRow>;
   update(a: { where: { id: string }; data: { sessionEpoch: { increment: number } } }): Promise<UserRow>;
+  updateMany(a: {
+    where: { id: string; kakaoId?: null; email?: null };
+    data: { kakaoId?: string; email?: string; emailVerifiedAt?: Date };
+  }): Promise<{ count: number }>;
 };
 
 function toIso(v: Date | string | null): string | null {
@@ -137,6 +182,44 @@ export function createPrismaUserRepo(getDb: () => Promise<Db>): UserRepo {
       } catch {
         return undefined; // unknown id — Prisma update throws
       }
+    },
+    async findByKakaoId(kakaoId) {
+      const db = await getDb();
+      const row = await (db.user as UserDelegate).findUnique({ where: { kakaoId } });
+      return row ? mapUserRow(row) : undefined;
+    },
+    async attachKakao(id, kakaoId) {
+      const db = await getDb();
+      // Conditional write — first-wins (an account holding a different kakaoId keeps it).
+      await (db.user as UserDelegate).updateMany({ where: { id, kakaoId: null }, data: { kakaoId } });
+      const row = await (db.user as UserDelegate).findUnique({ where: { id } });
+      return row ? mapUserRow(row) : undefined;
+    },
+    async createKakaoUser(input, now = Date.now()) {
+      const db = await getDb();
+      const row = await (db.user as UserDelegate).create({
+        data: {
+          kakaoId: input.kakaoId,
+          email: input.email ? normalizeEmail(input.email) : null,
+          emailVerifiedAt: input.email ? new Date(now) : null,
+        },
+      });
+      return mapUserRow(row);
+    },
+    async attachEmail(id, email, now = Date.now()) {
+      const db = await getDb();
+      const norm = normalizeEmail(email);
+      try {
+        const res = await (db.user as UserDelegate).updateMany({
+          where: { id, email: null },
+          data: { email: norm, emailVerifiedAt: new Date(now) },
+        });
+        if (res.count !== 1) return undefined; // user absent or already has an email
+      } catch {
+        return undefined; // unique(email) violation — owned by another account, never merge
+      }
+      const row = await (db.user as UserDelegate).findUnique({ where: { id } });
+      return row ? mapUserRow(row) : undefined;
     },
   };
 }

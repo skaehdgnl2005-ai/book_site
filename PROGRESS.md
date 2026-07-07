@@ -3,7 +3,20 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- **Latest (2026-07-07, 밤): F057 게스트 주문 소급 연결 + 내 주문 DONE.**
+- **Latest (2026-07-07, 밤): F058 카카오 로그인 DONE — Wave 3(회원) 완료.**
+  수동 OAuth 3콜(kauth authorize→token→kapi user/me) — injectable transport로 hermetic 유닛,
+  비프로덕션은 **sandbox 라운드트립**(start가 state 쿠키 발급 후 자체 콜백으로 즉시 리다이렉트,
+  `sbx_id/sbx_email` 쿼리가 프로필 결정 — isProductionRuntime 게이트로 프로덕션 도달 불가;
+  customTossProvider 전례). state CSRF는 constant-time 비교, 실패는 전부 `/login?error=kakao`
+  균일 낙착. **계정 결정표**: kakaoId 재로그인 → 카카오 검증(valid+verified) 이메일만 기존 계정
+  자동 연결(+게스트 주문 claim; 이미 다른 kakaoId 보유 시 first-wins 유지) → 미검증/미동의는
+  email=null 신규 + /account 배너에서 OTP로 이메일 attach(다른 계정 소유 이메일이면 거부 —
+  병합 없음). env `KAKAO_REST_API_KEY/KAKAO_CLIENT_SECRET` optional(프로덕션 미설정 fail-closed).
+  검증: check green(유닛 263) + E2E 126/126(kakao 4 신규) + eval S1–S11. **HITL 잔여: 카카오
+  개발자 앱 등록**(REST 키·secret·redirect URI `…/api/auth/kakao/callback`·account_email 동의항목
+  비즈 검수 — 검수 전 프로덕션 기본 동작은 미동의 폴백) → Vercel env. 실 왕복은 배포 후 수동
+  카나리. `Next:` Wave 4 F059(관리자 인증+주문 목록) — Vercel env `ADMIN_EMAILS` 필요.
+- **(2026-07-07, 밤): F057 게스트 주문 소급 연결 + 내 주문 DONE.**
   `Order.userId` FK(+index, `20260707130000_order_user_link`). 연결 경로 2개: ① 로그인 결제는
   create 라우트에서 세션 유저를 draft에 부착(+체크아웃 이메일 프리필 — /checkout이 서버 컴포넌트로
   세션 읽음), ② 게스트 주문은 이메일 소유 증명 시점(로그인 OTP 성공)에 `claimByEmail` 소급 연결

@@ -32,6 +32,11 @@ const schema = z.object({
   RESEND_API_KEY: z.string().optional(),
   // Verified sender address for the OTP mail (e.g. no-reply@<verified-domain>); the Resend `from`.
   EMAIL_FROM: z.string().optional(),
+  // Kakao OAuth (F058, ADR-0023 D4). BOTH secrets are server-only (never NEXT_PUBLIC). Missing in
+  // prod ⇒ the kakao login start simply fails closed (redirect back to /login) — not a boot refusal,
+  // matching the email-provider rollout pattern. Non-prod uses the sandbox provider (no network).
+  KAKAO_REST_API_KEY: z.string().optional(),
+  KAKAO_CLIENT_SECRET: z.string().optional(),
 });
 
 /**

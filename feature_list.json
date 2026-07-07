@@ -783,9 +783,9 @@
         "이메일 미동의면 email 없는 계정으로 로그인되고 /account에 이메일 연결 안내가 보인다"
       ],
       "verification": "pnpm test:e2e -- account-kakao.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": ""
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-07 pnpm check green (lint+typecheck+unit 263 passed/10 skipped+constraints 0 violations); full pnpm test:e2e 126/126 passed incl. account-kakao.spec.ts 4/4(sandbox OAuth 왕복 로그인, state 불일치 균일 거부(CSRF), 검증 이메일 기존 계정 로그인+게스트 주문 연결, 미동의→email 없는 계정+배너→OTP 이메일 attach) + eval S1–S11 pass. 수동 OAuth 3콜(injectable transport — 유닛 account-kakao 10 tests: 토큰 폼·Bearer·비2xx null·valid+verified만 이메일 신뢰·결정표 ①~④·attachEmail 충돌 거부), 비프로덕션 sandbox provider(sbx 코드=프로필, 프로덕션 도달 불가), state 쿠키 constant-time 비교, 미검증 이메일 자동 연결 금지(탈취 벡터). env: KAKAO_REST_API_KEY/KAKAO_CLIENT_SECRET optional(프로덕션 미설정 시 fail-closed 리다이렉트). 실 카카오 왕복은 배포 후 수동 카나리(F044/F045 전례) — 카카오 앱 등록 HITL 대기"
     },
     {
       "id": "F059",

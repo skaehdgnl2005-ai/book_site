@@ -63,6 +63,18 @@ export async function verifyLoginCode(_prev: LoginState, formData: FormData): Pr
     return { stage: "verify", email, error: result.error === "closed" ? LOGIN_CLOSED : LOGIN_BAD };
   }
 
+  // F058 — a signed-in kakao-only account (no email) verifying an email OTP is ATTACHING that
+  // email to itself, not logging into a new account (accounts are never merged/split here).
+  const current = await getSessionUser();
+  if (current && current.email == null) {
+    const attached = await userRepo().attachEmail(current.id, email);
+    if (!attached) {
+      return { stage: "verify", email, error: "이미 다른 계정에 연결된 이메일입니다." };
+    }
+    await orderRepo().claimByEmail(email, current.id); // ownership proven — claim guest orders
+    redirect("/account");
+  }
+
   const user = await userRepo().upsertByEmail(email); // login == signup (email ownership proven)
   // F057 — email ownership is proven RIGHT NOW: retroactively claim this email's guest orders
   // (idempotent conditional write; an already-claimed order never changes owners).
