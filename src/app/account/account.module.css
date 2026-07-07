@@ -1,0 +1,20 @@
+/* account — Atelier Sans. Tokens only (R6: no box-shadow; R7: no pure white/black); hairlines. */
+.panel { padding: var(--space-lg) 0; max-width: 560px; }
+.rows { display: flex; flex-direction: column; border-top: 1px solid var(--line); margin: 0 0 var(--space-md); }
+.row {
+  display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-sm);
+  padding: var(--space-sm) 0; border-bottom: 1px solid var(--line);
+}
+.dt {
+  font-family: var(--font-grotesk); font-weight: 600; font-size: 0.78rem;
+  letter-spacing: 0; /* 한글 라벨 — 양수 자간 금지 (WP7) */ color: var(--muted);
+}
+.dd { margin: 0; font-size: 0.95rem; color: var(--ink); overflow-wrap: anywhere; }
+.actions { display: flex; flex-wrap: wrap; gap: var(--space-sm); align-items: center; }
+.quiet {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font-family: var(--font-grotesk); font-weight: 600; font-size: 0.82rem;
+  letter-spacing: 0; color: var(--muted); text-decoration: underline; text-underline-offset: 3px;
+}
+.quiet:hover { color: var(--ink); }
+.note { margin: var(--space-md) 0 0; font-size: 0.85rem; color: var(--muted); }

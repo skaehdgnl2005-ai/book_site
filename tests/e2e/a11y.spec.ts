@@ -116,6 +116,7 @@ const PAGES = [
   "/custom",
   "/custom/written",
   "/custom/phone",
+  "/login",
 ];
 
 test.describe("a11y — heading order, form labels, image alt (F037)", () => {

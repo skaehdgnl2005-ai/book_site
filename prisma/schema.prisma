@@ -97,6 +97,33 @@ model Personalization {
   updatedAt   DateTime   @updatedAt
 }
 
+// ── 회원 (F056, ADR-0023 — ADR-0021 D1 번복). Passwordless: 이메일 OTP + 카카오(F058). ──
+model User {
+  id              String    @id @default(cuid())
+  email           String?   @unique // lowercase 정규화. null = 카카오 이메일 미동의(F058)
+  emailVerifiedAt DateTime?
+  displayName     String?
+  kakaoId         String?   @unique // F058
+  sessionEpoch    Int       @default(0) // +1 = 모든 기기 로그아웃 (stateless HMAC 세션 무효화)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+// 로그인 OTP (F056) — 주문-스코프 OtpCode와 동일 원자 계약, 유저-스코프 subject 키.
+// OtpCode 테이블은 불변(R9 정신) — 로그인은 별도 테이블로 분리(ADR-0023 D6).
+model LoginOtp {
+  subject     String    @id // "login:<email(lowercase)>"
+  codeHash    String // HMAC(secret, `${subject}.${code}`) — 평문 코드 미저장
+  expiresAt   DateTime
+  attempts    Int       @default(0)
+  windowStart DateTime
+  sendCount   Int       @default(0)
+  lastSentAt  DateTime
+  consumedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
 // ── 맞춤 제작 (full custom). Two paths, ONE shared question set (6 groups). ──────────
 model CustomRequest {
   id          String        @id @default(cuid())

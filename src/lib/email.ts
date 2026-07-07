@@ -19,6 +19,7 @@ import { isProductionRuntime } from "./env";
  */
 export type EmailMessage =
   | { kind: "mypage_otp"; to: string; code: string }
+  | { kind: "login_otp"; to: string; code: string }
   | { kind: "order_confirmation"; to: string; orderId: string; orderName: string; amountWon: number };
 
 export interface EmailAdapter {
@@ -69,11 +70,19 @@ function orderConfirmationBody(msg: { orderId: string; orderName: string; amount
   ].join("\n");
 }
 
+// F056 — login OTP (로그인=가입 통합; 코드 유출 규율은 mypage OTP와 동일).
+const LOGIN_OTP_SUBJECT = "[그림책 제작소] 로그인 인증 코드";
+function loginOtpBody(code: string): string {
+  return `로그인 인증 코드는 ${code} 입니다.\n10분 안에 입력해 주세요. 본인이 요청하지 않았다면 이 메일은 무시하셔도 됩니다.`;
+}
+
 /** kind → subject/text. Exhaustive switch: a new EmailMessage kind fails typecheck until composed here. */
 function composeEmail(msg: EmailMessage): { subject: string; text: string } {
   switch (msg.kind) {
     case "mypage_otp":
       return { subject: OTP_SUBJECT, text: otpEmailBody(msg.code) };
+    case "login_otp":
+      return { subject: LOGIN_OTP_SUBJECT, text: loginOtpBody(msg.code) };
     case "order_confirmation":
       return { subject: ORDER_CONFIRMATION_SUBJECT, text: orderConfirmationBody(msg) };
   }

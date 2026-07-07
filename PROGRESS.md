@@ -3,7 +3,19 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- **Latest (2026-07-07, 밤): F055 주문 확인 이메일 DONE — Wave 2(배송·주문 기본기) 완료.**
+- **Latest (2026-07-07, 밤): F056 회원 기반(이메일 OTP 로그인 + 전역 세션) DONE — Wave 3 시작.**
+  ADR-0023 실행: passwordless 회원(로그인=가입 통합, 비밀번호 없음). **기존 스택 일반화 — 신규
+  의존성 0**: 세션은 access.ts 패턴의 전역판(stateless HMAC 쿠키 `account_session`,
+  `userId.epoch.exp.hmac`, TTL 30일, 시크릿은 `MYPAGE_ACCESS_SECRET` 재사용, `User.sessionEpoch`+1
+  = 모든 기기 로그아웃), 로그인 OTP는 otp.ts 원자 코어(issue/verifyDebit/consume·mint-before-consume
+  ·424242 결정 코드) 전량 재사용 — subject `login:<email>`, Prisma는 별도 `LoginOtp` 테이블(OtpCode
+  불변). User·LoginOtp 마이그레이션 `20260707120000_user_login_otp`(**CREATE TABLE + RLS ENABLE —
+  R10**). 라우트: `/login`(2단계, MypageLookup 클론) · `/account`(프로필·로그아웃·전기기 로그아웃).
+  게스트 구매 경로 무변경(로그인은 순수 opt-in). 파일: `src/app/account/_lib/{users,session,
+  sessionUser,loginOtp,actions}.ts`. 검증: check green(유닛 248) + **E2E 119/119**(account-login 6
+  신규 + a11y `/login` 추가) + eval S1–S11. `Next:` F057 게스트 주문 소급 연결 + 내 주문 목록
+  (Order.userId FK 마이그레이션 — 배포 시 migrate deploy 대상 누적 3건).
+- **(2026-07-07, 밤): F055 주문 확인 이메일 DONE — Wave 2(배송·주문 기본기) 완료.**
   PAID 전이 시 구매자에게 확인 메일 정확히 1회. **진실원천 = `markPaid`의 원자적 조건부 쓰기**
   (`{order, transitioned}` 반환; Prisma updateMany count===1 ⟺ 이 호출이 전이) — confirm/webhook이
   경합해도 승자만 `SettlementNotifier`를 호출(주입식, checkout.ts 순수 유지). notifier는 라우트/페이지

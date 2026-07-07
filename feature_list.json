@@ -749,9 +749,9 @@
         "세션 쿠키는 httpOnly·HMAC 서명이며 위조·만료 토큰은 거부된다"
       ],
       "verification": "pnpm test:e2e -- account-login.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": ""
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-07 pnpm check green (lint+typecheck+unit 248 passed/10 skipped+constraints 0 violations incl. R10 — User·LoginOtp 생성 마이그레이션에 RLS ENABLE 동반); full pnpm test:e2e 119/119 passed incl. account-login.spec.ts 6/6(가입=로그인·오답 거부·로그아웃·위조 쿠키 거부·로그인 중 /login 리다이렉트·375px) + a11y에 /login 추가; pnpm eval S1–S11 pass. 세션 = stateless HMAC 쿠키 account_session(userId.epoch.exp.hmac, 30일, MYPAGE_ACCESS_SECRET 재사용, sessionEpoch+1=전 기기 로그아웃), LoginOtp는 otp.ts 원자 코어 전량 재사용(subject=login:<email>, Prisma 사본 테이블), UserRepo 양 백엔드. 유닛 account-auth 8 tests(만료·위조·epoch 바인딩·prod fail-closed·대소문자 upsert·subject-bound HMAC). ADR-0023"
     },
     {
       "id": "F057",
