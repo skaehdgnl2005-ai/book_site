@@ -7,6 +7,7 @@ import { Footer } from "../../_components/Footer";
 import { formatWon, COVER_LABEL } from "../../_components/order/format";
 import { FinishingClient } from "../../_components/mypage/FinishingClient";
 import { orderRepo } from "@/app/api/payments/_lib/orders";
+import { isPaidFamily } from "@/app/api/payments/_lib/status";
 import { cookieName, verifyAccess } from "../_lib/access";
 import styles from "../../_components/mypage/mypage.module.css";
 
@@ -53,7 +54,7 @@ export default async function MypageOrderPage({ params }: { params: Promise<{ or
 
   const order = await orderRepo().get(orderId);
   if (!order) notFound();
-  const paid = order.status === "PAID";
+  const paid = isPaidFamily(order.status); // F054: finishing stays open through fulfillment
 
   return (
     <>

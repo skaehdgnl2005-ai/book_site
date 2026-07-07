@@ -20,6 +20,7 @@
  */
 import { randomUUID } from "node:crypto";
 import type { Db } from "../../../../lib/db";
+import { toOrderStatus } from "./status";
 
 export type CoverType = "SOFT" | "HARD";
 export type Gender = "MALE" | "FEMALE";
@@ -55,7 +56,16 @@ export type OrderDraft = {
   items: OrderItemDraft[];
 };
 
-export type OrderStatus = "CREATED" | "PAID";
+// F054 — the full status machine (mirrors the Prisma enum reserved at F004). Vocabulary,
+// transition table, and labels live in ./status; this module only stores/moves the value.
+export type OrderStatus =
+  | "CREATED"
+  | "PAID"
+  | "IN_PRODUCTION"
+  | "SHIPPED"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "REFUNDED";
 
 export type StoredOrder = OrderDraft & {
   id: string; // our orderId == tossOrderId
@@ -75,6 +85,12 @@ export interface OrderRepo {
    * overwrite anyway).
    */
   markPaid(id: string, paymentKey: string): Promise<StoredOrder | undefined>;
+  /**
+   * F054 — conditional status transition: applies only while the current status is in `from`
+   * (updateMany-style conditional write — two admins double-clicking apply exactly once).
+   * Callers gate the PAIR against `canTransition` (./status); this method enforces atomicity.
+   */
+  transition(id: string, from: readonly OrderStatus[], to: OrderStatus): Promise<{ ok: boolean }>;
 }
 
 export interface WebhookLedger {
@@ -111,6 +127,12 @@ export function createOrderRepo(): OrderRepo {
         order.tossPaymentKey = paymentKey;
       }
       return order;
+    },
+    async transition(id, from, to) {
+      const order = map.get(id);
+      if (!order || !from.includes(order.status)) return { ok: false };
+      order.status = to;
+      return { ok: true };
     },
   };
 }
@@ -289,7 +311,7 @@ export function mapOrderRow(row: OrderRow): StoredOrder {
   return {
     id: row.id,
     kind,
-    status: row.status === "PAID" ? "PAID" : "CREATED", // app's binary status
+    status: toOrderStatus(row.status), // F054: full machine passthrough (junk → CREATED)
     tossPaymentKey: row.tossPaymentKey,
     createdAt: typeof row.createdAt === "string" ? row.createdAt : row.createdAt.toISOString(),
     amountWon: row.amountWon,
@@ -314,7 +336,10 @@ type TemplateDelegate = {
 type OrderDelegate = {
   create(args: { data: OrderCreateData; include: unknown }): Promise<OrderRow>;
   findUnique(args: { where: { id: string }; include: unknown }): Promise<OrderRow | null>;
-  updateMany(args: { where: { id: string; status: "CREATED" }; data: { status: "PAID"; tossPaymentKey: string } }): Promise<{ count: number }>;
+  updateMany(args: {
+    where: { id: string; status: "CREATED" | { in: OrderStatus[] } };
+    data: { status: OrderStatus; tossPaymentKey?: string };
+  }): Promise<{ count: number }>;
 };
 type ProcessedWebhookDelegate = {
   findUnique(args: { where: { id: string } }): Promise<{ id: string } | null>;
@@ -354,6 +379,14 @@ export function createPrismaOrderRepo(getDb: () => Promise<Db>): OrderRepo {
       });
       const row = await (db.order as OrderDelegate).findUnique({ where: { id }, include: ORDER_INCLUDE });
       return row ? mapOrderRow(row) : undefined;
+    },
+    async transition(id, from, to) {
+      const db = await getDb();
+      const res = await (db.order as OrderDelegate).updateMany({
+        where: { id, status: { in: [...from] } },
+        data: { status: to },
+      });
+      return { ok: res.count === 1 };
     },
   };
 }

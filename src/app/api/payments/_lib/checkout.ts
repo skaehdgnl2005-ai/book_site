@@ -24,6 +24,7 @@ import type {
   WebhookLedger,
   ExtraVarValue,
 } from "./orders";
+import { isPaidFamily } from "./status";
 
 // ── webhook auth: a shared URL token, constant-time ───────────────────────────
 // Toss does NOT sign PAYMENT_STATUS_CHANGED webhooks (only payout/seller events carry a
@@ -171,10 +172,12 @@ export async function confirmPayment(
   const paymentKey = asString(input.paymentKey);
   const order = await repo.get(orderId);
   if (!order) return { status: 404, body: { errors: ["주문을 찾을 수 없습니다."] } };
-  // Idempotent: an already-PAID order is settled — do NOT re-call the gateway (the real Toss
-  // /confirm rejects an already-used paymentKey → 402). Makes the success-page reload and a
-  // webhook-first race safe. The stored (first) paymentKey is preserved.
-  if (order.status === "PAID") return { status: 200, body: { status: "PAID", orderId: order.id } };
+  // Idempotent: a settled order (PAID or any forward fulfillment state — F054) is done; do NOT
+  // re-call the gateway (the real Toss /confirm rejects an already-used paymentKey → 402). Makes
+  // the success-page reload and a webhook-first race safe. The stored (first) paymentKey is
+  // preserved. A CANCELLED/REFUNDED order is NOT payable — refuse with its real status.
+  if (isPaidFamily(order.status)) return { status: 200, body: { status: "PAID", orderId: order.id } };
+  if (order.status !== "CREATED") return { status: 402, body: { status: order.status } };
   if (!paymentKey) return { status: 400, body: { errors: ["결제 정보가 없습니다."] } };
 
   const conf = await provider.confirm({ paymentKey, orderId: order.id, amount: order.amountWon });

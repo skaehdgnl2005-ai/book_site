@@ -712,9 +712,9 @@
         "F060",
         "F062"
       ],
-      "state": "not_started",
-      "passes": false,
-      "evidence": ""
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-07 pnpm check green (lint+typecheck+unit 230 passed/10 skipped+constraints 0 violations) — order-status.test.ts 신규(전이표 49쌍 전수·paid family·transition 조건부 쓰기 replay 안전·confirm×상태머신: IN_PRODUCTION 재확인 게이트웨이 0회·CANCELLED 402); 전체 pnpm test:e2e 112/112 무회귀(checkout-success의 PAID 표시 계약 유지) + pnpm eval S1–S11 pass. 앱 OrderStatus 7상태(DB enum 기예약 — 마이그레이션 0), status.ts(canTransition/isPaidFamily/한글 라벨/toOrderStatus), OrderRepo.transition(양 백엔드 조건부 updateMany), 게이트 전수 교체(confirm 멱등 가드·orders/[id]·mypage 페이지·finishing 액션 2·settle 2 → isPaidFamily). 전이 UI는 e2e_via F060/F062가 커버"
     },
     {
       "id": "F055",

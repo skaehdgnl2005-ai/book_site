@@ -5,6 +5,7 @@ import { Nav } from "../../_components/Nav";
 import { Footer } from "../../_components/Footer";
 import { formatWon, COVER_LABEL } from "../../_components/order/format";
 import { orderRepo } from "../../api/payments/_lib/orders";
+import { isPaidFamily } from "../../api/payments/_lib/status";
 import styles from "./orders.module.css";
 
 export const dynamic = "force-dynamic";
@@ -20,7 +21,7 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const { id } = await params;
   const order = await orderRepo().get(id);
   if (!order) notFound();
-  const paid = order.status === "PAID";
+  const paid = isPaidFamily(order.status); // F054: fulfillment states remain "settled" here
 
   return (
     <>

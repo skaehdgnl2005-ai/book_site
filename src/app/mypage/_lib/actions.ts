@@ -6,6 +6,7 @@ import { untrusted } from "@/lib/guardrails";
 import { receiveUpload, storeAsset, type AssetKind } from "@/lib/assets";
 import { putObject } from "@/lib/storage";
 import { orderRepo } from "@/app/api/payments/_lib/orders";
+import { isPaidFamily } from "@/app/api/payments/_lib/status";
 import { ACCESS_TTL_MS, cookieName, mintAccess, verifyAccess } from "./access";
 import { finishingStore } from "./finishing";
 import { after } from "next/server";
@@ -131,7 +132,7 @@ async function storeUpload(
 export async function uploadFinishingPhoto(orderId: string, index: number, formData: FormData): Promise<ActionResult> {
   if (!(await requireAccess(orderId))) return DENIED;
   const order = await orderRepo().get(orderId);
-  if (!order || order.status !== "PAID") return NOT_PAID;
+  if (!order || !isPaidFamily(order.status)) return NOT_PAID; // F054: open through fulfillment
   if (!Number.isInteger(index) || index < 0 || index >= order.items.length) return BAD_ITEM;
   try {
     const res = await storeUpload("CHILD_PHOTO", formData.get("file"));
@@ -147,7 +148,7 @@ export async function uploadFinishingPhoto(orderId: string, index: number, formD
 export async function saveDedication(orderId: string, index: number, text: string): Promise<ActionResult> {
   if (!(await requireAccess(orderId))) return DENIED;
   const order = await orderRepo().get(orderId);
-  if (!order || order.status !== "PAID") return NOT_PAID;
+  if (!order || !isPaidFamily(order.status)) return NOT_PAID; // F054: open through fulfillment
   if (!Number.isInteger(index) || index < 0 || index >= order.items.length) return BAD_ITEM;
   const value = untrusted(typeof text === "string" ? text : "").value.trim();
   if (value.length > MAX_DEDICATION) {

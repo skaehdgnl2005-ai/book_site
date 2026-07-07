@@ -19,6 +19,7 @@ import {
 } from "../../../../lib/customRequest";
 import type { PaymentProvider } from "../../../../lib/payments";
 import type { OrderRepo } from "../../payments/_lib/orders";
+import { isPaidFamily } from "../../payments/_lib/status";
 
 export type CustomStore = Pick<CustomBackend, "get" | "markSubmitted" | "linkOrder">;
 
@@ -61,7 +62,7 @@ export async function settleWrittenPayment(
   if (!paymentKey) return { status: 400, body: { errors: ["결제 정보가 없습니다."] } };
 
   const order = await ensureOrder(repo, rec);
-  if (order.status !== "PAID") {
+  if (!isPaidFamily(order.status)) {
     // SERVER-held amount — the ?amount= query param is display-only and never trusted.
     const conf = await provider.confirm({ paymentKey, orderId: rec.id, amount: rec.amountWon });
     if (conf.status !== "PAID") return { status: 402, body: { status: conf.status } };
@@ -85,7 +86,7 @@ export async function reconcileWrittenFromOrder(
   const rec = await store.get(id);
   if (!rec || rec.path !== "WRITTEN" || rec.status !== "PENDING_PAYMENT") return rec;
   const order = await repo.get(id);
-  if (order?.status !== "PAID") return rec;
+  if (!order || !isPaidFamily(order.status)) return rec;
   await store.linkOrder(id, order.id);
   return (await store.markSubmitted(id)) ?? rec;
 }

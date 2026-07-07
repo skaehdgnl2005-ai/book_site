@@ -3,7 +3,18 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- **Latest (2026-07-07, 밤): F053 체크아웃 배송지 수집 DONE (Wave 2 시작).**
+- **Latest (2026-07-07, 밤): F054 주문 상태 머신 7상태 확장 DONE.**
+  앱 레이어 이진(CREATED|PAID)을 DB enum 기예약 7상태로 확장(마이그레이션 0). 신규
+  `api/payments/_lib/status.ts`: `canTransition` 전이표(PAID→IN_PRODUCTION→SHIPPED→COMPLETED,
+  PAID|IN_PRODUCTION→REFUNDED, CREATED→CANCELLED — **CREATED→PAID는 의도적으로 표에 없음**: 결제는
+  markPaid 전용, 관리자 수동 전환 불가), `isPaidFamily`, 한글 라벨, `toOrderStatus`(방어적 read 매핑).
+  `OrderRepo.transition(id, from[], to)` 양 백엔드(조건부 updateMany — 더블클릭 1회 적용).
+  게이트 전수 교체: confirm 멱등 가드(정산군 200 short-circuit·CANCELLED/REFUNDED 402), mapOrderRow
+  binary collapse 제거, orders/[id]·mypage/[orderId] paid 게이트, finishing 액션 2곳, settle 2곳.
+  `checkout-success.spec`의 order-status "PAID" 표시 계약은 그대로(결제 직후 상태는 여전히 PAID).
+  검증: pnpm check green(유닛 230 — 전이표 49쌍 전수 포함) + 전체 E2E 112/112 + eval S1–S11.
+  자체 E2E 없음 → `e2e_via:["F060","F062"]` 선언(R8). `Next:` F055 주문 확인 이메일.
+- **(2026-07-07, 밤): F053 체크아웃 배송지 수집 DONE (Wave 2 시작).**
   실물 기념물인데 이름+이메일만 받던 체크아웃에 배송지 블록 추가 — 받는 분 이름/연락처(숫자·하이픈
   9~13자)/우편번호(5자리)/주소(+상세주소 선택, 서버에서 ", "로 병합). `buildOrderDraft`가 ENTRY 주문
   필수 검증(400 + 한국어 안내), dormant `shipName/shipPhone/shipAddress` 활성 + `shipZip` 컬럼

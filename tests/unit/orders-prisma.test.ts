@@ -203,9 +203,12 @@ describe("mapOrderRow", () => {
     expect(o.items[0].photo).toEqual({ storageKey: "child-photo/x.png", contentType: "image/png", byteSize: 99 });
   });
 
-  it("treats any non-PAID DB status as CREATED (the app's binary status)", () => {
+  it("passes every reserved DB status through; junk falls back to CREATED (F054 — binary collapse removed)", () => {
     expect(mapOrderRow(row({ status: "CREATED", tossPaymentKey: null })).status).toBe("CREATED");
-    expect(mapOrderRow(row({ status: "IN_PRODUCTION" })).status).toBe("CREATED");
+    expect(mapOrderRow(row({ status: "IN_PRODUCTION" })).status).toBe("IN_PRODUCTION");
+    expect(mapOrderRow(row({ status: "SHIPPED" })).status).toBe("SHIPPED");
+    expect(mapOrderRow(row({ status: "REFUNDED" })).status).toBe("REFUNDED");
+    expect(mapOrderRow(row({ status: "NOT_A_STATUS" })).status).toBe("CREATED");
   });
 
   it("maps kind (default ENTRY) and names a zero-item CUSTOM order by its fixed product (F052)", () => {
