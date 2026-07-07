@@ -8,7 +8,11 @@ import {
   validateWrittenInput,
   validatePhoneInput,
   customRequestStore,
+  createInMemoryCustomBackend,
+  canTransitionCustom,
+  CUSTOM_STATUS_LABEL,
   type CustomForm,
+  type CustomStatus,
 } from "../../src/lib/customRequest";
 
 // The 맞춤 제작 question set — one shared 6-group 의뢰서 (web-brief §4 "공통 의뢰서 양식").
@@ -211,5 +215,70 @@ describe("customRequestStore — hermetic in-memory repository", () => {
     expect((await customRequestStore.linkOrder(rec.id, "ord_other"))?.orderId).toBe(rec.id); // no overwrite
     expect((await customRequestStore.get(rec.id))?.orderId).toBe(rec.id);
     expect(await customRequestStore.linkOrder("cr_nope", "x")).toBeUndefined();
+  });
+});
+
+// ── F061: admin listing + conditional status moves + 상담 확정 ─────────────────────
+describe("custom admin surface (F061)", () => {
+  const draft = () =>
+    buildWrittenIntake({
+      contactName: "김부모",
+      contactPhone: "010",
+      contactEmail: "parent@example.com",
+      answers: { protagonist: { name: "서연" } },
+    });
+  const ALL: readonly CustomStatus[] = ["PENDING_PAYMENT", "SUBMITTED", "IN_REVIEW", "IN_PRODUCTION", "COMPLETED", "CANCELLED"];
+  const ALLOWED: ReadonlyArray<[CustomStatus, CustomStatus]> = [
+    ["PENDING_PAYMENT", "CANCELLED"],
+    ["SUBMITTED", "IN_REVIEW"],
+    ["SUBMITTED", "CANCELLED"],
+    ["IN_REVIEW", "IN_PRODUCTION"],
+    ["IN_REVIEW", "CANCELLED"],
+    ["IN_PRODUCTION", "COMPLETED"],
+    ["IN_PRODUCTION", "CANCELLED"],
+  ];
+
+  it("canTransitionCustom matches the table EXHAUSTIVELY (PENDING_PAYMENT→SUBMITTED = settle-only)", () => {
+    const allowed = new Set(ALLOWED.map(([f, t]) => `${f}>${t}`));
+    for (const from of ALL) {
+      for (const to of ALL) {
+        expect(canTransitionCustom(from, to), `${from} → ${to}`).toBe(allowed.has(`${from}>${to}`));
+      }
+    }
+    for (const s of ALL) expect(CUSTOM_STATUS_LABEL[s].length).toBeGreaterThan(0);
+  });
+
+  it("list filters by path/status, newest first, bounded take", async () => {
+    const store = createInMemoryCustomBackend();
+    const w = await store.create(draft());
+    const p = await store.create(buildPhoneIntake({ slot: "2026-06-08T10:00", name: "n", phone: "p", memo: "" }));
+
+    expect((await store.list()).map((r) => r.id).sort()).toEqual([w.id, p.id].sort());
+    expect((await store.list({ path: "PHONE" })).map((r) => r.id)).toEqual([p.id]);
+    expect((await store.list({ status: "PENDING_PAYMENT" })).map((r) => r.id)).toEqual([w.id]);
+    expect((await store.list({ take: 1 })).length).toBe(1);
+  });
+
+  it("updateStatus is a conditional write — replays and wrong-from moves are honest no-ops", async () => {
+    const store = createInMemoryCustomBackend();
+    const rec = await store.create(draft());
+    await store.markSubmitted(rec.id);
+
+    expect((await store.updateStatus(rec.id, ["IN_REVIEW"], "IN_PRODUCTION")).ok).toBe(false); // still SUBMITTED
+    expect((await store.updateStatus(rec.id, ["SUBMITTED"], "IN_REVIEW")).ok).toBe(true);
+    expect((await store.updateStatus(rec.id, ["SUBMITTED"], "IN_REVIEW")).ok).toBe(false); // replay
+    expect((await store.get(rec.id))?.status).toBe("IN_REVIEW");
+    expect((await store.updateStatus("cr_nope", ["SUBMITTED"], "IN_REVIEW")).ok).toBe(false);
+  });
+
+  it("confirmConsultation flips REQUESTED→CONFIRMED exactly once; WRITTEN(무상담) requests never", async () => {
+    const store = createInMemoryCustomBackend();
+    const phone = await store.create(buildPhoneIntake({ slot: "2026-06-08T10:00", name: "n", phone: "p", memo: "" }));
+    expect((await store.confirmConsultation(phone.id)).ok).toBe(true);
+    expect((await store.get(phone.id))?.consultation?.status).toBe("CONFIRMED");
+    expect((await store.confirmConsultation(phone.id)).ok).toBe(false); // replay
+
+    const written = await store.create(draft());
+    expect((await store.confirmConsultation(written.id)).ok).toBe(false); // no consultation at all
   });
 });

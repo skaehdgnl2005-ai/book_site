@@ -3,7 +3,17 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- **Latest (2026-07-07, 밤): F060 관리자 상태 전이 + 운송장 DONE.**
+- **Latest (2026-07-07, 밤): F061 관리자 맞춤 의뢰·상담 관리 DONE — Wave 4(관리자) 완료.**
+  `/admin/custom` 목록(경로·상태 필터)·상세(6묶음 의뢰서 `CUSTOM_FORM_GROUPS` 재사용, 연락처
+  PII 렌더만, F052 링크로 결제 주문 상세 왕복). 의뢰 상태는 `canTransitionCustom` 전이표
+  (SUBMITTED→IN_REVIEW→IN_PRODUCTION→COMPLETED|CANCELLED; **PENDING_PAYMENT→SUBMITTED는
+  settle 전용** — 관리자가 결제를 수동으로 넘길 수 없음, markPaid 원칙과 동형) + 조건부
+  updateStatus(양 백엔드). **상담 확정 = requireApproval("consultation.book") 게이트**:
+  `pnpm approve consultation.book` 발급 토큰을 admin UI에 입력해야 REQUESTED→CONFIRMED
+  (default-deny; guardrails.ts 무수정 — 기존 액션명). 검증: check green(유닛 272 — 전이표
+  36쌍 전수) + E2E 134/134(admin-custom 3 신규) + eval S1–S11. `Next:` Wave 5 F062(구매자
+  취소 요청) → F063(환불 집행).
+- **(2026-07-07, 밤): F060 관리자 상태 전이 + 운송장 DONE.**
   `advanceOrder` 서버 액션: **액션 내부 requireAdmin 재검증**(레이아웃 게이트만으로 POST는 안
   막힌다 — defense-in-depth) + `canTransition` 관측-상태 가드 + `repo.transition` 조건부 쓰기
   (관리자 2명 더블클릭 1회 적용, 패자는 정직한 에러). REFUNDED는 여기서 **의도적으로 도달 불가**

@@ -832,9 +832,9 @@
         "상담 확정은 승인 토큰 없이는 실행되지 않는다"
       ],
       "verification": "pnpm test:e2e -- admin-custom.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": ""
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-07 pnpm check green (lint+typecheck+unit 272 passed/10 skipped+constraints 0 violations); full pnpm test:e2e 134/134 passed incl. admin-custom.spec.ts 3/3(WRITTEN 목록→상세 6묶음·연락처·결제주문 링크→검토중→제작중→완료 완주, 상담 확정 토큰 default-deny+APPROVED:consultation.book 토큰으로만 확정+재확정 불가, 경로·상태 필터) + eval S1–S11 pass. canTransitionCustom 전이표(PENDING_PAYMENT→SUBMITTED는 settle 전용 — 관리자 결제 수동 전환 불가, 유닛 36쌍 전수), customRequestStore.list/updateStatus(조건부)·confirmConsultation(REQUESTED→CONFIRMED 1회) 양 백엔드, 상담 확정은 requireApproval(consultation.book) 게이트(guardrails 무수정)"
     },
     {
       "id": "F062",

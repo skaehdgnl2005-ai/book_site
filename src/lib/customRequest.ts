@@ -134,6 +134,37 @@ export type CustomStatus =
   | "COMPLETED"
   | "CANCELLED";
 
+// F061 — 의뢰 상태 전이표 (관리자 백오피스). PENDING_PAYMENT→SUBMITTED는 결제 정산(settle.ts)
+// 전용이라 표에 없다 — 관리자가 결제를 손으로 넘길 수 없다(F054의 markPaid 원칙과 동형).
+const CUSTOM_ALLOWED: Record<CustomStatus, readonly CustomStatus[]> = {
+  PENDING_PAYMENT: ["CANCELLED"],
+  SUBMITTED: ["IN_REVIEW", "CANCELLED"],
+  IN_REVIEW: ["IN_PRODUCTION", "CANCELLED"],
+  IN_PRODUCTION: ["COMPLETED", "CANCELLED"],
+  COMPLETED: [],
+  CANCELLED: [],
+};
+
+export function canTransitionCustom(from: CustomStatus, to: CustomStatus): boolean {
+  return CUSTOM_ALLOWED[from]?.includes(to) ?? false;
+}
+
+export const CUSTOM_STATUS_LABEL: Record<CustomStatus, string> = {
+  PENDING_PAYMENT: "결제 대기",
+  SUBMITTED: "접수됨",
+  IN_REVIEW: "검토중",
+  IN_PRODUCTION: "제작중",
+  COMPLETED: "완료",
+  CANCELLED: "취소됨",
+};
+
+export const CONSULTATION_STATUS_LABEL: Record<ConsultationStatus, string> = {
+  REQUESTED: "요청됨",
+  CONFIRMED: "확정",
+  DONE: "완료",
+  CANCELLED: "취소됨",
+};
+
 export type ConsultationStatus = "REQUESTED" | "CONFIRMED" | "DONE" | "CANCELLED";
 
 export interface StoredConsultation {
@@ -293,6 +324,12 @@ export interface CustomBackend {
   markSubmitted(id: string): Promise<StoredCustomRequest | undefined>;
   /** Attach the settled Order(kind=CUSTOM) id — idempotent, first link wins (F052). */
   linkOrder(id: string, orderId: string): Promise<StoredCustomRequest | undefined>;
+  /** F061 — admin listing: newest first, optional path/status filter, bounded take (default 50). */
+  list(opts?: { path?: CustomPath; status?: CustomStatus; take?: number }): Promise<StoredCustomRequest[]>;
+  /** F061 — conditional status move (updateMany idiom): applies only while status ∈ from. */
+  updateStatus(id: string, from: readonly CustomStatus[], to: CustomStatus): Promise<{ ok: boolean }>;
+  /** F061 — 상담 확정: REQUESTED→CONFIRMED, conditional. Caller holds the requireApproval gate. */
+  confirmConsultation(id: string): Promise<{ ok: boolean }>;
 }
 
 interface MemStore {
@@ -325,6 +362,26 @@ export function createInMemoryCustomBackend(): CustomBackend {
       if (!rec.orderId) rec.orderId = orderId; // first link wins (mirrors markPaid's first-key rule)
       return rec;
     },
+    async list(opts = {}) {
+      const take = opts.take ?? 50;
+      return [...s.map.values()]
+        .filter((r) => (opts.path ? r.path === opts.path : true))
+        .filter((r) => (opts.status ? r.status === opts.status : true))
+        .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+        .slice(0, take);
+    },
+    async updateStatus(id, from, to) {
+      const rec = s.map.get(id);
+      if (!rec || !from.includes(rec.status)) return { ok: false };
+      rec.status = to;
+      return { ok: true };
+    },
+    async confirmConsultation(id) {
+      const rec = s.map.get(id);
+      if (!rec?.consultation || rec.consultation.status !== "REQUESTED") return { ok: false };
+      rec.consultation.status = "CONFIRMED";
+      return { ok: true };
+    },
   };
 }
 
@@ -340,9 +397,21 @@ function dateToSlot(d: Date): string {
 type CustomDelegate = {
   create(args: { data: unknown; include: { consultation: true } }): Promise<CustomRow>;
   findUnique(args: { where: { id: string }; include: { consultation: true } }): Promise<CustomRow | null>;
+  findMany(args: {
+    where: { path?: CustomPath; status?: CustomStatus };
+    orderBy: { createdAt: "desc" };
+    take?: number;
+    include: { consultation: true };
+  }): Promise<CustomRow[]>;
   updateMany(args: {
-    where: { id: string; status?: "PENDING_PAYMENT"; orderId?: null };
-    data: { status?: "SUBMITTED"; orderId?: string };
+    where: { id: string; status?: "PENDING_PAYMENT" | { in: CustomStatus[] }; orderId?: null };
+    data: { status?: CustomStatus; orderId?: string };
+  }): Promise<{ count: number }>;
+};
+type ConsultationDelegate = {
+  updateMany(args: {
+    where: { customRequestId: string; status: "REQUESTED" };
+    data: { status: "CONFIRMED" };
   }): Promise<{ count: number }>;
 };
 type CustomRow = {
@@ -418,6 +487,35 @@ export function createPrismaBackend(getDb: () => Promise<Db>): CustomBackend {
       const row = await (db.customRequest as CustomDelegate).findUnique({ where: { id }, include: { consultation: true } });
       return row ? mapCustomRow(row) : undefined;
     },
+    async list(opts = {}) {
+      const db = await getDb();
+      const where: { path?: CustomPath; status?: CustomStatus } = {};
+      if (opts.path) where.path = opts.path;
+      if (opts.status) where.status = opts.status;
+      const rows = await (db.customRequest as CustomDelegate).findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        take: opts.take ?? 50,
+        include: { consultation: true },
+      });
+      return rows.map(mapCustomRow);
+    },
+    async updateStatus(id, from, to) {
+      const db = await getDb();
+      const res = await (db.customRequest as CustomDelegate).updateMany({
+        where: { id, status: { in: [...from] } },
+        data: { status: to },
+      });
+      return { ok: res.count === 1 };
+    },
+    async confirmConsultation(id) {
+      const db = await getDb();
+      const res = await (db.consultation as ConsultationDelegate).updateMany({
+        where: { customRequestId: id, status: "REQUESTED" },
+        data: { status: "CONFIRMED" },
+      });
+      return { ok: res.count === 1 };
+    },
   };
 }
 
@@ -438,6 +536,14 @@ export const customRequestStore = {
   /** Attach the settled Order(kind=CUSTOM) id (F052) — idempotent, first link wins. */
   linkOrder: (id: string, orderId: string): Promise<StoredCustomRequest | undefined> =>
     backend().linkOrder(id, orderId),
+  /** F061 — admin listing (newest first, optional path/status filter). */
+  list: (opts?: { path?: CustomPath; status?: CustomStatus; take?: number }): Promise<StoredCustomRequest[]> =>
+    backend().list(opts),
+  /** F061 — conditional status move; callers gate the pair via canTransitionCustom. */
+  updateStatus: (id: string, from: readonly CustomStatus[], to: CustomStatus): Promise<{ ok: boolean }> =>
+    backend().updateStatus(id, from, to),
+  /** F061 — 상담 확정 (REQUESTED→CONFIRMED); requireApproval("consultation.book") gate at the caller. */
+  confirmConsultation: (id: string): Promise<{ ok: boolean }> => backend().confirmConsultation(id),
 };
 
 /**
