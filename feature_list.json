@@ -816,9 +816,9 @@
         "허용되지 않은 전이는 거부된다"
       ],
       "verification": "pnpm test:e2e -- admin-transitions.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": ""
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-07 pnpm check green (lint+typecheck+unit 268 passed/10 skipped+constraints 0 violations); full pnpm test:e2e 131/131 passed incl. admin-transitions.spec.ts 2/2(PAID→제작중→배송중(운송장 CJ대한통운)→배송완료 완주 + 구매자 /account 상세 운송장 노출, 운송장 없는 배송중 전이 거부·상태 불변) + eval S1–S11 pass. advanceOrder 서버 액션: requireAdmin 재검증(defense-in-depth) + canTransition 관측 상태 가드 + repo.transition 조건부 쓰기(더블클릭 1회) — REFUNDED는 의도적으로 도달 불가(F063 requireApproval 전용). trackingCarrier/trackingNumber 컬럼(마이그레이션 20260707140000_order_tracking), setTracking 양 백엔드(유닛), 노출은 /account 상세·mypage·admin 상세만"
     },
     {
       "id": "F061",

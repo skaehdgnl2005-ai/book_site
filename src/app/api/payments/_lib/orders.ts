@@ -55,6 +55,9 @@ export type OrderDraft = {
   shipAddress?: string;
   /** F057 — owning member (set at create for a signed-in buyer; claimed later for guests). */
   userId?: string;
+  /** F060 — shipment record (admin-entered at the SHIPPED transition). */
+  trackingCarrier?: string;
+  trackingNumber?: string;
   items: OrderItemDraft[];
 };
 
@@ -103,6 +106,10 @@ export interface OrderRepo {
   claimByEmail(email: string, userId: string): Promise<{ count: number }>;
   /** F057 — the member's orders, newest first. */
   listByUser(userId: string): Promise<StoredOrder[]>;
+  /** F059 — admin listing: newest first, optional status filter, bounded take (default 50). */
+  listRecent(opts?: { status?: OrderStatus; take?: number }): Promise<StoredOrder[]>;
+  /** F060 — record the shipment (carrier + tracking number) ahead of the SHIPPED transition. */
+  setTracking(id: string, carrier: string, trackingNumber: string): Promise<StoredOrder | undefined>;
 }
 
 export interface WebhookLedger {
@@ -160,6 +167,20 @@ export function createOrderRepo(): OrderRepo {
       return [...map.values()]
         .filter((o) => o.userId === userId)
         .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+    },
+    async listRecent(opts = {}) {
+      const take = opts.take ?? 50;
+      return [...map.values()]
+        .filter((o) => (opts.status ? o.status === opts.status : true))
+        .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+        .slice(0, take);
+    },
+    async setTracking(id, carrier, trackingNumber) {
+      const order = map.get(id);
+      if (!order) return undefined;
+      order.trackingCarrier = carrier;
+      order.trackingNumber = trackingNumber;
+      return order;
     },
   };
 }
@@ -294,6 +315,8 @@ export type OrderRow = {
   shipZip?: string | null;
   shipAddress?: string | null;
   userId?: string | null;
+  trackingCarrier?: string | null;
+  trackingNumber?: string | null;
   createdAt: Date | string;
   items: OrderRowItem[];
 };
@@ -354,6 +377,8 @@ export function mapOrderRow(row: OrderRow): StoredOrder {
     shipZip: row.shipZip ?? undefined,
     shipAddress: row.shipAddress ?? undefined,
     userId: row.userId ?? undefined,
+    trackingCarrier: row.trackingCarrier ?? undefined,
+    trackingNumber: row.trackingNumber ?? undefined,
     items,
   };
 }
@@ -368,15 +393,22 @@ type OrderDelegate = {
   create(args: { data: OrderCreateData; include: unknown }): Promise<OrderRow>;
   findUnique(args: { where: { id: string }; include: unknown }): Promise<OrderRow | null>;
   findMany(args: {
-    where: { userId: string };
+    where: { userId: string } | { status?: OrderStatus };
     orderBy: { createdAt: "desc" };
+    take?: number;
     include: unknown;
   }): Promise<OrderRow[]>;
   updateMany(args: {
     where:
-      | { id: string; status: "CREATED" | { in: OrderStatus[] } }
+      | { id: string; status?: "CREATED" | { in: OrderStatus[] } }
       | { buyerEmail: { equals: string; mode: "insensitive" }; userId: null };
-    data: { status?: OrderStatus; tossPaymentKey?: string; userId?: string };
+    data: {
+      status?: OrderStatus;
+      tossPaymentKey?: string;
+      userId?: string;
+      trackingCarrier?: string;
+      trackingNumber?: string;
+    };
   }): Promise<{ count: number }>;
 };
 type ProcessedWebhookDelegate = {
@@ -445,6 +477,25 @@ export function createPrismaOrderRepo(getDb: () => Promise<Db>): OrderRepo {
         include: ORDER_INCLUDE,
       });
       return rows.map(mapOrderRow);
+    },
+    async listRecent(opts = {}) {
+      const db = await getDb();
+      const rows = await (db.order as OrderDelegate).findMany({
+        where: opts.status ? { status: opts.status } : {},
+        orderBy: { createdAt: "desc" },
+        take: opts.take ?? 50,
+        include: ORDER_INCLUDE,
+      });
+      return rows.map(mapOrderRow);
+    },
+    async setTracking(id, carrier, trackingNumber) {
+      const db = await getDb();
+      await (db.order as OrderDelegate).updateMany({
+        where: { id },
+        data: { trackingCarrier: carrier, trackingNumber },
+      });
+      const row = await (db.order as OrderDelegate).findUnique({ where: { id }, include: ORDER_INCLUDE });
+      return row ? mapOrderRow(row) : undefined;
     },
   };
 }

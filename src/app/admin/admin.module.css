@@ -29,3 +29,18 @@
 .dt { font-family: var(--font-grotesk); font-weight: 600; font-size: 0.78rem; letter-spacing: 0; color: var(--muted); flex: none; }
 .dd { margin: 0; font-size: 0.95rem; color: var(--ink); text-align: right; overflow-wrap: anywhere; }
 .note { margin: var(--space-md) 0 0; font-size: 0.85rem; color: var(--muted); }
+
+/* F060 — status move panel */
+.moveForm { display: flex; flex-direction: column; gap: var(--space-sm); margin: 0 0 var(--space-md); }
+.moveFields { display: flex; gap: var(--space-sm); flex-wrap: wrap; }
+.moveLabel {
+  display: flex; flex-direction: column; gap: var(--space-xs); flex: 1; min-width: 12em;
+  font-family: var(--font-grotesk); font-weight: 600; font-size: 0.78rem; letter-spacing: 0; color: var(--ink);
+}
+.moveInput {
+  font-family: var(--font-sans); font-size: 1rem; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 0.6em 0.8em; width: 100%; min-width: 0;
+}
+.moveInput:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.moveError { margin: 0; font-size: 0.82rem; color: var(--accent); }

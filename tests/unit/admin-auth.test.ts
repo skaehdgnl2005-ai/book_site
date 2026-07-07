@@ -63,3 +63,15 @@ describe("orderRepo.listRecent (F059)", () => {
     expect((await repo.listRecent({ take: 1 })).length).toBe(1);
   });
 });
+
+describe("orderRepo.setTracking (F060)", () => {
+  it("records carrier + number; unknown id → undefined", async () => {
+    const repo = createOrderRepo();
+    const order = await repo.create(draft());
+    const updated = await repo.setTracking(order.id, "CJ대한통운", "1234-5678-9012");
+    expect(updated?.trackingCarrier).toBe("CJ대한통운");
+    expect(updated?.trackingNumber).toBe("1234-5678-9012");
+    expect((await repo.get(order.id))?.trackingNumber).toBe("1234-5678-9012");
+    expect(await repo.setTracking("ord_nope", "c", "n")).toBeUndefined();
+  });
+});

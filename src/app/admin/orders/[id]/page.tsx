@@ -5,6 +5,7 @@ import { Footer } from "../../../_components/Footer";
 import { formatWon, COVER_LABEL } from "../../../_components/order/format";
 import { orderRepo } from "../../../api/payments/_lib/orders";
 import { ORDER_STATUS_LABEL } from "../../../api/payments/_lib/status";
+import { TransitionPanel } from "./TransitionPanel";
 import styles from "../../admin.module.css";
 
 const GENDER_LABEL = { MALE: "남아", FEMALE: "여아" } as const;
@@ -84,7 +85,16 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
                 <dd className={styles.dd}>QR 영상 추가</dd>
               </div>
             ) : null}
+            {order.trackingNumber ? (
+              <div className={styles.row}>
+                <dt className={styles.dt}>운송장</dt>
+                <dd className={styles.dd} data-testid="admin-order-tracking">
+                  {order.trackingCarrier} {order.trackingNumber}
+                </dd>
+              </div>
+            ) : null}
           </dl>
+          <TransitionPanel orderId={order.id} status={order.status} />
           <p className={styles.note}>
             <Link href="/admin/orders">← 주문 목록으로</Link>
           </p>

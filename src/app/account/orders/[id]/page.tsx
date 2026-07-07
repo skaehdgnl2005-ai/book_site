@@ -72,6 +72,14 @@ export default async function AccountOrderPage({ params }: { params: Promise<{ i
                 </dd>
               </div>
             ) : null}
+            {order.trackingNumber ? (
+              <div className={styles.row}>
+                <dt className={styles.dt}>배송 조회</dt>
+                <dd className={styles.dd} data-testid="account-order-tracking">
+                  {order.trackingCarrier} {order.trackingNumber}
+                </dd>
+              </div>
+            ) : null}
           </dl>
           {paid && order.kind === "ENTRY" ? (
             <Link className="cta" href={`/mypage/${order.id}`} data-testid="account-order-finish">

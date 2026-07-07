@@ -66,6 +66,11 @@ export default async function MypageOrderPage({ params }: { params: Promise<{ or
           <p className={styles.statusRow}>
             상태 <span className={styles.status} data-testid="mypage-order-status">{order.status}</span>
           </p>
+          {order.trackingNumber ? (
+            <p className={styles.meta} data-testid="mypage-tracking">
+              배송 {order.trackingCarrier} {order.trackingNumber}
+            </p>
+          ) : null}
         </section>
         {paid ? (
           <FinishingClient

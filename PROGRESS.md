@@ -3,7 +3,17 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- **Latest (2026-07-07, 밤): F059 관리자 인증 + 주문 관리 DONE — Wave 4 시작.**
+- **Latest (2026-07-07, 밤): F060 관리자 상태 전이 + 운송장 DONE.**
+  `advanceOrder` 서버 액션: **액션 내부 requireAdmin 재검증**(레이아웃 게이트만으로 POST는 안
+  막힌다 — defense-in-depth) + `canTransition` 관측-상태 가드 + `repo.transition` 조건부 쓰기
+  (관리자 2명 더블클릭 1회 적용, 패자는 정직한 에러). REFUNDED는 여기서 **의도적으로 도달 불가**
+  (F063의 requireApproval 게이트 전용). SHIPPED 전이는 같은 제출에서 운송장(택배사·번호) 필수
+  (`trackingCarrier/trackingNumber` 컬럼, `20260707140000_order_tracking`). 상세 페이지
+  TransitionPanel은 현 상태에서 허용되는 한 가지 전이만 렌더(UX; 게이트는 서버). 노출: admin
+  상세 + /account 상세("배송 조회") + mypage. 검증: check green(유닛 268) + E2E 131/131
+  (transitions 2 신규 — 전 과정 완주 + 운송장 누락 거부) + eval S1–S11. `Next:` F061 관리자
+  맞춤제작·상담 관리(consultation.book requireApproval 게이트 포함).
+- **(2026-07-07, 밤): F059 관리자 인증 + 주문 관리 DONE — Wave 4 시작.**
   ADR-0024 실행: 별도 admin 인증 없음 — 전역 세션 + `ADMIN_EMAILS` allowlist(콤마·lowercase),
   실패는 `notFound()`(존재 은닉 404). 프로덕션 미설정 = 전면 deny(fail-closed); **비프로덕션 폴백은
   `admin(+<tag>)?@example.com` 패밀리** — fullyParallel E2E가 스펙별 고유 관리자 신원을 쓰게 해
