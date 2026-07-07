@@ -34,7 +34,13 @@ export type OrderItemDraft = {
   photo: { storageKey: string; contentType: string; byteSize: number } | null;
 };
 
+export type OrderKind = "ENTRY" | "CUSTOM";
+
 export type OrderDraft = {
+  /** Optional explicit id (F052 — a CUSTOM order uses id = CustomRequest.id = tossOrderId). */
+  id?: string;
+  /** ENTRY (default) or CUSTOM (맞춤 제작 — zero items; the request itself is the product). */
+  kind?: OrderKind;
   amountWon: number; // authoritative total (server-recomputed)
   orderName: string; // PII-free product summary ("<label> 외 N건")
   qrVideoAddon: boolean;
@@ -47,6 +53,7 @@ export type OrderStatus = "CREATED" | "PAID";
 
 export type StoredOrder = OrderDraft & {
   id: string; // our orderId == tossOrderId
+  kind: OrderKind;
   status: OrderStatus;
   tossPaymentKey: string | null;
   createdAt: string;
@@ -75,10 +82,11 @@ export function createOrderRepo(): OrderRepo {
   let seq = 0;
   return {
     async create(draft) {
-      const id = `ord_${(++seq).toString(36).padStart(4, "0")}`;
+      const id = draft.id ?? `ord_${(++seq).toString(36).padStart(4, "0")}`;
       const order: StoredOrder = {
         ...draft,
         id,
+        kind: draft.kind ?? "ENTRY",
         status: "CREATED",
         tossPaymentKey: null,
         createdAt: new Date().toISOString(),
@@ -135,7 +143,7 @@ type OrderItemCreate = {
 export type OrderCreateData = {
   id: string;
   tossOrderId: string;
-  kind: "ENTRY";
+  kind: OrderKind;
   status: "CREATED";
   amountWon: number;
   qrVideoAddon: boolean;
@@ -185,7 +193,7 @@ export function buildOrderCreateData(
   return {
     id,
     tossOrderId: id,
-    kind: "ENTRY",
+    kind: draft.kind ?? "ENTRY",
     status: "CREATED",
     amountWon: draft.amountWon,
     qrVideoAddon: draft.qrVideoAddon,
@@ -209,6 +217,7 @@ export type OrderRowItem = {
 };
 export type OrderRow = {
   id: string;
+  kind?: string; // scalar included by default; optional so pre-F052 fixtures still type-check
   status: string;
   tossPaymentKey: string | null;
   amountWon: number;
@@ -233,6 +242,10 @@ function orderNameFrom(labels: string[]): string {
   return labels.length === 1 ? labels[0] : `${labels[0]} 외 ${labels.length - 1}건`;
 }
 
+// A CUSTOM order has zero items to recompute a name from — fixed, PII-free product name (F052).
+// String literal (not an import from lib/customRequest) to keep this module's import graph flat.
+const CUSTOM_ORDER_NAME = "맞춤 제작 그림책";
+
 /** Map a persisted Order row (with includes) back to the app's `StoredOrder`. */
 export function mapOrderRow(row: OrderRow): StoredOrder {
   const items: OrderItemDraft[] = row.items.map((it) => ({
@@ -254,13 +267,15 @@ export function mapOrderRow(row: OrderRow): StoredOrder {
       : null,
   }));
 
+  const kind: OrderKind = row.kind === "CUSTOM" ? "CUSTOM" : "ENTRY";
   return {
     id: row.id,
+    kind,
     status: row.status === "PAID" ? "PAID" : "CREATED", // app's binary status
     tossPaymentKey: row.tossPaymentKey,
     createdAt: typeof row.createdAt === "string" ? row.createdAt : row.createdAt.toISOString(),
     amountWon: row.amountWon,
-    orderName: orderNameFrom(items.map((i) => i.templateLabel)),
+    orderName: items.length > 0 ? orderNameFrom(items.map((i) => i.templateLabel)) : kind === "CUSTOM" ? CUSTOM_ORDER_NAME : "",
     qrVideoAddon: row.qrVideoAddon,
     buyerName: row.buyerName,
     buyerEmail: row.buyerEmail,
@@ -298,7 +313,7 @@ export function createPrismaOrderRepo(getDb: () => Promise<Db>): OrderRepo {
         select: { id: true, key: true },
       });
       const byKey = new Map(tpls.map((t) => [t.key, t.id]));
-      const data = buildOrderCreateData(draft, randomUUID(), (k) => byKey.get(k));
+      const data = buildOrderCreateData(draft, draft.id ?? randomUUID(), (k) => byKey.get(k));
       const row = await (db.order as OrderDelegate).create({ data, include: ORDER_INCLUDE });
       return mapOrderRow(row);
     },

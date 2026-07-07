@@ -675,9 +675,9 @@
         "CustomRequest.orderId가 생성된 Order에 연결되며, 중복 confirm에도 Order는 1개(멱등)"
       ],
       "verification": "pnpm test:e2e -- custom-written.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": ""
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-07 pnpm check green (lint+typecheck+unit 214 passed/10 skipped+constraints 0 violations); full pnpm test:e2e 111/111 passed (1.7m) incl. custom-written.spec.ts 5/5 (SDK mock 결제창 → 성공 리다이렉트 정산 → SUBMITTED, PRG로 paymentKey URL 미잔류, 이메일 누락/형식 400); pnpm eval S1–S11 pass. 결제 승인 시 Order(kind=CUSTOM, id=tossOrderId=CustomRequest.id) 생성·tossPaymentKey 저장·CustomRequest.orderId 연결(api/custom/_lib/settle.ts — 유닛 custom-settle 8 tests: replay 재확인 0회·비PAID 비정산·legacy 폴백·webhook-first 수렴). WrittenForm 하드코딩 test_pay_written 제거 → 기존 requestTossPayment 재사용(F044 parity) + contactEmail 수집(마이그레이션 20260707100000_custom_contact_email)"
     },
     {
       "id": "F053",

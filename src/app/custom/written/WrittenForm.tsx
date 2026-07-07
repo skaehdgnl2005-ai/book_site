@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import type { FormGroupDef } from "@/lib/customRequest";
+import { requestTossPayment, type TossCheckout } from "../../checkout/_lib/tossClient";
 import styles from "./page.module.css";
 
 // `import type` is erased at build time, so this client bundle never pulls in the
@@ -12,13 +12,11 @@ import styles from "./page.module.css";
 // typed values survive hydration, and the submit button stays disabled until mounted so a
 // click can never fire before React attaches the handler (no pre-hydration native submit).
 export function WrittenForm({ groups }: { groups: readonly FormGroupDef[] }) {
-  const router = useRouter();
   const [mounted, setMounted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [stage, setStage] = useState<"form" | "pay">("form");
   const [pending, setPending] = useState(false);
-  const [reqId, setReqId] = useState<string | null>(null);
-  const [amount, setAmount] = useState(119000);
+  const [checkout, setCheckout] = useState<TossCheckout | null>(null);
 
   useEffect(() => setMounted(true), []);
 
@@ -30,8 +28,9 @@ export function WrittenForm({ groups }: { groups: readonly FormGroupDef[] }) {
     const childName = get("protagonist.name");
     const contactName = get("contactName");
     const contactPhone = get("contactPhone");
-    if (!childName || !contactName || !contactPhone) {
-      setError("아이 이름 · 의뢰인 이름 · 연락처는 필수입니다.");
+    const contactEmail = get("contactEmail");
+    if (!childName || !contactName || !contactPhone || !contactEmail) {
+      setError("아이 이름 · 의뢰인 이름 · 연락처 · 이메일은 필수입니다.");
       return;
     }
     setError(null);
@@ -47,7 +46,7 @@ export function WrittenForm({ groups }: { groups: readonly FormGroupDef[] }) {
       const res = await fetch("/api/custom/written", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contactName, contactPhone, answers }),
+        body: JSON.stringify({ contactName, contactPhone, contactEmail, answers }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -55,8 +54,7 @@ export function WrittenForm({ groups }: { groups: readonly FormGroupDef[] }) {
         setPending(false);
         return;
       }
-      setReqId(data.id);
-      setAmount(typeof data.checkout?.amount === "number" ? data.checkout.amount : 119000);
+      setCheckout(data.checkout as TossCheckout); // server-issued (amount authoritative, F052)
       setStage("pay");
       setPending(false);
     } catch {
@@ -65,25 +63,17 @@ export function WrittenForm({ groups }: { groups: readonly FormGroupDef[] }) {
     }
   }
 
+  // F052: the REAL TossPayments SDK window (F044 parity) — no hardcoded paymentKey. Toss
+  // redirects to the server-issued successUrl (/custom/complete/[id]?paymentKey=…), where the
+  // server settles with its own amount. A closed/aborted window rejects → re-enable the button.
   async function onPay() {
-    if (!reqId) return;
+    if (!checkout) return;
     setPending(true);
     setError(null);
     try {
-      const res = await fetch("/api/custom/written/confirm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: reqId, paymentKey: "test_pay_written" }),
-      });
-      const data = await res.json();
-      if (res.ok && data.status === "SUBMITTED") {
-        router.push(`/custom/complete/${reqId}`);
-        return;
-      }
-      setError("결제가 완료되지 않았습니다. 다시 시도해 주세요.");
-      setPending(false);
+      await requestTossPayment(checkout);
     } catch {
-      setError("결제 처리 중 오류가 발생했습니다.");
+      setError("결제가 완료되지 않았습니다. 다시 시도해 주세요.");
       setPending(false);
     }
   }
@@ -94,7 +84,7 @@ export function WrittenForm({ groups }: { groups: readonly FormGroupDef[] }) {
         <h2 className={styles.payTitle}>결제</h2>
         <p className={styles.payLine}>
           <span>맞춤 제작 그림책</span>
-          <span>{amount.toLocaleString("ko-KR")}원</span>
+          <span>{(checkout?.amount ?? 119000).toLocaleString("ko-KR")}원</span>
         </p>
         <p className={styles.payNote}>
           TossPayments 테스트/샌드박스 결제입니다 — 실제 청구는 일어나지 않습니다.
@@ -122,6 +112,10 @@ export function WrittenForm({ groups }: { groups: readonly FormGroupDef[] }) {
         <label className={styles.field}>
           의뢰인 연락처
           <input className={styles.input} name="contactPhone" type="text" />
+        </label>
+        <label className={styles.field}>
+          의뢰인 이메일
+          <input className={styles.input} name="contactEmail" type="email" />
         </label>
       </fieldset>
 

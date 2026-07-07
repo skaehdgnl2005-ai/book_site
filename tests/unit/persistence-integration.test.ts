@@ -72,7 +72,12 @@ describe.skipIf(!hasDb)("Supabase persistence integration", () => {
   it("custom WRITTEN: PENDING_PAYMENT → markSubmitted → SUBMITTED, form round-trips", async () => {
     const custom = createPrismaBackend(() => getDb());
     const written = await custom.create(
-      buildWrittenIntake({ contactName: "김부모", contactPhone: "010-1234-5678", answers: { protagonist: { name: "서연" } } }),
+      buildWrittenIntake({
+        contactName: "김부모",
+        contactPhone: "010-1234-5678",
+        contactEmail: "parent@example.com",
+        answers: { protagonist: { name: "서연" } },
+      }),
     );
     customIds.push(written.id);
     expect(written.status).toBe("PENDING_PAYMENT");
@@ -81,6 +86,7 @@ describe.skipIf(!hasDb)("Supabase persistence integration", () => {
     const after = await createPrismaBackend(fresh).get(written.id);
     expect(after?.status).toBe("SUBMITTED");
     expect(after?.form.groups.protagonist.name).toBe("서연");
+    expect(after?.contactEmail).toBe("parent@example.com"); // F052 column round-trips
   });
 
   it("custom PHONE: consultation REQUESTED, slot round-trips with no timezone shift", async () => {

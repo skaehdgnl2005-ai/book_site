@@ -3,7 +3,23 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- **Latest (2026-07-07): 카테고리 페이지 로딩 지연 — 조사 + 성능 수정 3건, 프로덕션 배포·카나리 완료.**
+- **Latest (2026-07-07, 밤): 쇼핑몰 갭 로드맵 착수(F052~F063 append) + F052 맞춤 결제 영속화 DONE.**
+  메이커 요청 "로그인~장바구니 쇼핑몰 조건 갭 탐구+계획" → 플랜 승인(설계 스펙
+  `docs/superpowers/specs/2026-07-07-shop-gaps-design.md`, ADR-0023 회원 도입/ADR-0024 관리자 웹 편입,
+  feature_list에 F052~F063 12건 append — R9 0위반). **F052 (Wave 1, 결함 수정)**: WRITTEN 맞춤 결제가
+  ① Order 레코드·paymentKey를 안 남기고(환불·대사 불가) ② 클라이언트 하드코딩 `test_pay_written`으로
+  프로덕션 실 Toss에서 402(결제 불능)이던 것을 해소 — 인테이크 시 Order(kind=CUSTOM,
+  id=tossOrderId=CustomRequest.id, CREATED) 생성, 성공 리다이렉트가 `/custom/complete/[id]?paymentKey`로
+  착지하면 서버가 서버 보관 금액으로 confirm 후 markPaid+linkOrder+markSubmitted(`api/custom/_lib/settle.ts`,
+  전 과정 멱등: replay 재확인 0회·webhook-first 게이트웨이 스킵·markPaid/linkOrder first-wins) → PRG
+  리다이렉트로 쿼리 제거. WrittenForm은 기존 `requestTossPayment`(F044) 재사용 + 의뢰인 이메일 수집
+  (Order.buyerEmail 필수 — 마이그레이션 `20260707100000_custom_contact_email`, ALTER라 R10 미해당).
+  confirm 라우트는 settle 위임으로 유지(HTTP 재시도 표면). orders.ts에 kind("ENTRY"|"CUSTOM")·명시적
+  draft.id 추가(기존 ENTRY 경로 무변경). 검증: pnpm check green(유닛 214/10 skip, R1–R10 0위반) +
+  **전체 E2E 111/111**(신규 이메일 400 케이스 +1) + eval S1–S11 pass. `Next:` F053(체크아웃 배송지)부터
+  Wave 2 계속; 웨이브 끝 배포 시 `prisma migrate deploy`(contactEmail 컬럼) 필요. 이메일 도메인 검증
+  (EMAIL_FROM)은 여전히 잔여(F055 prod 발송 전제).
+- **(2026-07-07): 카테고리 페이지 로딩 지연 — 조사 + 성능 수정 3건, 프로덕션 배포·카나리 완료.**
   사용자가 `pnpm approve deploy.production` 직접 실행(HITL) → `vercel --prod --yes` →
   `dpl_8N1jPFuRcFLn6r3RkEh9uSNJhiMf` READY. **카나리**: /anniversary `X-Vercel-Cache: PRERENDER`
   (엣지 프리렌더 서빙, 함수 미호출) TTFB 1.2~1.6s→**0.07~0.3s**; /order/birth(동적)

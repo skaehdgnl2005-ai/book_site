@@ -1,13 +1,19 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Nav } from "../../../_components/Nav";
 import { Footer } from "../../../_components/Footer";
-import { customRequestStore } from "@/lib/customRequest";
+import { customRequestStore, customTossProvider } from "@/lib/customRequest";
+import { orderRepo } from "../../../api/payments/_lib/orders";
+import { settleWrittenPayment, reconcileWrittenFromOrder } from "../../../api/custom/_lib/settle";
 import styles from "./page.module.css";
 
 // Shared confirmation for both paths (F021 WRITTEN → SUBMITTED, F022 PHONE → REQUESTED).
-// Reads the in-memory store by id; an unknown id is reported honestly (no fabricated record),
-// and a WRITTEN record's payment-complete copy is gated on rec.status so an unpaid
-// (PENDING_PAYMENT) request never shows a phantom "결제 완료" (design spec §5 honesty).
+// Also the Toss success-redirect landing for the WRITTEN payment (F052): with ?paymentKey=…
+// it settles server-side (server-held amount; idempotent) then redirects to the param-less
+// URL (PRG — a reload never re-submits, the paymentKey never lingers in the address bar).
+// An unknown id is reported honestly (no fabricated record), and a WRITTEN record's
+// payment-complete copy is gated on rec.status so an unpaid (PENDING_PAYMENT) request never
+// shows a phantom "결제 완료" (design spec §5 honesty).
 const WRITTEN_PAID: ReadonlySet<string> = new Set([
   "SUBMITTED",
   "IN_REVIEW",
@@ -17,11 +23,25 @@ const WRITTEN_PAID: ReadonlySet<string> = new Set([
 
 export default async function CustomCompletePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ paymentKey?: string }>;
 }) {
   const { id } = await params;
-  const rec = await customRequestStore.get(id);
+  const { paymentKey } = await searchParams;
+
+  if (paymentKey) {
+    // Settle (idempotent). A non-PAID result falls through to the honest 결제 대기 view below.
+    await settleWrittenPayment(customRequestStore, orderRepo(), customTossProvider(), { id, paymentKey });
+    redirect(`/custom/complete/${id}`);
+  }
+
+  let rec = await customRequestStore.get(id);
+  if (rec && rec.path === "WRITTEN" && rec.status === "PENDING_PAYMENT") {
+    // Webhook-first convergence: buyer paid but closed the window before the redirect.
+    rec = await reconcileWrittenFromOrder(customRequestStore, orderRepo(), id);
+  }
 
   if (!rec) {
     return (

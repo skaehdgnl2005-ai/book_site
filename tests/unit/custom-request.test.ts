@@ -83,21 +83,37 @@ describe("buildCustomForm — identical shape across both paths (F023 invariant)
 
 describe("validateWrittenInput (untrusted)", () => {
   it("rejects empty contact / missing protagonist name", () => {
-    expect(validateWrittenInput({ contactName: "", contactPhone: "", answers: {} }).ok).toBe(false);
+    expect(validateWrittenInput({ contactName: "", contactPhone: "", contactEmail: "", answers: {} }).ok).toBe(false);
     expect(
-      validateWrittenInput({ contactName: "김부모", contactPhone: "010-1234-5678", answers: { protagonist: {} } }).ok,
+      validateWrittenInput({
+        contactName: "김부모",
+        contactPhone: "010-1234-5678",
+        contactEmail: "parent@example.com",
+        answers: { protagonist: {} },
+      }).ok,
     ).toBe(false);
     expect(validateWrittenInput("garbage").ok).toBe(false);
+  });
+
+  it("rejects a missing or malformed contactEmail (F052 — the Order needs a buyerEmail)", () => {
+    const base = { contactName: "김부모", contactPhone: "010-1234-5678", answers: { protagonist: { name: "서연" } } };
+    expect(validateWrittenInput({ ...base }).ok).toBe(false); // missing
+    expect(validateWrittenInput({ ...base, contactEmail: "not-an-email" }).ok).toBe(false);
+    expect(validateWrittenInput({ ...base, contactEmail: "a@b" }).ok).toBe(false); // no TLD dot
   });
 
   it("accepts a minimal valid payload", () => {
     const r = validateWrittenInput({
       contactName: "김부모",
       contactPhone: "010-1234-5678",
+      contactEmail: "parent@example.com",
       answers: { protagonist: { name: "서연" } },
     });
     expect(r.ok).toBe(true);
-    if (r.ok) expect(r.value.contactName).toBe("김부모");
+    if (r.ok) {
+      expect(r.value.contactName).toBe("김부모");
+      expect(r.value.contactEmail).toBe("parent@example.com");
+    }
   });
 });
 
@@ -125,12 +141,14 @@ describe("buildWrittenIntake / buildPhoneIntake", () => {
     const d = buildWrittenIntake({
       contactName: "김부모",
       contactPhone: "010-1234-5678",
+      contactEmail: "parent@example.com",
       answers: { protagonist: { name: "서연" }, motivation: { occasion: "생일" } },
     });
     expect(d.path).toBe("WRITTEN");
     expect(d.status).toBe("PENDING_PAYMENT");
     expect(d.amountWon).toBe(119000);
     expect(d.consultation).toBeUndefined();
+    expect(d.contactEmail).toBe("parent@example.com"); // F052: becomes the CUSTOM Order's buyerEmail
     expect(d.form.groups.protagonist.name).toBe("서연");
     expect(d.form.groups.motivation.occasion).toBe("생일");
   });
@@ -147,6 +165,7 @@ describe("buildWrittenIntake / buildPhoneIntake", () => {
     expect(d.consultation?.requestedSlot).toBe("2026-06-08T10:00");
     expect(d.consultation?.note).toBe("낮에 전화 주세요");
     expect(d.contactName).toBe("김부모"); // the requester (booking contact)
+    expect(d.contactEmail).toBe(""); // PHONE path collects no email (payment follows the call)
     expect(d.form.groups.practical.preferredCallTime).toBe("2026-06-08T10:00");
     expect(d.form.groups.protagonist.name).toBe(""); // child details are filled live during the call
   });
@@ -154,7 +173,12 @@ describe("buildWrittenIntake / buildPhoneIntake", () => {
 
 describe("customRequestStore — hermetic in-memory repository", () => {
   const draft = () =>
-    buildWrittenIntake({ contactName: "김부모", contactPhone: "010", answers: { protagonist: { name: "서연" } } });
+    buildWrittenIntake({
+      contactName: "김부모",
+      contactPhone: "010",
+      contactEmail: "parent@example.com",
+      answers: { protagonist: { name: "서연" } },
+    });
 
   it("create → get round-trips with a unique cr_ id + createdAt", async () => {
     const rec = await customRequestStore.create(draft());
@@ -178,5 +202,14 @@ describe("customRequestStore — hermetic in-memory repository", () => {
     const a = await customRequestStore.create(buildPhoneIntake({ slot: "s", name: "n", phone: "p", memo: "" }));
     const b = await customRequestStore.create(buildPhoneIntake({ slot: "s", name: "n", phone: "p", memo: "" }));
     expect(a.id).not.toBe(b.id);
+  });
+
+  it("linkOrder attaches the settled Order id once — idempotent, first link wins (F052)", async () => {
+    const rec = await customRequestStore.create(draft());
+    expect(rec.orderId).toBeUndefined();
+    expect((await customRequestStore.linkOrder(rec.id, rec.id))?.orderId).toBe(rec.id);
+    expect((await customRequestStore.linkOrder(rec.id, "ord_other"))?.orderId).toBe(rec.id); // no overwrite
+    expect((await customRequestStore.get(rec.id))?.orderId).toBe(rec.id);
+    expect(await customRequestStore.linkOrder("cr_nope", "x")).toBeUndefined();
   });
 });

@@ -6,13 +6,17 @@ import {
   customRequestStore,
   customTossProvider,
   CUSTOM_PRICE_WON,
+  CUSTOM_ORDER_NAME,
 } from "@/lib/customRequest";
+import { orderRepo } from "../../payments/_lib/orders";
 
 /**
- * F021 — WRITTEN path, step 1: validate the 6-group 의뢰서 and open a (test) checkout.
- * The request is stored PENDING_PAYMENT; it becomes SUBMITTED only after the payment
- * settles (see ./confirm). External input is tagged `untrusted()` at the boundary (E4)
- * and never logged.
+ * F021/F052 — WRITTEN path, step 1: validate the 6-group 의뢰서 and open a (test) checkout.
+ * The request is stored PENDING_PAYMENT alongside a CREATED `Order(kind=CUSTOM)` whose
+ * `id === tossOrderId === CustomRequest.id` (entry-flow parity: CREATED at intake → PAID at
+ * settle; the async webhook can converge on it). It becomes SUBMITTED only after the payment
+ * settles (settle.ts, driven by the Toss success redirect). External input is tagged
+ * `untrusted()` at the boundary (E4) and never logged.
  */
 export async function POST(req: Request): Promise<Response> {
   let body: unknown;
@@ -26,11 +30,21 @@ export async function POST(req: Request): Promise<Response> {
   if (!v.ok) return NextResponse.json({ errors: v.errors }, { status: 400 });
 
   const rec = await customRequestStore.create(buildWrittenIntake(v.value));
+  await orderRepo().create({
+    kind: "CUSTOM",
+    id: rec.id,
+    amountWon: rec.amountWon,
+    orderName: CUSTOM_ORDER_NAME,
+    qrVideoAddon: false,
+    buyerName: rec.contactName,
+    buyerEmail: rec.contactEmail,
+    items: [],
+  });
   const origin = new URL(req.url).origin;
   const checkout = customTossProvider().createCheckout({
     orderId: rec.id,
     amount: CUSTOM_PRICE_WON,
-    orderName: "맞춤 제작 그림책",
+    orderName: CUSTOM_ORDER_NAME,
     successUrl: `${origin}/custom/complete/${rec.id}`,
     failUrl: `${origin}/custom/written`,
   });

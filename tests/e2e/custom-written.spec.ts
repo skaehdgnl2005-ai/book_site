@@ -1,13 +1,17 @@
 import { test, expect } from "@playwright/test";
+import { installTossMock } from "./_helpers/tossMock";
 
-// F021 — WRITTEN path: fill the 6-group 의뢰서 → pay (Toss test) → request stored SUBMITTED.
-test.describe("custom WRITTEN path (F021)", () => {
-  test("6-group form → test pay → confirmation shows SUBMITTED", async ({ page }) => {
+// F021/F052 — WRITTEN path: fill the 6-group 의뢰서 → REAL Toss SDK window (hermetic mock,
+// F044 parity — no hardcoded paymentKey) → success redirect settles server-side → SUBMITTED.
+test.describe("custom WRITTEN path (F021 + F052 settle)", () => {
+  test("6-group form → Toss SDK pay → settle → confirmation shows SUBMITTED (PRG: no paymentKey in URL)", async ({ page }) => {
+    await installTossMock(page, "success"); // BEFORE first navigation
     await page.goto("/custom/written");
     await expect(page.getByRole("heading", { level: 1, name: /의뢰서/ })).toBeVisible();
 
     await page.getByLabel("의뢰인 이름").fill("김부모");
     await page.getByLabel("의뢰인 연락처").fill("010-1234-5678");
+    await page.getByLabel("의뢰인 이메일").fill("parent@example.com");
     await page.getByLabel("이름", { exact: true }).fill("서연");
     await page.getByLabel(/어떤 순간/).fill("다섯 번째 생일"); // exercise an optional group field
 
@@ -18,9 +22,16 @@ test.describe("custom WRITTEN path (F021)", () => {
     await expect(pay.getByText(/119,000/)).toBeVisible();
     await page.getByRole("button", { name: /결제하기 \(테스트\)/ }).click();
 
-    await expect(page).toHaveURL(/\/custom\/complete\/cr_/);
+    // Toss success redirect → server settle → PRG redirect to the param-less confirmation.
+    await expect(page).toHaveURL(/\/custom\/complete\/cr_[^?]*$/);
+    expect(page.url()).not.toContain("paymentKey"); // never lingers in the address bar
     await expect(page.getByTestId("status")).toHaveText("SUBMITTED");
     await expect(page.getByTestId("request-id")).toContainText("cr_");
+    await expect(page.getByTestId("payment")).toContainText("결제 완료");
+
+    // Reload replays nothing (settle is idempotent) — the state is persisted, not transient.
+    await page.reload();
+    await expect(page.getByTestId("status")).toHaveText("SUBMITTED");
   });
 
   test("empty submit is blocked with an inline error (no fake success)", async ({ page }) => {
@@ -36,6 +47,7 @@ test.describe("custom WRITTEN path (F021)", () => {
       data: {
         contactName: "김부모",
         contactPhone: "010-1234-5678",
+        contactEmail: "parent@example.com",
         answers: { protagonist: { name: "서연" } },
       },
     });
@@ -46,6 +58,20 @@ test.describe("custom WRITTEN path (F021)", () => {
     await expect(page.getByTestId("status")).toHaveText("PENDING_PAYMENT");
     await expect(page.getByText("테스트 결제 완료")).toHaveCount(0); // never claims payment done
     await expect(page.getByTestId("payment")).toContainText("아직 결제가 완료되지 않았습니다");
+  });
+
+  test("step-1 API rejects a missing/malformed contact email (F052 — Order needs buyerEmail)", async ({ request }) => {
+    const base = {
+      contactName: "김부모",
+      contactPhone: "010-1234-5678",
+      answers: { protagonist: { name: "서연" } },
+    };
+    const missing = await request.post("/api/custom/written", { data: base });
+    expect(missing.status()).toBe(400);
+    const malformed = await request.post("/api/custom/written", {
+      data: { ...base, contactEmail: "not-an-email" },
+    });
+    expect(malformed.status()).toBe(400);
   });
 
   test("no horizontal overflow at 375px", async ({ page }) => {

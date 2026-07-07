@@ -107,6 +107,7 @@ model CustomRequest {
   form        Json
   contactName String
   contactPhone String
+  contactEmail String? // WRITTEN: the CUSTOM Order's buyerEmail (F052). PHONE/legacy rows: null.
   consultation Consultation?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt

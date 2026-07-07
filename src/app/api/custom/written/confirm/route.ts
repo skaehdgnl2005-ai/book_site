@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server";
 import { untrusted } from "@/lib/guardrails";
 import { customRequestStore, customTossProvider } from "@/lib/customRequest";
+import { orderRepo } from "../../../payments/_lib/orders";
+import { settleWrittenPayment } from "../../_lib/settle";
 
 /**
- * F021 — WRITTEN path, step 2: settle the (test) payment, then mark the request SUBMITTED.
+ * F021/F052 — WRITTEN path, step 2 (HTTP surface): settle the (test) payment — persist the
+ * Order(kind=CUSTOM) payment record, link the request, mark it SUBMITTED. The browser flow
+ * settles via the Toss success redirect (/custom/complete/[id] → settle.ts); this route keeps
+ * the confirm step callable/retryable as an API (idempotent — settle short-circuits replays).
  * Outside production `customTossProvider()` uses a sandbox transport so this is hermetic
  * (ADR-0010); a non-PAID result never marks the request submitted (no phantom completion).
  */
@@ -12,25 +17,13 @@ export async function POST(req: Request): Promise<Response> {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "잘못된 요청입니다." }, { status: 400 });
+    return NextResponse.json({ errors: ["잘못된 요청입니다."] }, { status: 400 });
   }
 
   const data = untrusted(body).value as { id?: unknown; paymentKey?: unknown };
-  const id = typeof data.id === "string" ? data.id : "";
-  const paymentKey = typeof data.paymentKey === "string" ? data.paymentKey : "";
-
-  const rec = await customRequestStore.get(id);
-  if (!rec) return NextResponse.json({ error: "접수 내역을 찾을 수 없습니다." }, { status: 404 });
-  if (!paymentKey) return NextResponse.json({ error: "결제 정보가 없습니다." }, { status: 400 });
-
-  const confirmation = await customTossProvider().confirm({
-    paymentKey,
-    orderId: id,
-    amount: rec.amountWon,
+  const res = await settleWrittenPayment(customRequestStore, orderRepo(), customTossProvider(), {
+    id: data.id,
+    paymentKey: data.paymentKey,
   });
-  if (confirmation.status !== "PAID") {
-    return NextResponse.json({ status: confirmation.status }, { status: 402 });
-  }
-  const updated = await customRequestStore.markSubmitted(id);
-  return NextResponse.json({ status: updated?.status ?? "SUBMITTED", id });
+  return NextResponse.json(res.body, { status: res.status });
 }

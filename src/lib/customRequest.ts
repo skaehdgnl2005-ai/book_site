@@ -5,13 +5,15 @@
  * truth for BOTH intake paths (PHONE 전화 상담 예약 / WRITTEN 글로 작성), so production input
  * is homogeneous regardless of how a customer entered (F023). The phone script == the web form.
  *
- * This module is pure: **no DB, no network, no logging** (mirrors ADR-0002). Persistence is an
- * in-memory repository cached on `globalThis` (same singleton pattern as `db.ts`) — the hermetic
- * store the dev server + Playwright run against. A production deployment swaps a Prisma-backed
- * adapter behind the same `customRequestStore` surface (the `CustomRequest`/`Consultation` models
- * already exist in `schema.prisma`); that seam is documented, not silently skipped (see the design
- * spec, D1). Payments go through the provider-agnostic `PaymentProvider` (relative import keeps
- * vitest — which has no `@/` alias — resolving this file under `tests/unit`).
+ * The domain helpers here are pure: **no network, no logging** (mirrors ADR-0002). Persistence is
+ * `customRequestStore` with TWO backends behind one async surface (ADR-0016): Prisma
+ * (`CustomRequest`/`Consultation` tables) whenever `DATABASE_URL` is set, else an in-memory map
+ * cached on `globalThis` — the hermetic store `pnpm check` + Playwright run against. Since F052 a
+ * settled WRITTEN payment also persists an `Order(kind=CUSTOM)` (id = CustomRequest.id =
+ * tossOrderId) via the shared `orderRepo`, and `CustomRequest.orderId` links to it — see
+ * `src/app/api/custom/_lib/settle.ts`. Payments go through the provider-agnostic
+ * `PaymentProvider` (relative import keeps vitest — which has no `@/` alias — resolving this
+ * file under `tests/unit`).
  */
 import {
   TossPaymentProvider,
@@ -23,6 +25,9 @@ import type { Db } from "./db";
 
 /** 맞춤 제작 price — 119,000 KRW won (integer, no minor unit). */
 export const CUSTOM_PRICE_WON = 119000;
+
+/** PII-free product name for a CUSTOM order — payment window, Order.orderName, admin lists. */
+export const CUSTOM_ORDER_NAME = "맞춤 제작 그림책";
 
 export type GroupKey =
   | "protagonist"
@@ -145,19 +150,24 @@ export interface StoredCustomRequest {
   /** booking/requester contact — PII (sensitive): never logged/traced in plaintext. */
   contactName: string;
   contactPhone: string;
+  /** WRITTEN: required (becomes the CUSTOM Order's buyerEmail, F052). PHONE: "" (no upfront pay). */
+  contactEmail: string;
   amountWon: number;
+  /** The settled Order(kind=CUSTOM) this request was paid under ("결제 후" link, F052). */
+  orderId?: string;
   consultation?: StoredConsultation;
   createdAt: string;
 }
 
-/** A request before it is persisted (the store assigns `id` + `createdAt`). */
-export type CustomRequestDraft = Omit<StoredCustomRequest, "id" | "createdAt">;
+/** A request before it is persisted (the store assigns `id` + `createdAt`; `orderId` links later). */
+export type CustomRequestDraft = Omit<StoredCustomRequest, "id" | "createdAt" | "orderId">;
 
 export type ValidationResult<T> = { ok: true; value: T } | { ok: false; errors: string[] };
 
 export interface WrittenInput {
   contactName: string;
   contactPhone: string;
+  contactEmail: string;
   /** free-form 6-group answers keyed by group → field; normalized by `buildCustomForm`. */
   answers: Record<string, unknown>;
 }
@@ -198,10 +208,14 @@ export function buildCustomForm(rawAnswers: Record<string, unknown> = {}): Custo
   return { version: 1, groups };
 }
 
+// Same rule as the entry checkout (`buildOrderDraft`'s EMAIL_RE) — one buyer-email discipline.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export function validateWrittenInput(input: unknown): ValidationResult<WrittenInput> {
   const obj = isRecord(input) ? input : {};
   const contactName = coerceStr(obj.contactName);
   const contactPhone = coerceStr(obj.contactPhone);
+  const contactEmail = coerceStr(obj.contactEmail);
   const answers = isRecord(obj.answers) ? obj.answers : {};
   const protagonist = isRecord(answers.protagonist) ? answers.protagonist : {};
   const childName = coerceStr(protagonist.name);
@@ -210,8 +224,10 @@ export function validateWrittenInput(input: unknown): ValidationResult<WrittenIn
   if (!childName) errors.push("아이 이름을 입력해 주세요.");
   if (!contactName) errors.push("의뢰인 이름을 입력해 주세요.");
   if (!contactPhone) errors.push("연락처를 입력해 주세요.");
+  // F052: the settled payment persists an Order whose buyerEmail is required — collect it up front.
+  if (!EMAIL_RE.test(contactEmail) || contactEmail.length > 254) errors.push("올바른 이메일을 입력해 주세요.");
   if (errors.length) return { ok: false, errors };
-  return { ok: true, value: { contactName, contactPhone, answers } };
+  return { ok: true, value: { contactName, contactPhone, contactEmail, answers } };
 }
 
 export function validatePhoneInput(input: unknown): ValidationResult<PhoneInput> {
@@ -241,6 +257,7 @@ export function buildWrittenIntake(input: WrittenInput): CustomRequestDraft {
     form: buildCustomForm(input.answers),
     contactName: coerceStr(input.contactName),
     contactPhone: coerceStr(input.contactPhone),
+    contactEmail: coerceStr(input.contactEmail),
     amountWon: CUSTOM_PRICE_WON,
   };
 }
@@ -260,6 +277,7 @@ export function buildPhoneIntake(input: PhoneInput): CustomRequestDraft {
     }),
     contactName: coerceStr(input.name),
     contactPhone: coerceStr(input.phone),
+    contactEmail: "", // no upfront payment on the PHONE path — email is collected later if needed
     amountWon: CUSTOM_PRICE_WON,
     consultation: { requestedSlot: input.slot, status: "REQUESTED", note: coerceStr(input.memo) },
   };
@@ -269,10 +287,12 @@ export function buildPhoneIntake(input: PhoneInput): CustomRequestDraft {
 // 맞춤 제작 is the highest-value product (119,000원) — a lost request is a lost order, so the
 // store persists to the CustomRequest/Consultation tables whenever a DB is configured. One async
 // surface; the in-memory backend is the hermetic path for pnpm check + Playwright (ADR-0002).
-interface CustomBackend {
+export interface CustomBackend {
   create(draft: CustomRequestDraft): Promise<StoredCustomRequest>;
   get(id: string): Promise<StoredCustomRequest | undefined>;
   markSubmitted(id: string): Promise<StoredCustomRequest | undefined>;
+  /** Attach the settled Order(kind=CUSTOM) id — idempotent, first link wins (F052). */
+  linkOrder(id: string, orderId: string): Promise<StoredCustomRequest | undefined>;
 }
 
 interface MemStore {
@@ -280,7 +300,8 @@ interface MemStore {
   seq: number;
 }
 
-function createInMemoryBackend(): CustomBackend {
+/** Exported for hermetic unit tests (settle.ts injection); the app uses `customRequestStore`. */
+export function createInMemoryCustomBackend(): CustomBackend {
   const s: MemStore = { map: new Map(), seq: 0 };
   return {
     async create(draft) {
@@ -298,6 +319,12 @@ function createInMemoryBackend(): CustomBackend {
       if (rec.status === "PENDING_PAYMENT") rec.status = "SUBMITTED";
       return rec;
     },
+    async linkOrder(id, orderId) {
+      const rec = s.map.get(id);
+      if (!rec) return undefined;
+      if (!rec.orderId) rec.orderId = orderId; // first link wins (mirrors markPaid's first-key rule)
+      return rec;
+    },
   };
 }
 
@@ -313,7 +340,10 @@ function dateToSlot(d: Date): string {
 type CustomDelegate = {
   create(args: { data: unknown; include: { consultation: true } }): Promise<CustomRow>;
   findUnique(args: { where: { id: string }; include: { consultation: true } }): Promise<CustomRow | null>;
-  updateMany(args: { where: { id: string; status: "PENDING_PAYMENT" }; data: { status: "SUBMITTED" } }): Promise<{ count: number }>;
+  updateMany(args: {
+    where: { id: string; status?: "PENDING_PAYMENT"; orderId?: null };
+    data: { status?: "SUBMITTED"; orderId?: string };
+  }): Promise<{ count: number }>;
 };
 type CustomRow = {
   id: string;
@@ -322,6 +352,8 @@ type CustomRow = {
   form: unknown;
   contactName: string;
   contactPhone: string;
+  contactEmail?: string | null; // nullable column (pre-F052 rows have none)
+  orderId?: string | null;
   createdAt: Date | string;
   consultation: { requestedSlot: Date | string; status: ConsultationStatus; note: string | null } | null;
 };
@@ -334,6 +366,8 @@ function mapCustomRow(row: CustomRow): StoredCustomRequest {
     form: row.form as CustomForm,
     contactName: row.contactName,
     contactPhone: row.contactPhone,
+    contactEmail: row.contactEmail ?? "",
+    orderId: row.orderId ?? undefined,
     amountWon: CUSTOM_PRICE_WON, // fixed price (no column); recomputed on read
     consultation: row.consultation
       ? {
@@ -357,6 +391,7 @@ export function createPrismaBackend(getDb: () => Promise<Db>): CustomBackend {
           form: draft.form,
           contactName: draft.contactName,
           contactPhone: draft.contactPhone,
+          contactEmail: draft.contactEmail || null,
           consultation: draft.consultation
             ? { create: { requestedSlot: slotToDate(draft.consultation.requestedSlot), status: draft.consultation.status, note: draft.consultation.note } }
             : undefined,
@@ -376,6 +411,13 @@ export function createPrismaBackend(getDb: () => Promise<Db>): CustomBackend {
       const row = await (db.customRequest as CustomDelegate).findUnique({ where: { id }, include: { consultation: true } });
       return row ? mapCustomRow(row) : undefined;
     },
+    async linkOrder(id, orderId) {
+      const db = await getDb();
+      // Conditional write: only an unlinked row takes the link (first link wins — idempotent).
+      await (db.customRequest as CustomDelegate).updateMany({ where: { id, orderId: null }, data: { orderId } });
+      const row = await (db.customRequest as CustomDelegate).findUnique({ where: { id }, include: { consultation: true } });
+      return row ? mapCustomRow(row) : undefined;
+    },
   };
 }
 
@@ -384,7 +426,7 @@ const getDbLazy = (): Promise<Db> => import("./db").then((m) => m.getDb());
 
 function backend(): CustomBackend {
   if (process.env.DATABASE_URL) return (g.__customDb ??= createPrismaBackend(getDbLazy));
-  return (g.__customMem ??= createInMemoryBackend());
+  return (g.__customMem ??= createInMemoryCustomBackend());
 }
 
 /** Repository surface (async). Production persists to Prisma; hermetic runs use the in-memory backend. */
@@ -393,6 +435,9 @@ export const customRequestStore = {
   get: (id: string): Promise<StoredCustomRequest | undefined> => backend().get(id),
   /** Settle a WRITTEN request once its (test) payment is PAID. */
   markSubmitted: (id: string): Promise<StoredCustomRequest | undefined> => backend().markSubmitted(id),
+  /** Attach the settled Order(kind=CUSTOM) id (F052) — idempotent, first link wins. */
+  linkOrder: (id: string, orderId: string): Promise<StoredCustomRequest | undefined> =>
+    backend().linkOrder(id, orderId),
 };
 
 /**

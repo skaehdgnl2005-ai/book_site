@@ -89,6 +89,16 @@ describe("buildOrderCreateData", () => {
   it("throws when a templateKey cannot be resolved to an id (integrity guard)", () => {
     expect(() => buildOrderCreateData(draft({ items: [{ ...draft().items[0], templateKey: "ghost" }] }), "ord_x", idForKey)).toThrow();
   });
+
+  it("defaults kind to ENTRY; a CUSTOM draft carries kind + an empty item set (F052)", () => {
+    expect(buildOrderCreateData(draft(), "ord_x", idForKey).kind).toBe("ENTRY");
+    const data = buildOrderCreateData(draft({ kind: "CUSTOM", items: [], amountWon: 119000 }), "cr_abc", idForKey);
+    expect(data.kind).toBe("CUSTOM");
+    expect(data.id).toBe("cr_abc");
+    expect(data.tossOrderId).toBe("cr_abc"); // Order.id === tossOrderId === CustomRequest.id
+    expect(data.items.create).toEqual([]);
+    expect(data.amountWon).toBe(119000);
+  });
 });
 
 // ── mapOrderRow: Prisma row (with includes) → app StoredOrder (pure) ─────────────
@@ -181,5 +191,31 @@ describe("mapOrderRow", () => {
   it("treats any non-PAID DB status as CREATED (the app's binary status)", () => {
     expect(mapOrderRow(row({ status: "CREATED", tossPaymentKey: null })).status).toBe("CREATED");
     expect(mapOrderRow(row({ status: "IN_PRODUCTION" })).status).toBe("CREATED");
+  });
+
+  it("maps kind (default ENTRY) and names a zero-item CUSTOM order by its fixed product (F052)", () => {
+    expect(mapOrderRow(row()).kind).toBe("ENTRY");
+    const custom = mapOrderRow(row({ kind: "CUSTOM", items: [] }));
+    expect(custom.kind).toBe("CUSTOM");
+    expect(custom.orderName).toBe("맞춤 제작 그림책"); // no items to recompute from — fixed, PII-free
+    expect(custom.items).toEqual([]);
+  });
+});
+
+// ── in-memory repo: explicit id + kind (F052 — CUSTOM orders reuse the same repo) ──
+describe("createOrderRepo — explicit id / kind", () => {
+  it("uses a caller-provided id (CUSTOM: = CustomRequest.id) and defaults kind to ENTRY", async () => {
+    const { createOrderRepo } = await import("../../src/app/api/payments/_lib/orders");
+    const repo = createOrderRepo();
+    const entry = await repo.create(draft());
+    expect(entry.kind).toBe("ENTRY");
+    expect(entry.id).toMatch(/^ord_/);
+
+    const custom = await repo.create(draft({ kind: "CUSTOM", id: "cr_zz01", items: [], amountWon: 119000, orderName: "맞춤 제작 그림책" }));
+    expect(custom.id).toBe("cr_zz01");
+    expect(custom.kind).toBe("CUSTOM");
+    expect(custom.status).toBe("CREATED");
+    expect((await repo.get("cr_zz01"))?.amountWon).toBe(119000);
+    expect((await repo.markPaid("cr_zz01", "pk_c"))?.status).toBe("PAID");
   });
 });
