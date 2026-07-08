@@ -3,7 +3,23 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- **Latest (2026-07-08): F063 환불 집행 DONE — 쇼핑몰 갭 로드맵(F052~F063) 12건 전체 완주. `pnpm status` 52/52 product · 11/11 harness.**
+- **Latest (2026-07-08): 쇼핑몰 갭 로드맵(F052~F063) 프로덕션 배포 완료 — 라이브 @ storybook-shop.vercel.app.**
+  사용자 지시("바로 배포 진행")로 배포 체크포인트 실행. 절차: ① 로컬 `pnpm build` 프로덕션 컴파일
+  게이트(에러 0) ② `prisma migrate deploy` — **신규 6건 전부 적용**(contactEmail·shipZip·
+  User/LoginOtp(RLS)·Order.userId FK·tracking·cancel) ③ Vercel prod env `ADMIN_EMAILS` 추가 —
+  값은 안전 분류기가 에이전트 추정 이메일을 차단해 **사용자에게 직접 확인받아
+  `skaehdgnl2005@gmail.com`(메이커의 Resend 가입 계정 — 현 onboarding@resend.dev 발신으로 OTP
+  수신 가능한 유일 주소)** ④ `pnpm approve deploy.production`(사용자 명시 지시가 HITL 근거) →
+  `vercel deploy --prod` → READY (`storybook-shop-fgq5dfimz…`). **카나리**: 10경로 200
+  (신규 /login·/account·/custom/written 포함), 404 계약 유지(/admin·/admin/orders 비로그인 404
+  은닉, /orders/ord_nonexistent·/order/unknown_key), 카카오 미설정 fail-closed
+  (307→/login?error=kakao), `X-Vercel-Id: icn1::icn1`(서울 실행), **신규 검증 라이브 확인**
+  (부작용 없는 400 카나리: 배송지 누락 "받는 분 이름을 입력해 주세요", 맞춤 이메일 누락 "올바른
+  이메일을 입력해 주세요"). **사람 후속 카나리 권장**: 브라우저에서 ① 실 Toss TEST 결제 완주
+  (엔트리+맞춤) ② `skaehdgnl2005@gmail.com`로 /login OTP 수신→/admin 진입 확인. **HITL 잔여**:
+  EMAIL_FROM 정식 도메인(현재는 메이커 메일로만 발송 가능 — 구매자 확인 메일은 fail-closed),
+  카카오 개발자 앱 등록(KAKAO_* env — 미설정 동안 카카오 버튼은 fail-closed 리다이렉트).
+- **(2026-07-08): F063 환불 집행 DONE — 쇼핑몰 갭 로드맵(F052~F063) 12건 전체 완주. `pnpm status` 52/52 product · 11/11 harness.**
   `PaymentProvider.cancelPayment` + Toss `POST /v1/payments/{key}/cancel`(Basic auth, **전액 취소만**,
   `Idempotency-Key: refund-<orderId>`로 이중 집행 방어). **3중 잠금**: requireAdmin(신원) →
   `requireApproval("toss.refund.live", 토큰)`(HITL default-deny — `pnpm approve` 발급 토큰을 admin
