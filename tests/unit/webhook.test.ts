@@ -116,6 +116,9 @@ function stubProvider(outcome: PaymentStatus, captured: { input?: ConfirmInput }
     async lookupPayment(_paymentKey: string): Promise<PaymentLookupResult | null> {
       return { status: outcome, amount: 0, orderId: "" }; // confirm tests don't exercise the re-query
     },
+    async cancelPayment() {
+      return { status: "CANCELED" as const }; // confirm tests don't exercise the refund path
+    },
   };
 }
 
@@ -414,7 +417,7 @@ describe("processWebhook (Toss re-query scheme)", () => {
     expect(captured.paymentKey).toBeUndefined(); // dedupe short-circuits before re-query
   });
 
-  it("cannot be flipped to CANCELED by a forged later event (re-query authoritative + never downgrades)", async () => {
+  it("cannot be flipped by a forged CANCELED body while the AUTHORITATIVE payment is still PAID", async () => {
     const { repo, order } = await paidOrder();
     const ledger = createWebhookLedger();
     await processWebhook(
@@ -424,15 +427,17 @@ describe("processWebhook (Toss re-query scheme)", () => {
     );
     expect((await repo.get(order.id))?.status).toBe("PAID");
 
-    // Forged later CANCELED (valid token, distinct paymentKey:status → not deduped). Re-query is
-    // authoritative and a PAID order is never downgraded.
+    // Forged later CANCELED BODY (valid token, distinct paymentKey:status → not deduped). The
+    // re-query is authoritative and still says PAID — a body alone can never move an order.
+    // (A GENUINELY cancelled payment — authoritative CANCELED — converges to REFUNDED by design
+    // since F063; see the "authoritative CANCELED re-query converges" test above.)
     const res = await processWebhook(
       tossBody({ paymentKey: "pay_x", orderId: order.id, status: "CANCELED" }),
       TOKEN, TOKEN, repo, ledger,
-      lookupReturning({ status: "CANCELED", amount: order.amountWon, orderId: order.id }),
+      lookupReturning({ status: "PAID", amount: order.amountWon, orderId: order.id }),
     );
     expect(res.status).toBe(200);
-    expect((await repo.get(order.id))?.status).toBe("PAID"); // never downgraded
+    expect((await repo.get(order.id))?.status).toBe("PAID"); // the forged body moved nothing
   });
 
   it("acknowledges (200) a not-yet-settled payment without marking PAID", async () => {
@@ -476,6 +481,32 @@ describe("processWebhook (Toss re-query scheme)", () => {
     const body = JSON.stringify({ eventType: "PAYMENT_STATUS_CHANGED", data: { orderId: "ord_x", status: "DONE" } });
     const res = await processWebhook(body, TOKEN, TOKEN, repo, ledger, lookupReturning(null));
     expect(res.status).toBe(400);
+  });
+
+  it("F063: an authoritative CANCELED re-query converges the order to REFUNDED (dashboard refunds land too)", async () => {
+    const { repo, order } = await paidOrder();
+    await repo.markPaid(order.id, "pk_1");
+    const ledger = createWebhookLedger();
+    const lookup = lookupReturning({ status: "CANCELED", amount: order.amountWon, orderId: order.id });
+
+    const res = await processWebhook(tossBody({ status: "CANCELED" }), TOKEN, TOKEN, repo, ledger, lookup);
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("REFUNDED");
+    expect((await repo.get(order.id))?.status).toBe("REFUNDED");
+
+    // redelivery of the same paymentKey:status is deduped BEFORE any state change
+    const again = await processWebhook(tossBody({ status: "CANCELED" }), TOKEN, TOKEN, repo, ledger, lookup);
+    expect(again.body.duplicate).toBe(true);
+    expect((await repo.get(order.id))?.status).toBe("REFUNDED");
+  });
+
+  it("F063: a CANCELED re-query for a CREATED (never-paid) order changes nothing (conditional transition)", async () => {
+    const { repo, order } = await paidOrder(); // CREATED — markPaid NOT called
+    const ledger = createWebhookLedger();
+    const lookup = lookupReturning({ status: "CANCELED", amount: order.amountWon, orderId: order.id });
+
+    await processWebhook(tossBody({ status: "CANCELED" }), TOKEN, TOKEN, repo, ledger, lookup);
+    expect((await repo.get(order.id))?.status).toBe("CREATED"); // a never-paid order can't be "refunded"
   });
 
   it("converges with the success-callback confirm: a webhook on an already-PAID order is a no-op keeping the first key", async () => {

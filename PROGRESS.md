@@ -3,7 +3,28 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
-- **Latest (2026-07-07, 밤): F062 구매자 취소 요청 DONE — Wave 5 시작.**
+- **Latest (2026-07-08): F063 환불 집행 DONE — 쇼핑몰 갭 로드맵(F052~F063) 12건 전체 완주. `pnpm status` 52/52 product · 11/11 harness.**
+  `PaymentProvider.cancelPayment` + Toss `POST /v1/payments/{key}/cancel`(Basic auth, **전액 취소만**,
+  `Idempotency-Key: refund-<orderId>`로 이중 집행 방어). **3중 잠금**: requireAdmin(신원) →
+  `requireApproval("toss.refund.live", 토큰)`(HITL default-deny — `pnpm approve` 발급 토큰을 admin
+  UI에 입력) → 게이트웨이 멱등 키. 성공 시 REFUNDED 조건부 전이(웹훅 경합 무해) + 환불 확인 메일
+  (after, kind 유니온 확장). **웹훅 CANCELED 수렴**: 권위적 재조회가 CANCELED면 REFUNDED —
+  Toss 대시보드 직접 취소도 주문 상태에 수렴; 전이가 실제로 안 일어나면 응답은 정직하게 IGNORED.
+  주의: F045의 "PAID 절대 다운그레이드 불가" 유닛 불변식은 F063 의미로 **의도적 갱신** — 위조
+  본문 방어(권위적 PAID면 본문만으로 불변)는 보존, 권위적 CANCELED는 이제 환불 수렴이 정답.
+  sandbox transport가 `/cancel`을 CANCELED 승인(hermetic E2E). 검증: check green(유닛 278) +
+  **E2E 138/138** + eval S1–S11.
+  **로드맵 요약(모두 이 세션, 순차 WIP=1)**: F052 맞춤 결제 영속화(프로덕션 결함 수정) → F053
+  배송지 → F054 상태 머신 → F055 확인 메일 → F056 회원(OTP 로그인+세션) → F057 주문 연결 →
+  F058 카카오 → F059 admin 인증·주문 → F060 전이+운송장 → F061 맞춤 관리 → F062 취소 요청 →
+  F063 환불. **배포 전 체크리스트(HITL)**: ① `prisma migrate deploy` — 신규 마이그레이션 6건
+  (contactEmail·shipZip·User/LoginOtp(RLS)·userId FK·tracking·cancel) ② Vercel env: `ADMIN_EMAILS`
+  (+선택 `KAKAO_REST_API_KEY/KAKAO_CLIENT_SECRET`) ③ `pnpm approve deploy.production` →
+  `vercel --prod` → 카나리(엔트리 결제·맞춤 결제·로그인·admin 404/로그인·환불은 실 Toss 테스트
+  결제로 왕복 확인) ④ 잔여: EMAIL_FROM 정식 도메인(메일 fail-closed 해제), 카카오 앱
+  등록/account_email 검수. `Next:` 배포 체크포인트 실행(사람) 또는 후속 개선(주소검색 위젯,
+  QR 애드온 가격, 부분환불 등)은 새 feature append로.
+- **(2026-07-07, 밤): F062 구매자 취소 요청 DONE — Wave 5 시작.**
   `requestCancel` = **단일 조건부 쓰기**: `status ∈ {PAID, IN_PRODUCTION} && cancelRequestedAt IS
   NULL`일 때만 접수(중복·배송후·미결제는 정직한 no-op, 첫 사유 보존). 게이트는 F057의
   `hasOrderAccess` 재사용 — 게스트(capability 쿠키)와 회원(세션 소유) 양쪽에서 동일 액션.

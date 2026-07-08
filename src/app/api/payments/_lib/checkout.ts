@@ -235,6 +235,19 @@ export async function processWebhook(
   // status/amount can settle the order. A forged "DONE" body re-queries to the real status.
   const authoritative = await lookup(paymentKey);
   if (!authoritative) return { status: 200, body: { status: "LOOKUP_FAILED" } }; // not found → ack, no retry storm
+
+  // F063 — CANCELED convergence: a refund executed outside our admin flow (e.g. straight from
+  // the Toss dashboard) still lands the order on REFUNDED. Conditional transition (settled
+  // states only): a CREATED order can't be "refunded" and a replay is a no-op — the response
+  // reports what ACTUALLY happened (IGNORED when nothing moved), never an optimistic REFUNDED.
+  if (authoritative.status === "CANCELED") {
+    const order = await repo.get(authoritative.orderId);
+    if (!order) return { status: 200, body: { status: "UNKNOWN_ORDER" } };
+    await ledger.record(dedupeKey);
+    const moved = await repo.transition(order.id, ["PAID", "IN_PRODUCTION"], "REFUNDED");
+    return { status: 200, body: { status: moved.ok ? "REFUNDED" : "IGNORED", orderId: order.id } };
+  }
+
   if (authoritative.status !== "PAID") return { status: 200, body: { status: "IGNORED" } };
 
   const order = await repo.get(authoritative.orderId); // authoritative id, never the body's
@@ -255,16 +268,19 @@ export async function processWebhook(
 // ── provider + secret wiring (sandbox outside production; impossible to stub in prod) ──
 export function checkoutProvider(env: Record<string, string | undefined> = process.env): PaymentProvider {
   if (env.APP_ENV === "production") return tossFromEnv(env);
-  const sandboxTransport: TossTransport = async (_url, init) => ({
+  const sandboxTransport: TossTransport = async (url, init) => ({
     ok: true,
     status: 200,
     // GET = lookupPayment re-query. The sandbox can't know an order's real amount/id, so it
     // returns a benign payment that settles nothing (orderId:"" → UNKNOWN_ORDER). The webhook
     // safety-net is verified hermetically by webhook.test.ts; dev/E2E use the confirm path.
+    // POST …/cancel = refund (F063): approves as CANCELED so the hermetic refund flow completes.
     json: async () =>
-      init.method === "GET"
-        ? { status: "DONE", totalAmount: 0, orderId: "" }
-        : { status: "DONE", approvedAt: new Date().toISOString() },
+      url.includes("/cancel")
+        ? { status: "CANCELED" }
+        : init.method === "GET"
+          ? { status: "DONE", totalAmount: 0, orderId: "" }
+          : { status: "DONE", approvedAt: new Date().toISOString() },
   });
   return new TossPaymentProvider({
     secretKey: env.TOSS_SECRET_KEY ?? "test_sk_checkoutsandbox",

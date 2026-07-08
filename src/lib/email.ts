@@ -20,7 +20,8 @@ import { isProductionRuntime } from "./env";
 export type EmailMessage =
   | { kind: "mypage_otp"; to: string; code: string }
   | { kind: "login_otp"; to: string; code: string }
-  | { kind: "order_confirmation"; to: string; orderId: string; orderName: string; amountWon: number };
+  | { kind: "order_confirmation"; to: string; orderId: string; orderName: string; amountWon: number }
+  | { kind: "refund_confirmation"; to: string; orderId: string; orderName: string; amountWon: number };
 
 export interface EmailAdapter {
   send(msg: EmailMessage): Promise<void>;
@@ -76,6 +77,20 @@ function loginOtpBody(code: string): string {
   return `로그인 인증 코드는 ${code} 입니다.\n10분 안에 입력해 주세요. 본인이 요청하지 않았다면 이 메일은 무시하셔도 됩니다.`;
 }
 
+// F063 — refund confirmation: commerce facts only (the order-confirmation PII discipline).
+const REFUND_CONFIRMATION_SUBJECT = "[그림책 제작소] 환불이 완료되었습니다";
+function refundConfirmationBody(msg: { orderId: string; orderName: string; amountWon: number }): string {
+  return [
+    "요청하신 주문의 결제가 취소(환불)되었습니다.",
+    "",
+    `주문번호  ${msg.orderId}`,
+    `주문 상품  ${msg.orderName}`,
+    `환불 금액  ${msg.amountWon.toLocaleString("ko-KR")}원`,
+    "",
+    "카드사 사정에 따라 실제 환불 반영까지 며칠이 걸릴 수 있어요.",
+  ].join("\n");
+}
+
 /** kind → subject/text. Exhaustive switch: a new EmailMessage kind fails typecheck until composed here. */
 function composeEmail(msg: EmailMessage): { subject: string; text: string } {
   switch (msg.kind) {
@@ -85,6 +100,8 @@ function composeEmail(msg: EmailMessage): { subject: string; text: string } {
       return { subject: LOGIN_OTP_SUBJECT, text: loginOtpBody(msg.code) };
     case "order_confirmation":
       return { subject: ORDER_CONFIRMATION_SUBJECT, text: orderConfirmationBody(msg) };
+    case "refund_confirmation":
+      return { subject: REFUND_CONFIRMATION_SUBJECT, text: refundConfirmationBody(msg) };
   }
 }
 

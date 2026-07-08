@@ -866,9 +866,9 @@
         "환불 후 구매자 화면에 환불 완료 상태가 보인다"
       ],
       "verification": "pnpm test:e2e -- refund.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": ""
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-08 pnpm check green (lint+typecheck+unit 278 passed/10 skipped+constraints 0 violations); full pnpm test:e2e 138/138 passed incl. refund.spec.ts 2/2(토큰 없이 default-deny→APPROVED:toss.refund.live 토큰으로 환불→REFUNDED→구매자 환불 완료 표시+환불된 주문 취소폼 부재, SHIPPED 이후 환불 패널 부재) + eval S1–S11 pass. PaymentProvider.cancelPayment + Toss POST /v1/payments/{key}/cancel(Basic auth·Idempotency-Key: refund-<orderId>·전액 취소만 — 유닛: URL/헤더/본문/PARTIAL_CANCELED 매핑/비2xx FAILED), 3중 잠금(requireAdmin→requireApproval(toss.refund.live)→멱등 키), REFUNDED 전이는 조건부(웹훅 경합 무해), 환불 확인 메일 after(). processWebhook CANCELED 수렴: 권위적 재조회가 CANCELED면 REFUNDED(대시보드 직접 취소 대응), 전이 실패는 정직하게 IGNORED — 위조 본문 방어 테스트는 F063 의미로 갱신(권위적 PAID면 본문만으로 불변). sandbox transport가 /cancel을 CANCELED 승인(hermetic)"
     }
   ]
 }

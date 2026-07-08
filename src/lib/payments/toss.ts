@@ -6,6 +6,8 @@ import type {
   Confirmation,
   PaymentStatus,
   PaymentLookupResult,
+  CancelPaymentInput,
+  CancelPaymentResult,
 } from "./index";
 
 /**
@@ -142,6 +144,28 @@ export class TossPaymentProvider implements PaymentProvider {
       amount: input.amount,
       approvedAt: body.approvedAt,
     };
+  }
+
+  async cancelPayment(input: CancelPaymentInput): Promise<CancelPaymentResult> {
+    // F063 — POST /v1/payments/{paymentKey}/cancel (Basic auth = confirm). FULL cancel only
+    // (no cancelAmount ⇒ Toss cancels the whole payment). The Idempotency-Key makes a retried/
+    // double-clicked call settle to the SAME result instead of erroring or double-executing.
+    const auth = "Basic " + Buffer.from(`${this.secretKey}:`).toString("base64");
+    const res = await this.transport(
+      `${this.paymentUrl}${encodeURIComponent(input.paymentKey)}/cancel`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: auth,
+          "Content-Type": "application/json",
+          "Idempotency-Key": `refund-${input.orderId}`,
+        },
+        body: JSON.stringify({ cancelReason: input.cancelReason }),
+      },
+    );
+    const body = (await res.json()) as { status?: unknown };
+    const canceled = res.ok && mapStatus(true, body.status) === "CANCELED";
+    return { status: canceled ? "CANCELED" : "FAILED" };
   }
 
   async lookupPayment(paymentKey: string): Promise<PaymentLookupResult | null> {

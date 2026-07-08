@@ -61,6 +61,18 @@ export interface Confirmation {
   approvedAt?: string;
 }
 
+/** F063 — cancel (refund) a settled payment. FULL-amount only (부분취소 스코프 아웃). */
+export interface CancelPaymentInput {
+  paymentKey: string;
+  /** Shown on the buyer's payment record; typically the buyer's cancel reason. */
+  cancelReason: string;
+  /** Our order id — anchors the Idempotency-Key (`refund-<orderId>`) against double execution. */
+  orderId: string;
+}
+export interface CancelPaymentResult {
+  status: "CANCELED" | "FAILED";
+}
+
 /** Authoritative payment re-queried from the gateway (server→gateway, for webhook verification). */
 export interface PaymentLookupResult {
   /** Provider-agnostic settled status (Toss DONE → PAID). */
@@ -83,6 +95,12 @@ export interface PaymentProvider {
    * this server→gateway lookup can move an order to PAID. Null when the payment isn't found.
    */
   lookupPayment(paymentKey: string): Promise<PaymentLookupResult | null>;
+  /**
+   * F063 — cancel (refund) a settled payment, full amount. Real money moves: callers MUST hold
+   * the `requireApproval("toss.refund.live")` gate first; the Idempotency-Key defends the
+   * gateway call itself against double execution.
+   */
+  cancelPayment(input: CancelPaymentInput): Promise<CancelPaymentResult>;
 }
 
 // First (and currently only) adapter. Re-exported here so consumers import from

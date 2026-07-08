@@ -4,8 +4,9 @@ import { Nav } from "../../../_components/Nav";
 import { Footer } from "../../../_components/Footer";
 import { formatWon, COVER_LABEL } from "../../../_components/order/format";
 import { orderRepo } from "../../../api/payments/_lib/orders";
-import { ORDER_STATUS_LABEL } from "../../../api/payments/_lib/status";
+import { ORDER_STATUS_LABEL, canTransition } from "../../../api/payments/_lib/status";
 import { TransitionPanel } from "./TransitionPanel";
+import { RefundPanel } from "./RefundPanel";
 import styles from "../../admin.module.css";
 
 const GENDER_LABEL = { MALE: "남아", FEMALE: "여아" } as const;
@@ -103,6 +104,9 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
             ) : null}
           </dl>
           <TransitionPanel orderId={order.id} status={order.status} />
+          {canTransition(order.status, "REFUNDED") && order.tossPaymentKey ? (
+            <RefundPanel orderId={order.id} cancelRequested={order.cancelRequestedAt != null} />
+          ) : null}
           <p className={styles.note}>
             <Link href="/admin/orders">← 주문 목록으로</Link>
           </p>

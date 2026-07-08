@@ -225,6 +225,41 @@ describe("TossPaymentProvider.lookupPayment (webhook re-query)", () => {
   });
 });
 
+describe("TossPaymentProvider.cancelPayment (refund — F063)", () => {
+  type Call = { url: string; init: { method: string; headers: Record<string, string>; body: string } };
+
+  function cancelTransport(status: string, ok = true): { transport: TossTransport; calls: Call[] } {
+    const calls: Call[] = [];
+    const transport: TossTransport = async (url, init) => {
+      calls.push({ url, init });
+      return { ok, status: ok ? 200 : 400, json: async () => ({ status }) };
+    };
+    return { transport, calls };
+  }
+
+  it("POSTs /v1/payments/{paymentKey}/cancel with Basic auth, the reason, and the refund Idempotency-Key", async () => {
+    const { transport, calls } = cancelTransport("CANCELED");
+    const res = await newProvider(transport).cancelPayment({
+      paymentKey: "pk_settled",
+      orderId: "ord_001",
+      cancelReason: "구매자 취소 요청",
+    });
+    expect(res.status).toBe("CANCELED");
+    expect(calls).toHaveLength(1);
+    expect(calls[0].url).toBe("https://api.example.test/v1/payments/pk_settled/cancel");
+    expect(calls[0].init.method).toBe("POST");
+    expect(calls[0].init.headers.Authorization).toBe("Basic " + Buffer.from(`${TEST_SECRET}:`).toString("base64"));
+    expect(calls[0].init.headers["Idempotency-Key"]).toBe("refund-ord_001"); // double-execute guard
+    expect(JSON.parse(calls[0].init.body)).toEqual({ cancelReason: "구매자 취소 요청" }); // no cancelAmount = FULL cancel
+  });
+
+  it("maps PARTIAL_CANCELED as CANCELED; anything else (or a non-2xx) is FAILED — money never half-settles", async () => {
+    expect((await newProvider(cancelTransport("PARTIAL_CANCELED").transport).cancelPayment({ paymentKey: "pk", orderId: "ord_001", cancelReason: "r" })).status).toBe("CANCELED");
+    expect((await newProvider(cancelTransport("DONE").transport).cancelPayment({ paymentKey: "pk", orderId: "ord_001", cancelReason: "r" })).status).toBe("FAILED");
+    expect((await newProvider(cancelTransport("CANCELED", false).transport).cancelPayment({ paymentKey: "pk", orderId: "ord_001", cancelReason: "r" })).status).toBe("FAILED");
+  });
+});
+
 describe("test/sandbox-only enforcement (defence in depth beyond env)", () => {
   it("refuses to construct with a LIVE secret key", () => {
     expect(

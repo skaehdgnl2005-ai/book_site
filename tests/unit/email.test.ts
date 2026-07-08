@@ -178,4 +178,20 @@ describe("F055 order-confirmation email", () => {
     const transport: EmailTransport = async () => ({ ok: false, status: 500 });
     await expect(resendEmailAdapter({ apiKey: "re_x", from: "f@x.com", transport }).send(CONF)).rejects.toThrow(/500/);
   });
+
+  it("F063: composes the refund confirmation (환불 금액 + 주문번호; same PII-minimal payload shape)", async () => {
+    const calls: { init: { body: string } }[] = [];
+    const transport: EmailTransport = async (_url, init) => {
+      calls.push({ init });
+      return { ok: true, status: 200 };
+    };
+    await resendEmailAdapter({ apiKey: "re_x", from: "no-reply@gpcs.kr", transport }).send({
+      ...CONF,
+      kind: "refund_confirmation",
+    });
+    const body = JSON.parse(calls[0].init.body) as { subject: string; text: string };
+    expect(body.subject).toContain("환불");
+    expect(body.text).toContain("ord_0001");
+    expect(body.text).toContain("43,000원");
+  });
 });

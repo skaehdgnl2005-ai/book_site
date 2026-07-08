@@ -557,10 +557,14 @@ export function customTossProvider(
   env: Record<string, string | undefined> = process.env,
 ): PaymentProvider {
   if (env.APP_ENV === "production") return tossFromEnv(env);
-  const sandboxTransport: TossTransport = async () => ({
+  const sandboxTransport: TossTransport = async (url) => ({
     ok: true,
     status: 200,
-    json: async () => ({ status: "DONE", approvedAt: new Date().toISOString() }),
+    // POST …/cancel = refund (F063) → CANCELED; everything else settles DONE (confirm path).
+    json: async () =>
+      url.includes("/cancel")
+        ? { status: "CANCELED" }
+        : { status: "DONE", approvedAt: new Date().toISOString() },
   });
   return new TossPaymentProvider({
     secretKey: env.TOSS_SECRET_KEY ?? "test_sk_customsandbox",

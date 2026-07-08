@@ -43,6 +43,7 @@ function fakeProvider(outcome: "PAID" | "FAILED" = "PAID") {
       };
     },
     lookupPayment: async () => null,
+    cancelPayment: async () => ({ status: "CANCELED" as const }),
   };
   return { provider, confirms };
 }

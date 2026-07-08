@@ -35,6 +35,7 @@ function provider(outcome: "PAID" | "FAILED" = "PAID"): PaymentProvider {
       status: outcome, provider: "fake", paymentKey: i.paymentKey, orderId: i.orderId, amount: i.amount,
     }),
     lookupPayment: async () => null,
+    cancelPayment: async () => ({ status: "CANCELED" as const }),
   };
 }
 
