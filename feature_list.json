@@ -915,9 +915,9 @@
         "개인정보보호책임자 정보(미설정 시 준비 중 플레이스홀더)가 표시된다"
       ],
       "verification": "pnpm test:e2e -- privacy.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": ""
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-17 pnpm check green (constraints 0 violations); full pnpm test:e2e 148/148 incl. privacy.spec.ts 3/3(푸터 개인정보처리방침 링크→/privacy, 수집항목·보유기간·처리위탁·아동특칙 섹션 렌더, 아이 이름 항목+토스페이먼츠 위탁+책임자 플레이스홀더, 375px 무오버플로). /privacy 11개 섹션 — 실제 수집 항목만 기술(주문 아이 이름·성별·변수, 배송지 F053, contactEmail, 선택 사진/영상 F009/F018, 회원 이메일·카카오 식별자 F056/F058, 상담 연락처), 카드정보 미보유(토스 처리) 명시, 법정 보존기간(계약·결제 5년/분쟁 3년), 위탁 4사(토스·Vercel·Supabase·Resend), 아동 사진·이름 특칙(제작 목적 한정·비공개 저장·로그 배제 — E3/redact 레일의 고객 대상 문서화), 광고 추적 쿠키 없음·카트 localStorage 명시, 책임자/연락처는 BIZ_* env. 주의: 시행 전 사업자 최종 검토 필요"
     },
     {
       "id": "F067",

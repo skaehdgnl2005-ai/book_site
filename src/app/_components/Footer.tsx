@@ -58,6 +58,11 @@ export function Footer() {
               이용약관
             </Link>
           </li>
+          <li>
+            <Link className="site-footer__link" href="/privacy">
+              개인정보처리방침
+            </Link>
+          </li>
         </ul>
         <ul className="site-footer__legal-rows">
           {rows.map((r) => (

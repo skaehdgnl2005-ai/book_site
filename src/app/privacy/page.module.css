@@ -1,0 +1,46 @@
+/* F066 — 개인정보처리방침. terms(F065)와 같은 조용한 법정 문서 위계 (DESIGN 토큰만). */
+.article {
+  max-width: 720px;
+}
+.clause {
+  margin-top: var(--space-lg);
+}
+.clause h2 {
+  font-family: var(--font-grotesk);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0; /* 한글 제목 — 양수 자간 금지 */
+  margin: 0 0 var(--space-xs);
+  color: var(--ink);
+}
+.clause p,
+.clause li {
+  font-size: 0.95rem;
+  line-height: 1.75;
+  color: var(--grey);
+  margin: 0 0 var(--space-xs);
+}
+.clause ol,
+.clause ul {
+  padding-left: 1.4em;
+  margin: 0 0 var(--space-xs);
+}
+.table {
+  margin: var(--space-sm) 0;
+  border-top: 1px solid var(--line);
+}
+.row {
+  display: flex;
+  gap: var(--space-sm);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.9rem;
+}
+.row dt {
+  flex: 0 0 10em;
+  color: var(--muted);
+}
+.row dd {
+  margin: 0;
+  color: var(--grey);
+}
