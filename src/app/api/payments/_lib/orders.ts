@@ -55,6 +55,8 @@ export type OrderDraft = {
   shipAddress?: string;
   /** F057 — owning member (set at create for a signed-in buyer; claimed later for guests). */
   userId?: string;
+  /** F067 — 결제 전 청약철회 제한 동의 시각(ISO; 17조 2항 6호 증거). 검증을 통과한 생성 경로가 찍는다. */
+  withdrawalConsentAt?: string;
   /** F060 — shipment record (admin-entered at the SHIPPED transition). */
   trackingCarrier?: string;
   trackingNumber?: string;
@@ -246,6 +248,7 @@ export type OrderCreateData = {
   shipPhone: string | null;
   shipZip: string | null;
   shipAddress: string | null;
+  withdrawalConsentAt: Date | null;
   userId: string | null;
   items: { create: OrderItemCreate[] };
 };
@@ -301,6 +304,7 @@ export function buildOrderCreateData(
     shipPhone: draft.shipPhone ?? null,
     shipZip: draft.shipZip ?? null,
     shipAddress: draft.shipAddress ?? null,
+    withdrawalConsentAt: draft.withdrawalConsentAt ? new Date(draft.withdrawalConsentAt) : null,
     userId: draft.userId ?? null,
     items: { create: items },
   };
@@ -332,6 +336,7 @@ export type OrderRow = {
   shipZip?: string | null;
   shipAddress?: string | null;
   userId?: string | null;
+  withdrawalConsentAt?: Date | string | null;
   trackingCarrier?: string | null;
   trackingNumber?: string | null;
   cancelRequestedAt?: Date | string | null;
@@ -396,6 +401,11 @@ export function mapOrderRow(row: OrderRow): StoredOrder {
     shipZip: row.shipZip ?? undefined,
     shipAddress: row.shipAddress ?? undefined,
     userId: row.userId ?? undefined,
+    withdrawalConsentAt: row.withdrawalConsentAt
+      ? typeof row.withdrawalConsentAt === "string"
+        ? row.withdrawalConsentAt
+        : row.withdrawalConsentAt.toISOString()
+      : undefined,
     trackingCarrier: row.trackingCarrier ?? undefined,
     trackingNumber: row.trackingNumber ?? undefined,
     cancelRequestedAt: row.cancelRequestedAt

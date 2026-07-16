@@ -257,6 +257,9 @@ export function validateWrittenInput(input: unknown): ValidationResult<WrittenIn
   if (!contactPhone) errors.push("연락처를 입력해 주세요.");
   // F052: the settled payment persists an Order whose buyerEmail is required — collect it up front.
   if (!EMAIL_RE.test(contactEmail) || contactEmail.length > 254) errors.push("올바른 이메일을 입력해 주세요.");
+  // F067 — 맞춤 제작도 주문제작 상품: 청약철회 제한은 결제 전 별도 고지 + 전자적 동의가
+  // 있어야 유효(전자상거래법 17조 2항 6호). 서버가 최종 게이트.
+  if (obj.withdrawalConsent !== true) errors.push("주문 제작 상품의 청약철회 제한 안내에 동의해 주세요.");
   if (errors.length) return { ok: false, errors };
   return { ok: true, value: { contactName, contactPhone, contactEmail, answers } };
 }

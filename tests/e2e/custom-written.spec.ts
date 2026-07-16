@@ -14,6 +14,7 @@ test.describe("custom WRITTEN path (F021 + F052 settle)", () => {
     await page.getByLabel("의뢰인 이메일").fill("parent@example.com");
     await page.getByLabel("이름", { exact: true }).fill("서연");
     await page.getByLabel(/어떤 순간/).fill("다섯 번째 생일"); // exercise an optional group field
+    await page.getByTestId("written-withdrawal-consent").check(); // F067 — 철회 제한 동의
 
     await page.getByRole("button", { name: /결제하고 의뢰서 제출하기/ }).click();
 
@@ -48,6 +49,7 @@ test.describe("custom WRITTEN path (F021 + F052 settle)", () => {
         contactName: "김부모",
         contactPhone: "010-1234-5678",
         contactEmail: "parent@example.com",
+        withdrawalConsent: true, // F067 — 결제 전 동의(서버 게이트)
         answers: { protagonist: { name: "서연" } },
       },
     });

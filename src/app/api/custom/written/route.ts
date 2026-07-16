@@ -38,6 +38,8 @@ export async function POST(req: Request): Promise<Response> {
     qrVideoAddon: false,
     buyerName: rec.contactName,
     buyerEmail: rec.contactEmail,
+    // F067 — validateWrittenInput이 동의를 강제하므로 여기 도달 = 동의 완료. 시각을 증거로 남긴다.
+    withdrawalConsentAt: new Date().toISOString(),
     items: [],
   });
   const origin = new URL(req.url).origin;

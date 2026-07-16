@@ -111,6 +111,7 @@ describe("validateWrittenInput (untrusted)", () => {
       contactName: "김부모",
       contactPhone: "010-1234-5678",
       contactEmail: "parent@example.com",
+      withdrawalConsent: true,
       answers: { protagonist: { name: "서연" } },
     });
     expect(r.ok).toBe(true);
@@ -118,6 +119,19 @@ describe("validateWrittenInput (untrusted)", () => {
       expect(r.value.contactName).toBe("김부모");
       expect(r.value.contactEmail).toBe("parent@example.com");
     }
+  });
+
+  // F067 — 맞춤 제작도 주문제작 상품: 결제(제출) 전 청약철회 제한 동의가 필수.
+  it("rejects a missing 청약철회 제한 동의 (F067)", () => {
+    const base = {
+      contactName: "김부모",
+      contactPhone: "010-1234-5678",
+      contactEmail: "parent@example.com",
+      answers: { protagonist: { name: "서연" } },
+    };
+    expect(validateWrittenInput(base).ok).toBe(false);
+    expect(validateWrittenInput({ ...base, withdrawalConsent: "true" }).ok).toBe(false);
+    expect(validateWrittenInput({ ...base, withdrawalConsent: true }).ok).toBe(true);
   });
 });
 

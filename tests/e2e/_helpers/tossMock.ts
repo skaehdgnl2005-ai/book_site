@@ -65,6 +65,8 @@ async function fillBuyer(page: Page, email = "parent@example.com"): Promise<void
   await page.getByTestId("checkout-ship-zip").fill("04524");
   await page.getByTestId("checkout-ship-address").fill("서울특별시 중구 세종대로 110");
   await page.getByTestId("checkout-ship-address-detail").fill("101동 1001호");
+  // F067 — 주문제작 청약철회 제한 동의(결제 전 필수; 서버도 게이트).
+  await page.getByTestId("checkout-withdrawal-consent").check();
 }
 
 /** From a populated /cart, walk checkout and trigger requestPayment. The SDK mock MUST already be installed. */

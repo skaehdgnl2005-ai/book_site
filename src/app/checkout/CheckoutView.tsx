@@ -26,6 +26,9 @@ export function CheckoutView({ defaultBuyerEmail = "" }: { defaultBuyerEmail?: s
   const [shipZip, setShipZip] = useState("");
   const [shipAddress, setShipAddress] = useState("");
   const [shipAddressDetail, setShipAddressDetail] = useState("");
+  // F067 — 청약철회 제한 고지 동의(주문제작 상품, 전자상거래법 17조 2항 6호). 기본 꺼짐
+  // (다크패턴 금지 — 사전선택 없음); 서버(buildOrderDraft)가 최종 게이트.
+  const [withdrawalConsent, setWithdrawalConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -39,6 +42,10 @@ export function CheckoutView({ defaultBuyerEmail = "" }: { defaultBuyerEmail?: s
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!withdrawalConsent) {
+      setError("주문 제작 상품의 청약철회 제한 안내에 동의해 주세요.");
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await fetch("/api/payments/create", {
@@ -52,6 +59,7 @@ export function CheckoutView({ defaultBuyerEmail = "" }: { defaultBuyerEmail?: s
           shipZip,
           shipAddress,
           shipAddressDetail,
+          withdrawalConsent,
           qrVideoAddon: cart.qrVideoAddon,
           lines: cart.lines,
         }),
@@ -194,6 +202,25 @@ export function CheckoutView({ defaultBuyerEmail = "" }: { defaultBuyerEmail?: s
                       />
                     </div>
                   </fieldset>
+                  {/* F067 — 결제 버튼 위 청약철회 제한 고지 + 동의(전자상거래법 17조 2항 6호). */}
+                  <div className={styles.consent} data-testid="checkout-consent">
+                    <input
+                      id="withdrawal-consent"
+                      type="checkbox"
+                      className={styles.consentBox}
+                      data-testid="checkout-withdrawal-consent"
+                      checked={withdrawalConsent}
+                      onChange={(e) => setWithdrawalConsent(e.target.checked)}
+                    />
+                    <label className={styles.consentText} htmlFor="withdrawal-consent">
+                      이 책은 아이의 이름으로 새로 만드는 <strong>주문 제작 상품</strong>으로, 제작이
+                      시작된 뒤에는 청약철회(취소·환불)가 제한됩니다. 안내를 확인했으며 이에
+                      동의합니다.{" "}
+                      <Link href="/refund-policy" target="_blank">
+                        청약철회·환불 정책 보기
+                      </Link>
+                    </label>
+                  </div>
                   {error && (
                     <p className={styles.error} data-testid="checkout-error" role="alert">{error}</p>
                   )}

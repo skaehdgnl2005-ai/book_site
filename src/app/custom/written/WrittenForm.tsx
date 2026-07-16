@@ -33,6 +33,12 @@ export function WrittenForm({ groups }: { groups: readonly FormGroupDef[] }) {
       setError("아이 이름 · 의뢰인 이름 · 연락처 · 이메일은 필수입니다.");
       return;
     }
+    // F067 — 청약철회 제한 동의(주문제작). 서버가 최종 게이트, 여기는 빠른 안내.
+    const withdrawalConsent = fd.get("withdrawalConsent") != null;
+    if (!withdrawalConsent) {
+      setError("주문 제작 상품의 청약철회 제한 안내에 동의해 주세요.");
+      return;
+    }
     setError(null);
     setPending(true);
 
@@ -46,7 +52,7 @@ export function WrittenForm({ groups }: { groups: readonly FormGroupDef[] }) {
       const res = await fetch("/api/custom/written", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contactName, contactPhone, contactEmail, answers }),
+        body: JSON.stringify({ contactName, contactPhone, contactEmail, withdrawalConsent, answers }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -157,6 +163,19 @@ export function WrittenForm({ groups }: { groups: readonly FormGroupDef[] }) {
         </fieldset>
       ))}
 
+      {/* F067 — 결제 전 청약철회 제한 고지 + 동의(주문제작 상품, 17조 2항 6호).
+          uncontrolled(FormData) — 이 폼의 기존 패턴 그대로. 서버(validateWrittenInput)가 최종 게이트. */}
+      <label className={styles.checkField} data-testid="written-consent">
+        <input type="checkbox" name="withdrawalConsent" value="예" data-testid="written-withdrawal-consent" />
+        <span>
+          맞춤 제작 그림책은 의뢰 내용에 따라 새로 만드는 <strong>주문 제작 상품</strong>으로,
+          제작이 시작된 뒤에는 청약철회(취소·환불)가 제한됩니다. 안내를 확인했으며 이에
+          동의합니다.{" "}
+          <a href="/refund-policy" target="_blank" rel="noreferrer">
+            청약철회·환불 정책 보기
+          </a>
+        </span>
+      </label>
       {error ? (
         <p className={styles.error} role="alert">
           {error}

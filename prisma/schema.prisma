@@ -66,6 +66,8 @@ model Order {
   trackingCarrier String?
   trackingNumber  String?
   // F062 — 구매자 취소 요청 (환불 집행은 F063의 requireApproval 게이트).
+  // F067 — 결제 전 청약철회 제한 동의 시각(전자상거래법 17조 2항 6호 증거).
+  withdrawalConsentAt DateTime?
   cancelRequestedAt DateTime?
   cancelReason      String? // 구매자 입력 사유 — PII 가능성: 렌더만, 로그 금지
   createdAt     DateTime    @default(now())

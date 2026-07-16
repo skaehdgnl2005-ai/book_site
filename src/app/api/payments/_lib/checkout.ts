@@ -129,6 +129,13 @@ export async function buildOrderDraft(value: unknown, resolve: TemplateResolver)
   }
   const shipAddress = shipDetail ? `${shipBase}, ${shipDetail}` : shipBase;
 
+  // F067 — 전자상거래법 17조 2항 6호: 주문제작 상품의 청약철회 제한은 결제 전 별도
+  // 고지 + 소비자의 전자적 동의가 있어야 유효하다. 서버가 최종 게이트(클라이언트
+  // 체크박스는 신뢰하지 않음)이며, 동의 시각을 주문에 증거로 남긴다.
+  if (body.withdrawalConsent !== true) {
+    return { ok: false, status: 400, errors: ["주문 제작 상품의 청약철회 제한 안내에 동의해 주세요."] };
+  }
+
   const rawLines = Array.isArray(body.lines) ? body.lines : [];
   if (rawLines.length === 0) return { ok: false, status: 400, errors: ["장바구니가 비어 있습니다."] };
 
@@ -166,7 +173,19 @@ export async function buildOrderDraft(value: unknown, resolve: TemplateResolver)
 
   return {
     ok: true,
-    draft: { amountWon, orderName, qrVideoAddon, buyerName, buyerEmail, shipName, shipPhone, shipZip, shipAddress, items },
+    draft: {
+      amountWon,
+      orderName,
+      qrVideoAddon,
+      buyerName,
+      buyerEmail,
+      shipName,
+      shipPhone,
+      shipZip,
+      shipAddress,
+      withdrawalConsentAt: new Date().toISOString(),
+      items,
+    },
   };
 }
 

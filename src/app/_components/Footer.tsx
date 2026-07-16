@@ -63,6 +63,11 @@ export function Footer() {
               개인정보처리방침
             </Link>
           </li>
+          <li>
+            <Link className="site-footer__link" href="/refund-policy">
+              청약철회·환불 정책
+            </Link>
+          </li>
         </ul>
         <ul className="site-footer__legal-rows">
           {rows.map((r) => (

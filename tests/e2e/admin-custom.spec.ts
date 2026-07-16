@@ -11,6 +11,7 @@ async function createSubmittedWritten(request: APIRequestContext): Promise<strin
       contactName: "김의뢰",
       contactPhone: "010-1234-5678",
       contactEmail: "custom-admin@example.com",
+      withdrawalConsent: true, // F067 — 결제 전 동의(서버 게이트)
       answers: { protagonist: { name: "서연" }, motivation: { occasion: "다섯 번째 생일" } },
     },
   });

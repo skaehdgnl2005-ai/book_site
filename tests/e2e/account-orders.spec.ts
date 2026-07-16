@@ -40,6 +40,7 @@ test.describe("account orders (F057)", () => {
     await page.getByTestId("checkout-ship-phone").fill("010-2222-3333");
     await page.getByTestId("checkout-ship-zip").fill("04524");
     await page.getByTestId("checkout-ship-address").fill("서울특별시 중구 세종대로 110");
+    await page.getByTestId("checkout-withdrawal-consent").check(); // F067
     await page.getByTestId("checkout-pay").click();
     await page.waitForURL(/\/orders\/ord_/);
     const orderId = new URL(page.url()).pathname.split("/").pop() as string;

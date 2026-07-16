@@ -88,6 +88,8 @@ function payload(over: Partial<Record<string, unknown>> = {}) {
     buyerName: "김부모",
     buyerEmail: "parent@example.com",
     ...shipping(),
+    // F067 — 주문제작 청약철회 제한 동의(전자상거래법 17조 2항 6호). 결제 전 필수.
+    withdrawalConsent: true,
     qrVideoAddon: false,
     lines: [line()],
     ...over,
@@ -202,6 +204,24 @@ describe("buildOrderDraft (server price recompute)", () => {
     expect(r.ok).toBe(false);
     if (r.ok) return;
     expect(r.status).toBe(400);
+  });
+
+  // F067 — 청약철회 제한 동의는 서버가 최종 게이트(클라이언트 체크박스 신뢰 금지).
+  it("rejects a missing/false 청약철회 제한 동의 (400) and never builds a draft", async () => {
+    for (const bad of [false, undefined, "true", 1]) {
+      const r = await buildOrderDraft(payload({ withdrawalConsent: bad }), resolver);
+      expect(r.ok, `expected consent=${String(bad)} to be rejected`).toBe(false);
+      if (r.ok) return;
+      expect(r.status).toBe(400);
+    }
+  });
+
+  it("records the consent timestamp on the draft (evidence for 17조 2항 6호)", async () => {
+    const r = await buildOrderDraft(payload(), resolver);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(typeof r.draft.withdrawalConsentAt).toBe("string");
+    expect(Number.isNaN(Date.parse(r.draft.withdrawalConsentAt as string))).toBe(false);
   });
 
   it("rejects a blank buyer name (400)", async () => {
