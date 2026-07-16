@@ -3,6 +3,28 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **(2026-07-17): 법령 준수 Wave A (F064~F067) DONE — 창업 체크리스트 갭 로드맵 1차. `pnpm status` 56/56 product · 11/11 harness, E2E 154/154, eval S1–S11.**
+  근거: 사용자 제공 '자사몰 창업 필수 체크리스트'와의 갭 감사(35항목 중 24 미비 — 법정 고지·표시
+  레이어 전면 공백). 이 세션(순차 WIP=1): **F064** 푸터 법정 표시사항(전자상거래법 10조) —
+  `src/lib/businessInfo.ts`(BIZ_* env 주입, 미설정=〔등록 준비 중〕, 공정위 링크는 10자리 검증) +
+  Footer 루트 layout 전역화(개별 import 26파일 제거; 클라이언트 번들 유입 금지 — env 소실) →
+  **F065** /terms(표준약관 15개조) → **F066** /privacy(실수집 항목만·아동 사진 특칙·위탁 4사) →
+  **F067** /refund-policy(7일·3영업일·지연배상·주문제작 제한) + **결제 전 철회제한 동의**(entry
+  체크아웃·custom written 양쪽, 클라이언트+서버 이중 게이트, `withdrawalConsentAt` 영속 —
+  마이그레이션 `20260717120000_order_withdrawal_consent` **미배포 1건**).
+  **⚠️ 운영 장애(HITL 필수)**: Supabase 프로젝트(`auuchvwgovypiueugmhm.supabase.co`)가 DNS에서
+  소멸(ENOTFOUND — 무료 티어 유휴 일시정지/삭제 추정, 7/8 배포 후 유휴). **프로덕션 DB 실시간
+  경로 500 확인**(`/orders/ord_nonexistent` → 500; 계약은 404. 홈·카테고리는 ISR 캐시로 200).
+  주문 조회·결제 생성·로그인·admin이 라이브에서 죽어 있을 가능성 높음 → Supabase 대시보드에서
+  restore(또는 신규 프로젝트 + env 교체 + `prisma migrate deploy` 7건) 후 카나리 재확인 필요.
+  이 장애로 이번 세션 E2E가 베이스라인부터 깨져 있었음(사진 업로드 spec 2건) — playwright
+  webServer env에서 SUPABASE_* 차단으로 **hermetic 복원**(storage.ts 설계 의도; 라이브 검증은
+  eval S11 소관). 부수: 약관·방침·정책 문안은 표준약관/법정 기준 기반 **초안 — 시행 전 사업자
+  최종 검토 필요**. 실값 대기: BIZ_*(대표자·주소·전화·이메일·사업자등록번호·통신판매업 신고번호·
+  개인정보책임자 — `.env.example` 참조; Vercel prod env에 채우면 즉시 준수). `Next:` ① 사용자:
+  Supabase restore + 사업자등록/통신판매업 신고 + BIZ_* 실값 ② 배포 체크포인트(migrate 1건 +
+  BIZ_* env + 카나리) ③ 후속 갭 로드맵(결제위젯 간편결제 F068~, 배송 알림/조회 딥링크, 리뷰
+  시스템+후기 정책 — 새 feature append로).
 - **Latest (2026-07-08): 쇼핑몰 갭 로드맵(F052~F063) 프로덕션 배포 완료 — 라이브 @ storybook-shop.vercel.app.**
   사용자 지시("바로 배포 진행")로 배포 체크포인트 실행. 절차: ① 로컬 `pnpm build` 프로덕션 컴파일
   게이트(에러 0) ② `prisma migrate deploy` — **신규 6건 전부 적용**(contactEmail·shipZip·
