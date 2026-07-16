@@ -3,6 +3,16 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **(2026-07-17, 배포): Wave A 프로덕션 배포 완료 — 라이브 @ storybook-shop.vercel.app (`dpl_BXbJVxQi…`, 515zfmoh8).**
+  선행: **Supabase restore 사용자 완료** → 검증(스토리지 version/bucket/upload 200, `/orders/ord_nonexistent`
+  500→**404** 회복). 절차: ① 로컬 `pnpm build` green ② `prisma migrate deploy` —
+  `20260717120000_order_withdrawal_consent` 적용(13/13) ③ `pnpm approve deploy.production` —
+  **사용자가 터미널에서 직접 승인**(에이전트 stdin 파이프는 분류기가 차단 — 의도된 HITL; 앞으로도
+  사용자가 직접 실행) ④ `vercel deploy --prod` READY ⑤ 카나리: 11경로 정상(신규 /terms·/privacy·
+  /refund-policy 200 포함, /admin·ord_nonexistent 404 은닉 계약 유지), 홈 푸터 법정 블록 렌더
+  확인(미설정 7항목 = 〔등록 준비 중〕), **동의 게이트 라이브 400**(부작용 없는 카나리: 미동의
+  create → "청약철회 제한 안내에 동의해 주세요"). **잔여 HITL**: BIZ_* 실값(Vercel env 채운 뒤
+  재배포 필요 — env만 바꿔도 redeploy해야 반영), EMAIL_FROM 도메인, 카카오 앱(기존).
 - **(2026-07-17): 법령 준수 Wave A (F064~F067) DONE — 창업 체크리스트 갭 로드맵 1차. `pnpm status` 56/56 product · 11/11 harness, E2E 154/154, eval S1–S11.**
   근거: 사용자 제공 '자사몰 창업 필수 체크리스트'와의 갭 감사(35항목 중 24 미비 — 법정 고지·표시
   레이어 전면 공백). 이 세션(순차 WIP=1): **F064** 푸터 법정 표시사항(전자상거래법 10조) —
