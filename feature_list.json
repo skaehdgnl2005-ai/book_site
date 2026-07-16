@@ -899,9 +899,9 @@
         "약관 내 사업자 정보가 businessInfo 값과 일치한다"
       ],
       "verification": "pnpm test:e2e -- terms.spec.ts",
-      "state": "not_started",
-      "passes": false,
-      "evidence": ""
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-17 pnpm check green (constraints 0 violations); full pnpm test:e2e 145/145 incl. terms.spec.ts 3/3(푸터 이용약관 링크→/terms 네비게이션, 제1조 목적·제8조 청약철회·제9조 환급 조문 렌더, businessInfo 일치 — 상호 그림책 제작소+미설정 〔등록 준비 중〕 플레이스홀더, 375px 무오버플로). /terms 15개 조문+부칙(공정위 표준약관 구조: 주문제작 상품 정의, 17조 2항 6호 철회 제한+결제 전 고지·동의 예고(F067에서 구현), 7일 철회·3영업일 환급·법정 지연이율), 사업자 정보는 businessInfo 재사용(제3조 표), PENDING_VALUE를 businessInfo.ts로 승격해 푸터와 공유, 푸터에 site-footer__policy-links 행 신설(F066/F067이 자기 링크 추가 예정). 주의: 문안은 표준약관 기반 초안 — 시행 전 사업자 최종 검토 필요(핸드오프 명기)"
     },
     {
       "id": "F066",

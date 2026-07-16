@@ -483,6 +483,14 @@ img {
   padding-top: var(--space-sm);
   border-top: 1px solid var(--line);
 }
+.site-footer__policy-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-md);
+  margin: 0 0 var(--space-xs);
+  padding: 0;
+  list-style: none;
+}
 .site-footer__legal-rows {
   display: flex;
   flex-wrap: wrap;

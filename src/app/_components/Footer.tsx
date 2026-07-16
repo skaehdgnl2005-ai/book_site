@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { businessInfo, ftcLookupUrl } from "../../lib/businessInfo";
+import { businessInfo, ftcLookupUrl, PENDING_VALUE } from "../../lib/businessInfo";
 
 // Site footer (Atelier Sans). Quiet: wordmark + tagline + text links to the content
 // pages (F048 — brand-story/gallery/reviews/faq/contact were unreachable orphans
@@ -16,8 +16,7 @@ const LINKS = [
   { href: "/contact", label: "문의" },
 ] as const;
 
-const PENDING = "〔등록 준비 중〕";
-const row = (label: string, value: string | null) => ({ label, value: value ?? PENDING });
+const row = (label: string, value: string | null) => ({ label, value: value ?? PENDING_VALUE });
 
 export function Footer() {
   const biz = businessInfo();
@@ -51,6 +50,15 @@ export function Footer() {
         </ul>
       </nav>
       <section className="site-footer__legal" aria-label="사업자 정보">
+        {/* 정책 연결화면(전자상거래법 10조) — F065 이용약관; F066 개인정보처리방침·
+            F067 청약철회·환불 정책이 각자 자기 링크를 여기 덧붙인다. */}
+        <ul className="site-footer__policy-links">
+          <li>
+            <Link className="site-footer__link" href="/terms">
+              이용약관
+            </Link>
+          </li>
+        </ul>
         <ul className="site-footer__legal-rows">
           {rows.map((r) => (
             <li key={r.label} className="site-footer__legal-row">

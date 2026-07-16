@@ -9,6 +9,9 @@
  * adminAuth.ts처럼 주입 가능한 raw env 시그니처를 따른다.
  */
 
+/** 미설정 값의 정직한 표시 문자열 — 푸터·약관 등 모든 법정 표기 화면이 공유. */
+export const PENDING_VALUE = "〔등록 준비 중〕";
+
 export type BusinessInfo = {
   /** 상호 (기본: 브랜드명) */
   name: string;

@@ -1,0 +1,52 @@
+/* F065 — 이용약관. 긴 법정 문서: 좁은 읽기 컬럼 + 조용한 조문 위계 (DESIGN 토큰만). */
+.article {
+  max-width: 720px;
+}
+.notice {
+  font-size: 0.9rem;
+  color: var(--grey);
+  padding: var(--space-sm);
+  border: 1px solid var(--line);
+  background: var(--surface);
+}
+.clause {
+  margin-top: var(--space-lg);
+}
+.clause h2 {
+  font-family: var(--font-grotesk);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: 0; /* 한글 조문 제목 — 양수 자간 금지 */
+  margin: 0 0 var(--space-xs);
+  color: var(--ink);
+}
+.clause p,
+.clause li {
+  font-size: 0.95rem;
+  line-height: 1.75;
+  color: var(--grey);
+  margin: 0 0 var(--space-xs);
+}
+.clause ol {
+  padding-left: 1.4em;
+  margin: 0 0 var(--space-xs);
+}
+.bizTable {
+  margin: var(--space-sm) 0;
+  border-top: 1px solid var(--line);
+}
+.bizRow {
+  display: flex;
+  gap: var(--space-sm);
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.9rem;
+}
+.bizRow dt {
+  flex: 0 0 10em;
+  color: var(--muted);
+}
+.bizRow dd {
+  margin: 0;
+  color: var(--grey);
+}
