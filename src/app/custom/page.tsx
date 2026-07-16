@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Nav } from "../_components/Nav";
-import { Footer } from "../_components/Footer";
 import { CUSTOM_PRICE_WON } from "@/lib/customRequest";
 import styles from "./page.module.css";
 
@@ -78,7 +77,6 @@ export default function CustomLandingPage() {
           </div>
         </section>
       </main>
-      <Footer />
     </>
   );
 }

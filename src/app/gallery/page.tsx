@@ -1,5 +1,4 @@
 import { Nav } from "../_components/Nav";
-import { Footer } from "../_components/Footer";
 import { GalleryTile } from "../_components/content/GalleryTile";
 import styles from "./page.module.css";
 
@@ -26,7 +25,6 @@ export default function GalleryPage() {
           </div>
         </section>
       </main>
-      <Footer />
     </>
   );
 }

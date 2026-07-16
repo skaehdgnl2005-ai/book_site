@@ -1,6 +1,5 @@
 import { getImageProps } from "next/image";
 import { Nav } from "./_components/Nav";
-import { Footer } from "./_components/Footer";
 import { CtaLink } from "./_components/Button";
 import { SectionHeader } from "./_components/SectionHeader";
 import { CategoryCard } from "./_components/CategoryCard";
@@ -90,7 +89,6 @@ export default function HomePage() {
         </section>
         <KitSection />
       </main>
-      <Footer />
     </>
   );
 }

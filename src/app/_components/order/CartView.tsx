@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Nav } from "../Nav";
-import { Footer } from "../Footer";
 import { CtaPrimary, TextAction } from "../Button";
 import { TypographicCover } from "../catalog/TypographicCover";
 import { formatWon, COVER_LABEL } from "./format";
@@ -91,7 +90,6 @@ export function CartView() {
             ))}
         </section>
       </main>
-      <Footer />
     </>
   );
 }

@@ -1,5 +1,4 @@
 import { Nav } from "../_components/Nav";
-import { Footer } from "../_components/Footer";
 import styles from "./page.module.css";
 
 // F026 — 후기. Honest empty state (no fabricated testimonials, 날조 금지) + the single
@@ -38,7 +37,6 @@ export default function ReviewsPage() {
           </div>
         </section>
       </main>
-      <Footer />
     </>
   );
 }

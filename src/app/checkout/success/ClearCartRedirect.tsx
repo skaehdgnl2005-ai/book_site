@@ -3,7 +3,6 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { clearCart } from "@/lib/cart";
 import { Nav } from "../../_components/Nav";
-import { Footer } from "../../_components/Footer";
 
 /** Runs ONLY after a server-confirmed PAID: empties the cart (localStorage) then goes to /orders/[id]. */
 export function ClearCartRedirect({ orderId }: { orderId: string }) {
@@ -21,7 +20,6 @@ export function ClearCartRedirect({ orderId }: { orderId: string }) {
           <h1 className="hero__title" id="success-title">주문을 확인하고 있어요…</h1>
         </section>
       </main>
-      <Footer />
     </>
   );
 }

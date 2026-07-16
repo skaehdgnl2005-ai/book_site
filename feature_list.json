@@ -869,6 +869,72 @@
       "state": "passing",
       "passes": true,
       "evidence": "2026-07-08 pnpm check green (lint+typecheck+unit 278 passed/10 skipped+constraints 0 violations); full pnpm test:e2e 138/138 passed incl. refund.spec.ts 2/2(토큰 없이 default-deny→APPROVED:toss.refund.live 토큰으로 환불→REFUNDED→구매자 환불 완료 표시+환불된 주문 취소폼 부재, SHIPPED 이후 환불 패널 부재) + eval S1–S11 pass. PaymentProvider.cancelPayment + Toss POST /v1/payments/{key}/cancel(Basic auth·Idempotency-Key: refund-<orderId>·전액 취소만 — 유닛: URL/헤더/본문/PARTIAL_CANCELED 매핑/비2xx FAILED), 3중 잠금(requireAdmin→requireApproval(toss.refund.live)→멱등 키), REFUNDED 전이는 조건부(웹훅 경합 무해), 환불 확인 메일 after(). processWebhook CANCELED 수렴: 권위적 재조회가 CANCELED면 REFUNDED(대시보드 직접 취소 대응), 전이 실패는 정직하게 IGNORED — 위조 본문 방어 테스트는 F063 의미로 갱신(권위적 PAID면 본문만으로 불변). sandbox transport가 /cancel을 CANCELED 승인(hermetic)"
+    },
+    {
+      "id": "F064",
+      "category": "content",
+      "track": "product",
+      "priority": 1,
+      "description": "푸터 법정 표시사항(전자상거래법 제10조) — 상호·대표자 성명·사업장 주소·전화번호·이메일·사업자등록번호·통신판매업 신고번호(신고기관 포함)·호스팅서비스 제공자(Vercel)·개인정보관리책임자 + 공정위 '사업자정보확인' 링크. 값은 BIZ_* env로 주입(src/lib/businessInfo.ts), 미설정 값은 contact 페이지(F028)와 같은 '〔… 준비 중〕' 정직한 플레이스홀더 — 가짜 값 발명 금지. Footer는 페이지별 import에서 루트 layout.tsx 전역 렌더로 이동(전 페이지 노출, 중복 렌더 제거)",
+      "steps": [
+        "홈(초기화면) 하단 푸터에 법정 표시 블록(상호·대표자·주소·전화·이메일·사업자등록번호·통신판매업 신고번호·호스팅 제공자·개인정보관리책임자)이 보인다",
+        "env 미설정 항목은 빈칸이 아니라 '준비 중' 플레이스홀더로 표시된다",
+        "사업자등록번호가 설정되면 공정위 사업자정보확인 링크가 노출된다",
+        "홈 외 페이지(카테고리·FAQ 등)에서도 동일 푸터가 보이고 이중 렌더는 없다"
+      ],
+      "verification": "pnpm test:e2e -- legal-footer.spec.ts",
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-17 pnpm check green (lint+typecheck+unit 284/6 신규 business-info+constraints 0 violations); full pnpm test:e2e 142/142 incl. legal-footer.spec.ts 4/4(법정 라벨 9종+플레이스홀더+Vercel Inc., BIZ_REG_NO 픽스처로 공정위 링크 wrkr_no=1234567890, /faq·/cart·/anniversary 푸터 정확히 1회 렌더, 375px 무오버플로) + eval S1–S11 pass. src/lib/businessInfo.ts(BIZ_* env 주입, 미설정=null→〔등록 준비 중〕, ftcLookupUrl은 10자리 검증), Footer 법정 블록 + 루트 layout.tsx 전역화(개별 import 26파일 제거 — 클라이언트 번들로 끌려가면 env 소실 방지). 부수 수리: E2E hermetic 복원 — playwright webServer env에서 SUPABASE_* 차단(로컬 .env.local의 실 창고 크리덴셜이 새어 들어가 Supabase 프로젝트 소멸(ENOTFOUND)과 함께 order/mypage-photo 업로드 spec이 베이스라인에서 이미 깨져 있었음; storage.ts 설계 의도대로 E2E는 {stored:false} 경로), brand-story/reviews spec의 /준비 중/ 로케이터를 main 스코프로(전역 푸터 플레이스홀더와 strict mode 충돌 해소 — 단언 자체는 불변)"
+    },
+    {
+      "id": "F065",
+      "category": "content",
+      "track": "product",
+      "priority": 1,
+      "description": "이용약관 페이지(/terms) — 전자상거래 표준약관 구조(목적·정의·계약 성립·결제·배송·청약철회·환불·개인정보·책임·분쟁해결), 사업자 실값은 F064 businessInfo 재사용, 푸터 법정 블록에서 링크. 문안은 공정위 표준약관 기반 초안이며 시행 전 사업자 검토 필요(PROGRESS에 명기)",
+      "steps": [
+        "푸터에서 이용약관 링크를 눌러 /terms에 도달한다",
+        "약관 페이지에 조문 구조(제1조 목적 포함)가 렌더된다",
+        "약관 내 사업자 정보가 businessInfo 값과 일치한다"
+      ],
+      "verification": "pnpm test:e2e -- terms.spec.ts",
+      "state": "not_started",
+      "passes": false,
+      "evidence": ""
+    },
+    {
+      "id": "F066",
+      "category": "content",
+      "track": "product",
+      "priority": 1,
+      "description": "개인정보처리방침 페이지(/privacy) — 수집 항목(주문자 연락처·배송지·아동 이름/성별·선택 사진/영상), 이용 목적, 보유 기간, 처리 위탁(TossPayments·Resend·Vercel·Supabase), 정보주체 권리, 개인정보보호책임자(env 주입), 아동 데이터 특칙(사진·이름 최소수집, 로그/트레이스 배제 — 기존 redact 레일 문서화). 푸터 법정 블록에서 링크",
+      "steps": [
+        "푸터에서 개인정보처리방침 링크를 눌러 /privacy에 도달한다",
+        "수집 항목·목적·보유 기간·위탁 업체 표가 렌더된다",
+        "개인정보보호책임자 정보(미설정 시 준비 중 플레이스홀더)가 표시된다"
+      ],
+      "verification": "pnpm test:e2e -- privacy.spec.ts",
+      "state": "not_started",
+      "passes": false,
+      "evidence": ""
+    },
+    {
+      "id": "F067",
+      "category": "checkout",
+      "track": "product",
+      "priority": 1,
+      "description": "청약철회·환불 정책(/refund-policy) + 결제 전 철회제한 고지 — 정책 페이지(수령일 7일 내 청약철회, 환급 3영업일·지연배상금, 주문제작 상품 철회 제한 사유: 전자상거래법 17조 2항 6호), 체크아웃 결제 버튼 위 철회제한 고지 + 동의 없이는 결제 진행 불가(고지+전자적 동의 — 법 17조 2항 단서 요건), FAQ '환불이 되나요?' 항목을 준비 중 문구에서 정책 페이지 연결로 교체(F027 TODO 해소 — 정책 값은 메이커 체크리스트가 준 법정 기준)",
+      "steps": [
+        "푸터/FAQ에서 청약철회·환불 정책 페이지에 도달한다",
+        "정책 페이지에 7일 철회·3영업일 환급·지연배상금·주문제작 철회 제한이 명시된다",
+        "체크아웃 결제 버튼 위에 철회제한 고지가 보이고, 동의 전에는 결제가 진행되지 않는다",
+        "동의 후 결제는 기존과 동일하게 완료된다(기존 구매 E2E 무회귀)"
+      ],
+      "verification": "pnpm test:e2e -- refund-policy.spec.ts",
+      "state": "not_started",
+      "passes": false,
+      "evidence": ""
     }
   ]
 }

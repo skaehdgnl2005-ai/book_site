@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Nav } from "../../_components/Nav";
-import { Footer } from "../../_components/Footer";
 import { formatWon } from "../../_components/order/format";
 import { orderRepo, type OrderStatus } from "../../api/payments/_lib/orders";
 import { ORDER_STATUSES, ORDER_STATUS_LABEL } from "../../api/payments/_lib/status";
@@ -77,7 +76,6 @@ export default async function AdminOrdersPage({
           )}
         </section>
       </main>
-      <Footer />
     </>
   );
 }

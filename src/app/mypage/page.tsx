@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Nav } from "../_components/Nav";
-import { Footer } from "../_components/Footer";
 import { MypageLookup } from "../_components/mypage/MypageLookup";
 
 // noindex (R5): mypage is a private finishing surface, never indexed.
@@ -28,7 +27,6 @@ export default function MypageLookupPage() {
         </section>
         <MypageLookup />
       </main>
-      <Footer />
     </>
   );
 }

@@ -1,12 +1,11 @@
 import { Nav } from "../Nav";
-import { Footer } from "../Footer";
 import { TemplateCard } from "./TemplateCard";
 import type { CatalogTemplate } from "./templates";
 import styles from "./CategoryView.module.css";
 
 // Shared scaffold for the two category pages (F005 기념일 / F006 첫 순간들). Same
 // pattern, different data — eyebrow + h1 + intro, then the template card grid.
-// Reuses the F002 shared kit (Nav/Footer) + globals.css classes (import-only).
+// Reuses the F002 shared kit (Nav) + globals.css classes (import-only).
 export function CategoryView({
   eyebrow,
   title,
@@ -43,7 +42,6 @@ export function CategoryView({
           </ul>
         </section>
       </main>
-      <Footer />
     </>
   );
 }

@@ -24,6 +24,21 @@ export default defineConfig({
     // DATABASE_URL (Supabase). next dev keeps a present-but-empty value over .env.local, and
     // orders.ts treats a falsy DATABASE_URL as "no DB" → in-memory (ord_ ids) — so the suite is
     // hermetic and never writes to the real DB. (orders.ts:356 keys off process.env.DATABASE_URL.)
-    env: { ...process.env, DATABASE_URL: "", DIRECT_URL: "" },
+    // Same seam for Storage: blank SUPABASE_* so putObject stays a no-op ({stored:false}) and
+    // photo-upload E2E never depends on a live Supabase project (storage.ts documents E2E as
+    // the SUPABASE_*-absent path; a local .env.local was leaking real creds in — and when that
+    // project got paused/deleted the upload specs broke with no code change). Live storage is
+    // eval S11's job, not the hermetic suite's.
+    // BIZ_REG_NO is a deterministic F064 fixture: with it set, legal-footer.spec.ts can assert
+    // the 공정위 사업자정보확인 link renders; the other BIZ_* stay unset to assert placeholders.
+    env: {
+      ...process.env,
+      DATABASE_URL: "",
+      DIRECT_URL: "",
+      SUPABASE_URL: "",
+      SUPABASE_SERVICE_ROLE_KEY: "",
+      SUPABASE_STORAGE_BUCKET: "",
+      BIZ_REG_NO: "123-45-67890",
+    },
   },
 });

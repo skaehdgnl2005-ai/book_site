@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Nav } from "../../_components/Nav";
-import { Footer } from "../../_components/Footer";
 import styles from "../checkout.module.css";
 
 export const dynamic = "force-dynamic";
@@ -41,7 +40,6 @@ export default async function CheckoutFailedPage({
           </div>
         </section>
       </main>
-      <Footer />
     </>
   );
 }

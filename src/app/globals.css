@@ -475,6 +475,34 @@ img {
 .site-footer__link:hover {
   color: var(--accent);
 }
+/* F064 — 법정 표시사항(전자상거래법 제10조): 조용한 마지막 블록. 헤어라인으로
+   브랜드/링크 행과 분리, 한 줄 흐름의 인라인 리스트(모바일에서 자연 줄바꿈). */
+.site-footer__legal {
+  flex-basis: 100%;
+  margin-top: var(--space-sm);
+  padding-top: var(--space-sm);
+  border-top: 1px solid var(--line);
+}
+.site-footer__legal-rows {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--space-md);
+  row-gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.site-footer__legal-row {
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  line-height: 1.7;
+  color: var(--muted);
+  word-break: keep-all;
+}
+.site-footer__legal-label {
+  color: var(--grey);
+  margin-right: 2px;
+}
 
 /* ── Route-transition loading view (category segments' loading.tsx) — quiet by
    design. Instant feedback while the navigated-to segment renders. Kept OFF the

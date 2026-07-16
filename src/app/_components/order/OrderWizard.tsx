@@ -3,7 +3,6 @@ import { useReducer } from "react";
 import { useRouter } from "next/navigation";
 import type { CatalogTemplate } from "../catalog/templates";
 import { Nav } from "../Nav";
-import { Footer } from "../Footer";
 import { loadCart, saveCart, addLine, setQrAddon, type CartLine, type CoverType, type Gender } from "@/lib/cart";
 import { toExtraVarValue } from "./personalization";
 import { InfoStep } from "./steps/InfoStep";
@@ -110,7 +109,6 @@ export function OrderWizard({ template }: { template: CatalogTemplate }) {
           <SummaryRail template={template} draft={state.draft} stepIndex={state.stepIndex} unitPriceWon={unitPriceWon} showSummary={step !== "review"} />
         </div>
       </main>
-      <Footer />
     </>
   );
 }

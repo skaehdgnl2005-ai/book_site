@@ -8,7 +8,8 @@ test.describe("reviews (후기)", () => {
     await page.goto("/reviews");
     await expect(page.getByRole("link", { name: "그림책 제작소" })).toBeVisible();
     await expect(page.getByRole("heading", { level: 1, name: /후기/ })).toBeVisible();
-    await expect(page.getByText(/준비 중/)).toBeVisible(); // honest empty state
+    // Scoped to main: the F064 legal footer renders its own 〔등록 준비 중〕 rows site-wide.
+    await expect(page.getByRole("main").getByText(/준비 중/)).toBeVisible(); // honest empty state
     await expect(page.getByText(/베타 인터뷰 구매 예약율/)).toBeVisible(); // framed as beta signal
     await expect(page.getByText(/80%/)).toBeVisible();
   });

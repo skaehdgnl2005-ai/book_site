@@ -1,5 +1,4 @@
 import { Nav } from "../_components/Nav";
-import { Footer } from "../_components/Footer";
 import { ContactForm } from "../_components/content/ContactForm";
 import styles from "./page.module.css";
 
@@ -35,7 +34,6 @@ export default function ContactPage() {
           <ContactForm />
         </section>
       </main>
-      <Footer />
     </>
   );
 }

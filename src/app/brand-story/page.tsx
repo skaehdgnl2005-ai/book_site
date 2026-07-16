@@ -1,5 +1,4 @@
 import { Nav } from "../_components/Nav";
-import { Footer } from "../_components/Footer";
 import { CtaLink } from "../_components/Button";
 import styles from "./page.module.css";
 
@@ -52,7 +51,6 @@ export default function BrandStoryPage() {
           </div>
         </section>
       </main>
-      <Footer />
     </>
   );
 }

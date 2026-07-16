@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Nav } from "../_components/Nav";
-import { Footer } from "../_components/Footer";
 import { formatWon } from "../_components/order/format";
 import { orderRepo } from "../api/payments/_lib/orders";
 import { ORDER_STATUS_LABEL } from "../api/payments/_lib/status";
@@ -39,7 +38,6 @@ export default async function AccountPage() {
             </Link>
           </section>
         </main>
-        <Footer />
       </>
     );
   }
@@ -115,7 +113,6 @@ export default async function AccountPage() {
           )}
         </section>
       </main>
-      <Footer />
     </>
   );
 }

@@ -2,7 +2,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { Nav } from "../_components/Nav";
-import { Footer } from "../_components/Footer";
 import { CtaPrimary } from "../_components/Button";
 import { TypographicCover } from "../_components/catalog/TypographicCover";
 import { formatWon, COVER_LABEL } from "../_components/order/format";
@@ -242,7 +241,6 @@ export function CheckoutView({ defaultBuyerEmail = "" }: { defaultBuyerEmail?: s
             ))}
         </section>
       </main>
-      <Footer />
     </>
   );
 }

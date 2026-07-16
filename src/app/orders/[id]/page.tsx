@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { Nav } from "../../_components/Nav";
-import { Footer } from "../../_components/Footer";
 import { formatWon, COVER_LABEL } from "../../_components/order/format";
 import { orderRepo } from "../../api/payments/_lib/orders";
 import { isPaidFamily } from "../../api/payments/_lib/status";
@@ -70,7 +69,6 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
           )}
         </section>
       </main>
-      <Footer />
     </>
   );
 }

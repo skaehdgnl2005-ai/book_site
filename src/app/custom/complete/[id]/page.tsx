@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Nav } from "../../../_components/Nav";
-import { Footer } from "../../../_components/Footer";
 import { customRequestStore, customTossProvider } from "@/lib/customRequest";
 import { orderRepo } from "../../../api/payments/_lib/orders";
 import { orderConfirmationNotifier } from "../../../api/payments/_lib/notify";
@@ -66,7 +65,6 @@ export default async function CustomCompletePage({
             </Link>
           </section>
         </main>
-        <Footer />
       </>
     );
   }
@@ -144,7 +142,6 @@ export default async function CustomCompletePage({
           )}
         </section>
       </main>
-      <Footer />
     </>
   );
 }

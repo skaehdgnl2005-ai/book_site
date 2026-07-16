@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Nav } from "../../_components/Nav";
-import { Footer } from "../../_components/Footer";
 import {
   customRequestStore,
   CUSTOM_STATUS_LABEL,
@@ -101,7 +100,6 @@ export default async function AdminCustomPage({
           )}
         </section>
       </main>
-      <Footer />
     </>
   );
 }

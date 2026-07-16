@@ -1,5 +1,4 @@
 import { Nav } from "../../_components/Nav";
-import { Footer } from "../../_components/Footer";
 import { CUSTOM_FORM_GROUPS } from "@/lib/customRequest";
 import { WrittenForm } from "./WrittenForm";
 import styles from "./page.module.css";
@@ -25,7 +24,6 @@ export default function WrittenPage() {
           <WrittenForm groups={CUSTOM_FORM_GROUPS} />
         </section>
       </main>
-      <Footer />
     </>
   );
 }

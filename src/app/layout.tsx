@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { Footer } from "./_components/Footer";
 import "./globals.css";
 
 // F048 — Korean metadata: the link preview (카카오톡 공유 등) is the product's first
@@ -38,7 +39,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css"
         />
       </head>
-      <body>{children}</body>
+      {/* F064 — Footer는 여기 한 곳에서만 렌더(전 페이지 법정 표시 노출).
+          서버 컴포넌트로 남아야 BIZ_* env를 읽을 수 있다 — 페이지/클라이언트
+          컴포넌트에서 다시 import하지 말 것. */}
+      <body>
+        {children}
+        <Footer />
+      </body>
     </html>
   );
 }

@@ -1,5 +1,4 @@
 import { Nav } from "../../_components/Nav";
-import { Footer } from "../../_components/Footer";
 import { PhoneForm, type Slot } from "./PhoneForm";
 import styles from "./page.module.css";
 
@@ -55,7 +54,6 @@ export default function PhonePage() {
           <PhoneForm slots={slots} />
         </section>
       </main>
-      <Footer />
     </>
   );
 }

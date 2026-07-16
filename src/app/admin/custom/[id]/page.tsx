@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Nav } from "../../../_components/Nav";
-import { Footer } from "../../../_components/Footer";
 import { formatWon } from "../../../_components/order/format";
 import {
   customRequestStore,
@@ -99,7 +98,6 @@ export default async function AdminCustomDetailPage({ params }: { params: Promis
           </p>
         </section>
       </main>
-      <Footer />
     </>
   );
 }

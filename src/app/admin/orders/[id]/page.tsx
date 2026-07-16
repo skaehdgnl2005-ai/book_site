@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Nav } from "../../../_components/Nav";
-import { Footer } from "../../../_components/Footer";
 import { formatWon, COVER_LABEL } from "../../../_components/order/format";
 import { orderRepo } from "../../../api/payments/_lib/orders";
 import { ORDER_STATUS_LABEL, canTransition } from "../../../api/payments/_lib/status";
@@ -112,7 +111,6 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
           </p>
         </section>
       </main>
-      <Footer />
     </>
   );
 }

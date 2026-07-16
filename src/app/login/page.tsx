@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Nav } from "../_components/Nav";
-import { Footer } from "../_components/Footer";
 import { LoginForm } from "../_components/account/LoginForm";
 import { getSessionUser } from "../account/_lib/sessionUser";
 
@@ -55,7 +54,6 @@ export default async function LoginPage({
           </section>
         ) : null}
       </main>
-      <Footer />
     </>
   );
 }

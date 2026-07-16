@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Nav } from "../../_components/Nav";
-import { Footer } from "../../_components/Footer";
 import { formatWon, COVER_LABEL } from "../../_components/order/format";
 import { FinishingClient } from "../../_components/mypage/FinishingClient";
 import { CancelRequestPanel } from "../../_components/order/CancelRequestPanel";
@@ -47,7 +46,6 @@ export default async function MypageOrderPage({ params }: { params: Promise<{ or
             <Link className="cta" href="/mypage" data-testid="mypage-gate-lookup">주문 조회하기</Link>
           </section>
         </main>
-        <Footer />
       </>
     );
   }
@@ -101,7 +99,6 @@ export default async function MypageOrderPage({ params }: { params: Promise<{ or
           </section>
         )}
       </main>
-      <Footer />
     </>
   );
 }
