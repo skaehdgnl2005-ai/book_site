@@ -935,6 +935,70 @@
       "state": "passing",
       "passes": true,
       "evidence": "2026-07-17 pnpm check green (lint+typecheck+unit 287/신규 5: 동의 게이트 4·타임스탬프 1+constraints 0 violations); full pnpm test:e2e 154/154 incl. refund-policy.spec.ts 6/6(푸터 링크→정책 페이지 7일·3영업일·지연배상금·주문제작 제한 명시, FAQ 환불→정책 링크, 체크아웃 고지+기본 미체크→미동의 결제 차단·동의 후 완주, /api/payments/create 미동의 400 서버 게이트, 맞춤 직접작성 미동의 클라이언트+서버 400, 375px) + eval S1–S11 pass. 이중 게이트: buildOrderDraft가 withdrawalConsent!==true를 400 거부(첫 관문·클라이언트 불신) + validateWrittenInput 동일(맞춤도 주문제작), 동의 시각 withdrawalConsentAt을 Order에 영속(전자상거래법 17조 2항 6호 증거 — 스키마+마이그레이션 20260717120000, 양 백엔드: in-memory spread·프리즈마 buildOrderCreateData/mapOrderRow). UI: 체크아웃 결제 버튼 위 고지+체크박스(기본 꺼짐 — 다크패턴 금지), WrittenForm 동일(uncontrolled FormData 패턴), FAQ 준비 중 문구 교체(F027 TODO 해소 — 기준값은 법정). E2E 갱신: tossMock fillBuyer 동의 틱(전 체크아웃 스펙 단일 관문), account-orders 수동 폼·admin-custom API 시딩에 동의 추가. 배포 주의: prisma migrate deploy 1건 필요 — 단 Supabase 프로젝트 소멸 장애(핸드오프)로 배포 자체가 차단 상태"
+    },
+    {
+      "id": "F068",
+      "category": "order",
+      "track": "product",
+      "priority": 2,
+      "description": "배송 알림 이메일 + 택배 조회 딥링크 — SHIPPED 전이(F060 advanceOrder) 성공 시 구매자에게 배송 시작 이메일 발송(EmailMessage kind 유니온에 order_shipped 확장: 주문번호·PII-free 상품명·택배사·운송장번호·조회 링크만 — 아동 이름/주소는 order_confirmation 규율대로 구조적 배제), 전이의 조건부 쓰기가 exactly-once 보장(승자만 발송). 구매자·관리자 주문 화면의 운송장 텍스트를 택배사별 조회 URL 딥링크로 승격(pure trackingUrl(carrier,number) 레지스트리 — CJ대한통운·우체국·한진·롯데·로젠 등; 미등록 택배사는 링크 없이 텍스트만 — 정직한 폴백)",
+      "steps": [
+        "관리자가 주문을 배송중(운송장 입력)으로 전이하면 구매자에게 배송 시작 알림 이메일이 발송된다(비프로덕션은 mock outbox)",
+        "배송 알림 이메일에는 주문번호·상품명·택배사·운송장번호·조회 링크만 담기고 아동 이름·주소는 담기지 않는다",
+        "구매자 주문 상세(/account·/mypage)의 운송장이 택배사 조회 페이지로 가는 클릭 가능한 링크로 보인다",
+        "등록되지 않은 택배사 이름은 링크 없이 텍스트로만 표시된다"
+      ],
+      "verification": "pnpm test:e2e -- shipping-notify.spec.ts",
+      "state": "not_started",
+      "passes": false
+    },
+    {
+      "id": "F069",
+      "category": "checkout",
+      "track": "product",
+      "priority": 2,
+      "description": "TossPayments 결제위젯 전환(간편결제 노출) — 현 결제창(payment().requestPayment({method:'CARD'})) 단일 수단을 결제위젯(toss.widgets())으로 전환: CheckoutView에 결제수단·이용약관 위젯 렌더 영역 추가, 네이버페이·카카오페이·토스페이·카드가 위젯에서 선택 가능. 서버(create/confirm/webhook)는 수단 불문 재사용(금액 재계산·멱등 계약 불변). E2E tossMock을 widgets() API 형태(setAmount·renderPaymentMethods·renderAgreement·requestPayment)로 재작성. 수단별 상점 계약 활성화는 Toss 어드민 HITL(코드는 위젯 렌더까지)",
+      "steps": [
+        "체크아웃에서 결제수단 위젯이 렌더되고 간편결제 수단이 노출된다",
+        "이용약관 동의 위젯이 렌더되고 위젯 requestPayment로 결제가 시작된다",
+        "결제 성공·실패·취소 경로가 기존과 동일하게 동작한다(전 체크아웃 E2E 무회귀)",
+        "서버 create/confirm/webhook 금액 재계산·멱등 계약이 불변이다"
+      ],
+      "verification": "pnpm test:e2e -- checkout-widget.spec.ts",
+      "state": "not_started",
+      "passes": false
+    },
+    {
+      "id": "F070",
+      "category": "checkout",
+      "track": "product",
+      "priority": 2,
+      "description": "가상계좌(무통장입금) — WAITING_FOR_DEPOSIT 주문 상태 추가(status.ts 전이표 + Prisma OrderStatus enum + 마이그레이션), 가상계좌 수단 결제 시 입금 대기 주문 생성, Toss 입금통보 웹훅(DEPOSIT_CALLBACK/가상계좌 status DONE) 처리로 입금 완료 시 PAID 전이(멱등), 입금 전 구매자 화면에 가상계좌·입금 기한 안내, 현금영수증 발급 안내. F069(결제위젯) 이후 — 위젯이 가상계좌 수단을 노출",
+      "steps": [
+        "가상계좌 결제를 선택하면 입금 대기 상태 주문이 생성되고 입금 안내(가상계좌·기한)가 보인다",
+        "입금통보 웹훅이 도착하면 주문이 결제 완료로 전이된다(멱등 — 재전달 무해)",
+        "입금 대기 상태에서는 마무리·배송이 열리지 않는다",
+        "현금영수증 발급 안내가 표시된다"
+      ],
+      "verification": "pnpm test:e2e -- virtual-account.spec.ts",
+      "state": "not_started",
+      "passes": false
+    },
+    {
+      "id": "F071",
+      "category": "content",
+      "track": "product",
+      "priority": 3,
+      "description": "리뷰(후기) 시스템 — Review 모델(주문 연결·구매 인증) + 마이그레이션, 결제/배송 완료 구매자가 별점·후기 작성(주문 소유 게이트 hasOrderAccess 재사용), /reviews를 placeholder에서 실제 후기 목록으로(후기 없으면 정직한 빈 상태 유지 — F026 계약 보존), 후기 정책 고지 처음부터 내장(2026-07-21 시행: 작성권한·게시기간·등급기준·삭제기준·이의제기)",
+      "steps": [
+        "구매(주문 소유 증명)한 구매자만 후기를 작성할 수 있다",
+        "작성한 후기가 /reviews 목록에 별점과 함께 표시된다",
+        "후기가 없으면 정직한 빈 상태가 유지된다(가짜 후기 없음)",
+        "후기 정책(작성권한·게시기간·등급기준·삭제기준·이의제기)이 고지된다"
+      ],
+      "verification": "pnpm test:e2e -- review-write.spec.ts",
+      "state": "not_started",
+      "passes": false
     }
   ]
 }
