@@ -8,6 +8,7 @@ import { redact } from "@/lib/env";
 import { customTossProvider } from "@/lib/customRequest";
 import { orderRepo, type OrderStatus } from "@/app/api/payments/_lib/orders";
 import { canTransition } from "@/app/api/payments/_lib/status";
+import { trackingUrl, carrierDisplayName } from "@/app/api/payments/_lib/tracking";
 import { checkoutProvider } from "@/app/api/payments/_lib/checkout";
 import { requireAdmin } from "../../_lib/adminAuth";
 
@@ -34,17 +35,50 @@ export async function advanceOrder(_prev: AdminActionState, formData: FormData):
   if (!order) return { error: "주문을 찾을 수 없습니다." };
   if (!canTransition(order.status, to)) return { error: "현재 상태에서 허용되지 않는 전이입니다." };
 
+  // SHIPPED requires the shipment record — validate the carrier + number in the same move, BEFORE
+  // the transition (never flip to SHIPPED with a missing waybill), but persist it only AFTER the
+  // transition wins (below) so a losing concurrent racer can't overwrite the shipped order's tracking.
+  let shipment: { carrier: string; trackingNumber: string } | null = null;
   if (to === "SHIPPED") {
-    // SHIPPED requires the shipment record — enter carrier + number in the same move.
     const carrier = String(untrusted(formData.get("trackingCarrier")).value ?? "").trim();
     const trackingNumber = String(untrusted(formData.get("trackingNumber")).value ?? "").trim();
     if (!carrier || !trackingNumber) return { error: "택배사와 운송장 번호를 입력해 주세요." };
     if (carrier.length > 60 || trackingNumber.length > 60) return { error: "운송장 정보가 너무 깁니다." };
-    await repo.setTracking(orderId, carrier, trackingNumber);
+    shipment = { carrier, trackingNumber };
   }
 
   const res = await repo.transition(orderId, [order.status], to);
   if (!res.ok) return { error: "이미 처리되었거나 상태가 바뀌었습니다. 새로고침해 주세요." };
+
+  if (shipment) {
+    const { carrier, trackingNumber } = shipment;
+    // Winner-only write: the atomic transition above already elected this call the sole winner, so
+    // the persisted waybill and the emailed waybill are provably the same (no divergence, and a
+    // losing racer never writes tracking onto an order it didn't ship — worker≠checker F068).
+    await repo.setTracking(orderId, carrier, trackingNumber);
+
+    // F068 — 발송 알림 이메일. exactly-once는 위 조건부 전이가 보장(승자만 여기 도달). PII-minimal:
+    // 주문번호·상품명·택배사(정규 표시명)·운송장·조회 링크만(메시지 타입에 아동 이름/주소 필드 없음).
+    // 발송 실패는 배송 전이를 절대 되돌리지 않는다(after + catch, order_confirmation/refund 선례).
+    const to_ = order.buyerEmail;
+    const orderName = order.orderName;
+    const url = trackingUrl(carrier, trackingNumber);
+    after(async () => {
+      try {
+        await emailAdapter().send({
+          kind: "order_shipped",
+          to: to_,
+          orderId,
+          orderName,
+          carrier: carrierDisplayName(carrier),
+          trackingNumber,
+          trackingUrl: url,
+        });
+      } catch (e) {
+        console.warn("shipping notification send failed:", redact(String(e))); // shipment already stands
+      }
+    });
+  }
 
   revalidatePath(`/admin/orders/${orderId}`);
   revalidatePath("/admin/orders");

@@ -7,6 +7,7 @@ import { orderRepo } from "../../../api/payments/_lib/orders";
 import { ORDER_STATUS_LABEL, isPaidFamily } from "../../../api/payments/_lib/status";
 import { getSessionUser } from "../../_lib/sessionUser";
 import { CancelRequestPanel } from "../../../_components/order/CancelRequestPanel";
+import { TrackingLink } from "../../../_components/order/TrackingLink";
 import styles from "../../account.module.css";
 
 export const dynamic = "force-dynamic";
@@ -76,7 +77,7 @@ export default async function AccountOrderPage({ params }: { params: Promise<{ i
               <div className={styles.row}>
                 <dt className={styles.dt}>배송 조회</dt>
                 <dd className={styles.dd} data-testid="account-order-tracking">
-                  {order.trackingCarrier} {order.trackingNumber}
+                  <TrackingLink carrier={order.trackingCarrier ?? ""} trackingNumber={order.trackingNumber} />
                 </dd>
               </div>
             ) : null}

@@ -21,7 +21,18 @@ export type EmailMessage =
   | { kind: "mypage_otp"; to: string; code: string }
   | { kind: "login_otp"; to: string; code: string }
   | { kind: "order_confirmation"; to: string; orderId: string; orderName: string; amountWon: number }
-  | { kind: "refund_confirmation"; to: string; orderId: string; orderName: string; amountWon: number };
+  | { kind: "refund_confirmation"; to: string; orderId: string; orderName: string; amountWon: number }
+  // F068 — 발송(배송 시작) 알림. order_confirmation의 PII 규율 그대로: 주문번호·PII-free 상품명·
+  // 택배사·운송장번호·(있으면)조회 링크만. 아동 이름·헌정·배송 주소는 필드 자체가 없어 구조적 배제.
+  | {
+      kind: "order_shipped";
+      to: string;
+      orderId: string;
+      orderName: string;
+      carrier: string;
+      trackingNumber: string;
+      trackingUrl: string | null;
+    };
 
 export interface EmailAdapter {
   send(msg: EmailMessage): Promise<void>;
@@ -71,6 +82,29 @@ function orderConfirmationBody(msg: { orderId: string; orderName: string; amount
   ].join("\n");
 }
 
+// F068 — shipping notification: commerce/fulfillment facts only (carrier + waybill + optional
+// tracking deep-link). No child name / dedication / shipping address (excluded by construction).
+const ORDER_SHIPPED_SUBJECT = "[그림책 제작소] 상품이 발송되었습니다";
+function orderShippedBody(msg: {
+  orderId: string;
+  orderName: string;
+  carrier: string;
+  trackingNumber: string;
+  trackingUrl: string | null;
+}): string {
+  const lines = [
+    "주문하신 그림책이 발송되었습니다. 곧 아이 품에 도착해요.",
+    "",
+    `주문번호  ${msg.orderId}`,
+    `주문 상품  ${msg.orderName}`,
+    `택배사  ${msg.carrier}`,
+    `운송장번호  ${msg.trackingNumber}`,
+  ];
+  if (msg.trackingUrl) lines.push("", `배송 조회  ${msg.trackingUrl}`);
+  lines.push("", "사진·헌정 문구 마무리는 마이페이지(주문번호 + 결제 이메일로 조회)에서 이어갈 수 있어요.");
+  return lines.join("\n");
+}
+
 // F056 — login OTP (로그인=가입 통합; 코드 유출 규율은 mypage OTP와 동일).
 const LOGIN_OTP_SUBJECT = "[그림책 제작소] 로그인 인증 코드";
 function loginOtpBody(code: string): string {
@@ -102,6 +136,8 @@ function composeEmail(msg: EmailMessage): { subject: string; text: string } {
       return { subject: ORDER_CONFIRMATION_SUBJECT, text: orderConfirmationBody(msg) };
     case "refund_confirmation":
       return { subject: REFUND_CONFIRMATION_SUBJECT, text: refundConfirmationBody(msg) };
+    case "order_shipped":
+      return { subject: ORDER_SHIPPED_SUBJECT, text: orderShippedBody(msg) };
   }
 }
 

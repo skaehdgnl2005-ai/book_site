@@ -195,3 +195,55 @@ describe("F055 order-confirmation email", () => {
     expect(body.text).toContain("43,000원");
   });
 });
+
+describe("F068 shipping notification email", () => {
+  const SHIPPED = {
+    kind: "order_shipped",
+    to: "parent@example.com",
+    orderId: "ord_0001",
+    orderName: "탄생",
+    carrier: "CJ대한통운",
+    trackingNumber: "6012345678901",
+    trackingUrl: "https://www.cjlogistics.com/ko/tool/parcel/tracking?gnbInvcNo=6012345678901",
+  } as const;
+
+  it("mock outbox records the shipped message", async () => {
+    const a = mockEmailAdapter();
+    await a.send(SHIPPED);
+    expect(a.outbox).toEqual([SHIPPED]);
+  });
+
+  it("composes a 발송 subject/body: 주문번호·상품·택배사·운송장·조회 링크만 (아동 이름/주소 없음)", async () => {
+    const calls: { init: { body: string } }[] = [];
+    const transport: EmailTransport = async (_url, init) => {
+      calls.push({ init });
+      return { ok: true, status: 200 };
+    };
+    await resendEmailAdapter({ apiKey: "re_x", from: "no-reply@gpcs.kr", transport }).send(SHIPPED);
+    const body = JSON.parse(calls[0].init.body) as { to: string; subject: string; text: string };
+    expect(body.to).toBe("parent@example.com");
+    expect(body.subject).toContain("발송");
+    expect(body.text).toContain("ord_0001");
+    expect(body.text).toContain("탄생");
+    expect(body.text).toContain("CJ대한통운");
+    expect(body.text).toContain("6012345678901");
+    expect(body.text).toContain("cjlogistics.com"); // 조회 딥링크
+  });
+
+  it("trackingUrl이 null이면 조회 링크 줄은 생략(운송장 정보는 유지)", async () => {
+    const calls: { init: { body: string } }[] = [];
+    const transport: EmailTransport = async (_url, init) => {
+      calls.push({ init });
+      return { ok: true, status: 200 };
+    };
+    await resendEmailAdapter({ apiKey: "re_x", from: "no-reply@gpcs.kr", transport }).send({
+      ...SHIPPED,
+      carrier: "동네퀵",
+      trackingUrl: null,
+    });
+    const body = JSON.parse(calls[0].init.body) as { text: string };
+    expect(body.text).toContain("동네퀵");
+    expect(body.text).toContain("6012345678901"); // 운송장 정보는 유지
+    expect(body.text).not.toContain("http"); // 링크 없음
+  });
+});

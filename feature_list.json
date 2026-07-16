@@ -949,8 +949,9 @@
         "등록되지 않은 택배사 이름은 링크 없이 텍스트로만 표시된다"
       ],
       "verification": "pnpm test:e2e -- shipping-notify.spec.ts",
-      "state": "not_started",
-      "passes": false
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-17 pnpm check green (lint+typecheck+unit 298/신규 11: tracking 8·shipping email 3+constraints 0 violations); full pnpm test:e2e 비-perf 153/153 green incl. shipping-notify.spec.ts 2/2(배송중 전이→관리자·/account·/mypage 운송장이 CJ대한통운 조회 딥링크 href·target=_blank·rel=noopener, 미등록 택배사는 링크 없이 텍스트 폴백) + admin-transitions(F060) 2/2 무회귀 + eval S1–S11 pass(rate 1.0). perf.spec(F036)는 전체 스위트 동시부하에서 3경로 p95 스파이크(머신 부하 아티팩트 — 격리 재실행 3/3 green: home 704·anniversary 722·first-moments 733ms; F068은 홈/카테고리 코드 무접촉). 구현: EmailMessage에 order_shipped kind 확장(주문번호·PII-free 상품명·택배사(정규 표시명)·운송장·조회 링크만 — 아동 이름/헌정/주소는 메시지 타입에 필드 자체가 없어 구조적 배제, order_confirmation 규율 계승), advanceOrder SHIPPED 성공 시 after()+redact() 발송 알림(전이의 조건부 쓰기가 exactly-once 보장 — 승자만 발송, 실패는 배송 전이 불변). 순수 tracking.ts 레지스트리(resolveCarrier/trackingUrl/carrierDisplayName — CJ대한통운·우체국·한진·롯데·로젠 별칭·부분이름 매칭, 운송장 숫자만, 미등록→null 정직한 텍스트 폴백), 공용 TrackingLink 컴포넌트로 account/mypage/admin 3화면 운송장 텍스트를 딥링크로 승격. worker≠checker(14에이전트/4렌즈 적대적 리뷰, refute-by-default 검증): 7 confirmed → 3 수정[① setTracking을 전이 승자 경로(res.ok 이후)로 이동 — 동시 SHIPPED 경합 시 패자가 운송장을 덮어써 이메일/화면이 갈라지거나 미배송 주문에 운송장이 남던 불일치 제거, ② Carrier.name을 carrierDisplayName로 실사용(지저분한 별칭이 구매자 화면·이메일에 노출되지 않게 정규 표시명), ③ trackingUrl https:// 절대경로 유닛 단언], 2 문서화[advanceOrder 이메일 배선 유닛은 refundOrder/order_confirmation과 동일 accepted 선례 — exactly-once는 res.ok 게이트+repo.transition 유닛으로 구조 보장, composeEmail·resolveCarrier().name 유닛 검증, SHIPPED 경로 E2E 실행], 2 무조치[app.json·.gitignore는 핸드오프 명시 '남의 미커밋 파일']. 배포 영향 없음(마이그레이션 0 — 기존 tracking 컬럼 재사용)."
     },
     {
       "id": "F069",

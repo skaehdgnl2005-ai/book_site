@@ -3,6 +3,25 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **(2026-07-17, Wave B): F068 배송 알림 이메일 + 택배 조회 딥링크 DONE — 창업 체크리스트 갭 로드맵 Wave B/C 착수(F068~F071 append `fa3a64a`).**
+  SHIPPED 전이(admin `advanceOrder`) 성공 시 order_shipped 이메일 발송 — EmailMessage kind 유니온 확장(주문번호·PII-free
+  상품명·택배사 정규 표시명·운송장·조회 링크만; 아동 이름/헌정/주소는 메시지 타입에 필드가 없어 구조적 배제, order_confirmation
+  규율 계승). `after()`+`redact()`, 전이의 조건부 쓰기가 exactly-once(승자만 발송·발송 실패는 배송 전이 불변). 순수
+  `tracking.ts` 레지스트리(`resolveCarrier`/`trackingUrl`/`carrierDisplayName` — CJ대한통운·우체국·한진·롯데·로젠 별칭·부분
+  이름 매칭, 운송장 숫자만, 미등록→null 정직한 텍스트 폴백) + 공용 `TrackingLink` 컴포넌트로 account/mypage/admin 3화면
+  운송장을 딥링크로 승격. **worker≠checker(14에이전트/4렌즈 적대적 리뷰, refute-by-default): 7 confirmed → 3 수정**[①
+  `setTracking`을 전이 승자 경로(res.ok 이후)로 이동 — 동시 SHIPPED 경합 시 패자가 운송장을 덮어써 이메일↔화면이 갈라지거나
+  미배송 주문에 운송장이 남던 불일치 제거, ② `Carrier.name`을 `carrierDisplayName`로 실사용(지저분한 별칭이 구매자 화면/
+  이메일에 노출되지 않게 정규화), ③ `trackingUrl` https:// 절대경로 유닛 단언], 2 문서화(advanceOrder 이메일 배선 유닛은
+  refundOrder/order_confirmation과 동일 accepted 선례 — 구조적 exactly-once + composeEmail·resolveCarrier().name 유닛 +
+  E2E로 커버), 2 무조치(app.json·.gitignore는 '남의 미커밋 파일' — 명시적 스테이징으로 오염 방지). **마이그레이션 0**(기존
+  tracking 컬럼 재사용 — Wave A 배포로 스키마 최신, F068은 스키마 무변경이라 다음 배포에 코드만 실림). 검증: check green
+  (유닛 298) + 비-perf E2E **153/153** + shipping-notify 2/2 + admin-transitions(F060) 2/2 무회귀 + eval S1–S11 1.0.
+  perf.spec(F036)는 전체 스위트 동시부하에서 3경로 p95 스파이크(머신 부하 아티팩트 — 격리 재실행 3/3 green: 704·722·
+  733ms; F068은 홈/카테고리 무접촉). `Next:` **F069** Toss 결제위젯 전환(간편결제 노출) — CheckoutView의
+  `requestTossPayment`(payment().requestPayment method:CARD)를 `toss.widgets()`로, 서버 create/confirm/webhook 재사용,
+  **E2E tossMock을 widgets() API(setAmount·renderPaymentMethods·renderAgreement·requestPayment)로 재작성이 최대 리스크**.
+  이어서 F070 가상계좌·F071 리뷰. **배포 상태 양호**(Supabase restore 완료·Wave A 라이브·migrate 13/13 — 아래 배포 항목).
 - **(2026-07-17, 배포): Wave A 프로덕션 배포 완료 — 라이브 @ storybook-shop.vercel.app (`dpl_BXbJVxQi…`, 515zfmoh8).**
   선행: **Supabase restore 사용자 완료** → 검증(스토리지 version/bucket/upload 200, `/orders/ord_nonexistent`
   500→**404** 회복). 절차: ① 로컬 `pnpm build` green ② `prisma migrate deploy` —

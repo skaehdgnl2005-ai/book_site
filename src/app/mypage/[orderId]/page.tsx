@@ -5,6 +5,7 @@ import { Nav } from "../../_components/Nav";
 import { formatWon, COVER_LABEL } from "../../_components/order/format";
 import { FinishingClient } from "../../_components/mypage/FinishingClient";
 import { CancelRequestPanel } from "../../_components/order/CancelRequestPanel";
+import { TrackingLink } from "../../_components/order/TrackingLink";
 import { orderRepo } from "@/app/api/payments/_lib/orders";
 import { isPaidFamily } from "@/app/api/payments/_lib/status";
 import { hasOrderAccess } from "../_lib/orderAccess";
@@ -67,7 +68,7 @@ export default async function MypageOrderPage({ params }: { params: Promise<{ or
           </p>
           {order.trackingNumber ? (
             <p className={styles.meta} data-testid="mypage-tracking">
-              배송 {order.trackingCarrier} {order.trackingNumber}
+              배송 <TrackingLink carrier={order.trackingCarrier ?? ""} trackingNumber={order.trackingNumber} />
             </p>
           ) : null}
         </section>

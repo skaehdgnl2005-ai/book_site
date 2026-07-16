@@ -6,6 +6,7 @@ import { orderRepo } from "../../../api/payments/_lib/orders";
 import { ORDER_STATUS_LABEL, canTransition } from "../../../api/payments/_lib/status";
 import { TransitionPanel } from "./TransitionPanel";
 import { RefundPanel } from "./RefundPanel";
+import { TrackingLink } from "../../../_components/order/TrackingLink";
 import styles from "../../admin.module.css";
 
 const GENDER_LABEL = { MALE: "남아", FEMALE: "여아" } as const;
@@ -89,7 +90,7 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
               <div className={styles.row}>
                 <dt className={styles.dt}>운송장</dt>
                 <dd className={styles.dd} data-testid="admin-order-tracking">
-                  {order.trackingCarrier} {order.trackingNumber}
+                  <TrackingLink carrier={order.trackingCarrier ?? ""} trackingNumber={order.trackingNumber} />
                 </dd>
               </div>
             ) : null}
