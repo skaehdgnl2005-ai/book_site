@@ -8,6 +8,7 @@ import { ORDER_STATUS_LABEL, isPaidFamily } from "../../../api/payments/_lib/sta
 import { getSessionUser } from "../../_lib/sessionUser";
 import { CancelRequestPanel } from "../../../_components/order/CancelRequestPanel";
 import { TrackingLink } from "../../../_components/order/TrackingLink";
+import { DepositNotice } from "../../../_components/order/DepositNotice";
 import styles from "../../account.module.css";
 
 export const dynamic = "force-dynamic";
@@ -82,6 +83,14 @@ export default async function AccountOrderPage({ params }: { params: Promise<{ i
               </div>
             ) : null}
           </dl>
+          {order.status === "WAITING_FOR_DEPOSIT" ? (
+            <DepositNotice
+              bank={order.depositBank}
+              account={order.depositAccount}
+              amountWon={order.amountWon}
+              dueDate={order.depositDueDate}
+            />
+          ) : null}
           {paid && order.kind === "ENTRY" ? (
             <Link className="cta" href={`/mypage/${order.id}`} data-testid="account-order-finish">
               책 마무리하기 (사진·헌정 문구)

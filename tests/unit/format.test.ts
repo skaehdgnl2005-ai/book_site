@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatWon as orderFormatWon } from "../../src/app/_components/order/format";
+import { formatWon as orderFormatWon, formatKstDateTime } from "../../src/app/_components/order/format";
 import { formatWon as catalogFormatWon } from "../../src/app/_components/catalog/templates";
 
 // formatWon is intentionally duplicated across the catalog (server) and order (client-safe)
@@ -19,5 +19,24 @@ describe("formatWon (order ↔ catalog twin parity)", () => {
     for (const n of cases) {
       expect(orderFormatWon(n)).toBe(catalogFormatWon(n));
     }
+  });
+});
+
+// F070 — the deposit deadline is KST; a naive ISO slice would show UTC (9h early) once the value
+// round-trips through Prisma's toISOString(). formatKstDateTime must render the KST wall-clock.
+describe("formatKstDateTime (F070 — KST deposit deadline)", () => {
+  it("renders a UTC instant as the Asia/Seoul wall-clock (+9h) with a KST label", () => {
+    // 2026-07-20T14:59:59Z === 2026-07-20 23:59 KST (the real Toss dueDate 23:59:59+09:00).
+    expect(formatKstDateTime("2026-07-20T14:59:59.000Z")).toBe("2026-07-20 23:59 (KST)");
+  });
+
+  it("an offset-bearing ISO is shown at the same KST wall-clock regardless of how it was stored", () => {
+    expect(formatKstDateTime("2026-07-20T23:59:59+09:00")).toBe("2026-07-20 23:59 (KST)");
+    // crossing midnight UTC: 2026-07-20T15:30Z === 2026-07-21 00:30 KST.
+    expect(formatKstDateTime("2026-07-20T15:30:00.000Z")).toBe("2026-07-21 00:30 (KST)");
+  });
+
+  it("returns the input unchanged on an unparseable string (never throws)", () => {
+    expect(formatKstDateTime("not-a-date")).toBe("not-a-date");
   });
 });

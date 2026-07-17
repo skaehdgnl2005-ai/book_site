@@ -8,6 +8,7 @@ import type {
   PaymentLookupResult,
   CancelPaymentInput,
   CancelPaymentResult,
+  VirtualAccount,
 } from "./index";
 
 /**
@@ -85,9 +86,42 @@ function mapStatus(ok: boolean, tossStatus: unknown): PaymentStatus {
     case "CANCELED":
     case "PARTIAL_CANCELED":
       return "CANCELED";
+    case "WAITING_FOR_DEPOSIT": // F070 — 가상계좌 발급됨, 입금 대기
+      return "WAITING_FOR_DEPOSIT";
+    case "EXPIRED": // F070 — 가상계좌 입금 기한 만료(미입금): 취소로 수렴(돈이 오가지 않음)
+      return "CANCELED";
     default:
       return "FAILED";
   }
+}
+
+// F070 — Toss 은행 코드(숫자) → 표시명. 미등록 코드는 정직하게 코드 그대로 노출.
+const BANK_NAMES: Record<string, string> = {
+  "39": "경남은행", "34": "광주은행", "12": "단위농협", "32": "부산은행", "45": "새마을금고",
+  "64": "산림조합", "88": "신한은행", "48": "신협", "27": "씨티은행", "20": "우리은행",
+  "71": "우체국예금보험", "50": "저축은행중앙회", "37": "전북은행", "35": "제주은행",
+  "90": "카카오뱅크", "89": "케이뱅크", "92": "토스뱅크", "81": "하나은행", "54": "홍콩상하이은행",
+  "03": "IBK기업은행", "06": "KB국민은행", "31": "DGB대구은행", "02": "KDB산업은행", "11": "NH농협은행",
+  "23": "SC제일은행", "07": "Sh수협은행",
+};
+function bankName(bankCode: unknown): string {
+  const code = typeof bankCode === "string" ? bankCode : "";
+  return BANK_NAMES[code] ?? (code ? `은행(${code})` : "은행");
+}
+
+/** F070 — parse Toss's virtualAccount object (present on a WAITING_FOR_DEPOSIT payment). */
+function parseVirtualAccount(v: unknown): VirtualAccount | undefined {
+  if (!v || typeof v !== "object") return undefined;
+  const o = v as Record<string, unknown>;
+  const accountNumber = typeof o.accountNumber === "string" ? o.accountNumber : "";
+  const dueDate = typeof o.dueDate === "string" ? o.dueDate : "";
+  if (!accountNumber || !dueDate) return undefined;
+  return {
+    bank: bankName(o.bankCode),
+    accountNumber,
+    dueDate,
+    customerName: typeof o.customerName === "string" ? o.customerName : undefined,
+  };
 }
 
 export class TossPaymentProvider implements PaymentProvider {
@@ -135,14 +169,17 @@ export class TossPaymentProvider implements PaymentProvider {
         amount: input.amount,
       }),
     });
-    const body = (await res.json()) as { status?: string; approvedAt?: string };
+    const body = (await res.json()) as { status?: string; approvedAt?: string; virtualAccount?: unknown };
+    const status = mapStatus(res.ok, body.status);
     return {
-      status: mapStatus(res.ok, body.status),
+      status,
       provider: this.name,
       paymentKey: input.paymentKey,
       orderId: input.orderId,
       amount: input.amount,
       approvedAt: body.approvedAt,
+      // F070 — carry the issued 가상계좌 details up to the order layer on a WAITING_FOR_DEPOSIT confirm.
+      virtualAccount: status === "WAITING_FOR_DEPOSIT" ? parseVirtualAccount(body.virtualAccount) : undefined,
     };
   }
 

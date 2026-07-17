@@ -3,6 +3,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { Nav } from "../../_components/Nav";
 import { formatWon, COVER_LABEL } from "../../_components/order/format";
+import { DepositNotice } from "../../_components/order/DepositNotice";
 import { orderRepo } from "../../api/payments/_lib/orders";
 import { isPaidFamily } from "../../api/payments/_lib/status";
 import styles from "./orders.module.css";
@@ -21,15 +22,16 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
   const order = await orderRepo().get(id);
   if (!order) notFound();
   const paid = isPaidFamily(order.status); // F054: fulfillment states remain "settled" here
+  const waitingDeposit = order.status === "WAITING_FOR_DEPOSIT"; // F070 — 가상계좌 입금 대기
 
   return (
     <>
       <Nav />
       <main>
         <section className="hero" aria-labelledby="order-title">
-          <p className="eyebrow eyebrow--ko">{paid ? "결제 완료" : "결제 대기"}</p>
+          <p className="eyebrow eyebrow--ko">{paid ? "결제 완료" : waitingDeposit ? "입금 대기" : "결제 대기"}</p>
           <h1 className="hero__title" id="order-title">
-            {paid ? "주문이 완료되었어요" : "결제가 완료되지 않았어요"}
+            {paid ? "주문이 완료되었어요" : waitingDeposit ? "입금을 기다리고 있어요" : "결제가 완료되지 않았어요"}
           </h1>
         </section>
         <section className={styles.order} aria-label="주문 내역">
@@ -60,6 +62,18 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
               </p>
               <Link className="cta" href="/mypage" data-testid="order-finish-link">
                 마이페이지에서 마무리하기
+              </Link>
+            </>
+          ) : waitingDeposit ? (
+            <>
+              <DepositNotice
+                bank={order.depositBank}
+                account={order.depositAccount}
+                amountWon={order.amountWon}
+                dueDate={order.depositDueDate}
+              />
+              <Link className="cta" href="/mypage" data-testid="order-finish-link">
+                마이페이지에서 주문 조회
               </Link>
             </>
           ) : (

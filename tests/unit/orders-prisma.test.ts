@@ -231,6 +231,18 @@ describe("mapOrderRow", () => {
     expect(bare.shipName).toBeUndefined();
     expect(bare.shipAddress).toBeUndefined();
   });
+
+  it("F070: passes the 가상계좌 fields through, normalizing a Date depositDueDate to an ISO string", () => {
+    const due = new Date("2026-07-20T23:59:59+09:00"); // Prisma returns a Date
+    const va = mapOrderRow(row({ depositBank: "우리은행", depositAccount: "56001234567890", depositDueDate: due }));
+    expect(va.depositBank).toBe("우리은행");
+    expect(va.depositAccount).toBe("56001234567890");
+    expect(va.depositDueDate).toBe(due.toISOString()); // the exact instant (KST formatting is the UI's job — format.ts)
+    const bare = mapOrderRow(row());
+    expect(bare.depositBank).toBeUndefined();
+    expect(bare.depositAccount).toBeUndefined();
+    expect(bare.depositDueDate).toBeUndefined();
+  });
 });
 
 // ── F057: member linkage — claim-by-email + listByUser + userId passthrough ──────

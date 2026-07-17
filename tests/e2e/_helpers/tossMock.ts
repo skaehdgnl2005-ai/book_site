@@ -1,6 +1,8 @@
 import { type Page, expect } from "@playwright/test";
 
-export type TossOutcome = "success" | "fail" | "cancel" | "abandon";
+// F070 — "deposit": a 가상계좌 payment. Redirects to successUrl like "success" but with a "_va_"
+// paymentKey so the sandbox confirm returns WAITING_FOR_DEPOSIT + an issued account.
+export type TossOutcome = "success" | "fail" | "cancel" | "abandon" | "deposit";
 
 /**
  * Plant a hermetic stand-in for the TossPayments browser SDK BEFORE any page script runs.
@@ -22,9 +24,10 @@ export async function installTossMock(page: Page, outcome: TossOutcome): Promise
       amountValue: number,
     ) => {
       w.__TOSS_LAST_ORDER_ID__ = req.orderId;
-      if (o === "success")
-        location.assign(`${req.successUrl}?paymentKey=test_pk_${req.orderId}&orderId=${req.orderId}&amount=${amountValue}&paymentType=NORMAL`);
-      else if (o === "fail")
+      if (o === "success" || o === "deposit") {
+        const pk = o === "deposit" ? `test_pk_va_${req.orderId}` : `test_pk_${req.orderId}`;
+        location.assign(`${req.successUrl}?paymentKey=${pk}&orderId=${req.orderId}&amount=${amountValue}&paymentType=NORMAL`);
+      } else if (o === "fail")
         location.assign(`${req.failUrl}?code=PAY_PROCESS_ABORTED&message=${encodeURIComponent("결제에 실패했습니다")}&orderId=${req.orderId}`);
       else if (o === "cancel")
         location.assign(`${req.failUrl}?code=PAY_PROCESS_CANCELED&message=${encodeURIComponent("결제를 취소했습니다")}&orderId=${req.orderId}`);
@@ -163,6 +166,15 @@ export async function completePaidTwoBookOrder(page: Page, opts: { qrOn?: boolea
   await addBirthToCart(page);
   await addBirthToCart(page, { qrOn: opts.qrOn }); // QR is order-level (last add-to-cart wins)
   await checkoutFromCart(page);
+  await page.waitForURL(/\/orders\/ord_/);
+  return new URL(page.url()).pathname.split("/").pop() as string;
+}
+
+/** F070 — pay via 가상계좌; lands on /orders/[id] as WAITING_FOR_DEPOSIT. Returns the orderId. */
+export async function completeVirtualAccountOrder(page: Page, opts: { email?: string } = {}): Promise<string> {
+  await installTossMock(page, "deposit");
+  await addBirthToCart(page);
+  await checkoutFromCart(page, { email: opts.email });
   await page.waitForURL(/\/orders\/ord_/);
   return new URL(page.url()).pathname.split("/").pop() as string;
 }

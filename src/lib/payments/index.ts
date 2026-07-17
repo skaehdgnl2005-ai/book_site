@@ -14,7 +14,21 @@
 /** KRW won: a non-negative integer. Won has no minor unit, so fractional amounts are invalid. */
 export type Won = number;
 
-export type PaymentStatus = "PAID" | "FAILED" | "CANCELED";
+// F070 — WAITING_FOR_DEPOSIT: a 가상계좌(virtual-account) payment is issued but the buyer hasn't
+// deposited yet. The order is NOT settled (no money received) until the deposit webhook lands.
+export type PaymentStatus = "PAID" | "FAILED" | "CANCELED" | "WAITING_FOR_DEPOSIT";
+
+/**
+ * F070 — issued virtual-account details (present on a WAITING_FOR_DEPOSIT confirm/lookup). The buyer
+ * deposits to this account by `dueDate`; a deposit webhook then settles the order. Not PII-sensitive
+ * beyond the buyer's own payment record, but treated as order data (rendered to the owner only).
+ */
+export interface VirtualAccount {
+  bank: string; // 은행명 (Toss bankCode → 표시명; adapter maps)
+  accountNumber: string;
+  dueDate: string; // ISO — 입금 기한
+  customerName?: string; // 예금주(입금자명)
+}
 
 /** What the order layer hands the provider to begin a checkout. */
 export interface CreatePaymentInput {
@@ -59,6 +73,8 @@ export interface Confirmation {
   orderId: string;
   amount: Won;
   approvedAt?: string;
+  /** F070 — present when status is WAITING_FOR_DEPOSIT (가상계좌 issued, deposit pending). */
+  virtualAccount?: VirtualAccount;
 }
 
 /** F063 — cancel (refund) a settled payment. FULL-amount only (부분취소 스코프 아웃). */

@@ -383,6 +383,38 @@ describe("processWebhook (Toss re-query scheme)", () => {
     expect((await repo.get(order.id))?.status).toBe("PAID");
   });
 
+  it("F070: a deposit webhook settles a WAITING_FOR_DEPOSIT order → PAID (authoritative DONE, matching amount) and notifies EXACTLY once", async () => {
+    const { repo, order } = await paidOrder();
+    await repo.markAwaitingDeposit(order.id, "pk_va", { bank: "우리은행", account: "56001234567890", dueDate: "2026-07-20T23:59:59.000Z" });
+    expect((await repo.get(order.id))?.status).toBe("WAITING_FOR_DEPOSIT");
+    const ledger = createWebhookLedger();
+    const notified: string[] = [];
+    // 입금 완료 통보 → 권위적 재조회가 PAID: WAITING_FOR_DEPOSIT → PAID + 확인 메일 1회(F055).
+    const lookup = lookupReturning({ status: "PAID", amount: order.amountWon, orderId: order.id });
+    const res = await processWebhook(tossBody({ orderId: order.id, paymentKey: "pk_va" }), TOKEN, TOKEN, repo, ledger, lookup, (o) => notified.push(o.id));
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("PAID");
+    expect((await repo.get(order.id))?.status).toBe("PAID");
+    expect(notified).toEqual([order.id]); // 입금 완료 시점에 정확히 1회
+
+    // redelivery (같은 전이의 재전달) → 중복 정산도 메일도 없음.
+    const dup = await processWebhook(tossBody({ orderId: order.id, paymentKey: "pk_va" }), TOKEN, TOKEN, repo, ledger, lookup, (o) => notified.push(o.id));
+    expect(dup.body.duplicate).toBe(true);
+    expect(notified).toEqual([order.id]);
+  });
+
+  it("F070: an EXPIRED 가상계좌 webhook closes a WAITING_FOR_DEPOSIT order → CANCELLED (미입금; not a refund)", async () => {
+    const { repo, order } = await paidOrder();
+    await repo.markAwaitingDeposit(order.id, "pk_va", { bank: "우리은행", account: "56001234567890", dueDate: "2026-07-20T23:59:59.000Z" });
+    const ledger = createWebhookLedger();
+    // Toss EXPIRED → mapStatus CANCELED; WFD 주문은 CANCELLED로 종료(REFUNDED 아님).
+    const lookup = lookupReturning({ status: "CANCELED", amount: order.amountWon, orderId: order.id });
+    const res = await processWebhook(tossBody({ orderId: order.id, paymentKey: "pk_va", status: "EXPIRED" }), TOKEN, TOKEN, repo, ledger, lookup);
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("CANCELLED");
+    expect((await repo.get(order.id))?.status).toBe("CANCELLED");
+  });
+
   it("rejects an invalid token (401), does NOT re-query, and leaves the order CREATED", async () => {
     const { repo, order } = await paidOrder();
     const ledger = createWebhookLedger();

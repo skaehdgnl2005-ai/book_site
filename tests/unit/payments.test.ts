@@ -154,6 +154,35 @@ describe("TossPaymentProvider.confirm", () => {
     ).rejects.toThrow(/integer/i);
     expect(called).toBe(false);
   });
+
+  it("F070: maps WAITING_FOR_DEPOSIT and parses the issued 가상계좌 (bankCode → 표시명, account, dueDate)", async () => {
+    const transport: TossTransport = async () => ({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        status: "WAITING_FOR_DEPOSIT",
+        virtualAccount: { bankCode: "20", accountNumber: "56001234567890", dueDate: "2026-07-20T23:59:59+09:00", customerName: "김부모" },
+      }),
+    });
+    const result = await newProvider(transport).confirm({ paymentKey: "pk_va", orderId: "ord_1", amount: 43000 });
+    expect(result.status).toBe("WAITING_FOR_DEPOSIT");
+    expect(result.virtualAccount).toEqual({
+      bank: "우리은행", // bankCode 20 → 표시명
+      accountNumber: "56001234567890",
+      dueDate: "2026-07-20T23:59:59+09:00",
+      customerName: "김부모",
+    });
+  });
+
+  it("F070: a WAITING_FOR_DEPOSIT confirm missing account/dueDate yields no virtualAccount (undefined)", async () => {
+    const transport: TossTransport = async () => ({
+      ok: true, status: 200,
+      json: async () => ({ status: "WAITING_FOR_DEPOSIT", virtualAccount: { bankCode: "20" } }), // no accountNumber/dueDate
+    });
+    const result = await newProvider(transport).confirm({ paymentKey: "pk_va", orderId: "ord_1", amount: 43000 });
+    expect(result.status).toBe("WAITING_FOR_DEPOSIT");
+    expect(result.virtualAccount).toBeUndefined();
+  });
 });
 
 describe("TossPaymentProvider.lookupPayment (webhook re-query)", () => {

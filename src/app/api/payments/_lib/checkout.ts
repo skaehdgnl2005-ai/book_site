@@ -205,10 +205,23 @@ export async function confirmPayment(
   // the success-page reload and a webhook-first race safe. The stored (first) paymentKey is
   // preserved. A CANCELLED/REFUNDED order is NOT payable — refuse with its real status.
   if (isPaidFamily(order.status)) return { status: 200, body: { status: "PAID", orderId: order.id } };
+  // F070 — 이미 입금 대기 중인 가상계좌 주문은 그대로(멱등): 성공 페이지 새로고침/재확인이 안전.
+  if (order.status === "WAITING_FOR_DEPOSIT") return { status: 200, body: { status: "WAITING_FOR_DEPOSIT", orderId: order.id } };
   if (order.status !== "CREATED") return { status: 402, body: { status: order.status } };
   if (!paymentKey) return { status: 400, body: { errors: ["결제 정보가 없습니다."] } };
 
   const conf = await provider.confirm({ paymentKey, orderId: order.id, amount: order.amountWon });
+  // F070 — 가상계좌: 발급됨(입금 대기). 정산이 아니므로 markAwaitingDeposit(계좌 정보 저장, WFD 전이).
+  // 실제 정산은 입금 완료 웹훅(WAITING_FOR_DEPOSIT→PAID)에서 일어난다.
+  if (conf.status === "WAITING_FOR_DEPOSIT") {
+    if (!conf.virtualAccount) return { status: 402, body: { status: "FAILED" } }; // 계좌 정보 없이는 불가
+    await repo.markAwaitingDeposit(order.id, conf.paymentKey, {
+      bank: conf.virtualAccount.bank,
+      account: conf.virtualAccount.accountNumber,
+      dueDate: conf.virtualAccount.dueDate,
+    });
+    return { status: 200, body: { status: "WAITING_FOR_DEPOSIT", orderId: order.id } };
+  }
   if (conf.status !== "PAID") return { status: 402, body: { status: conf.status } }; // F015: no PAID order
   const paid = await repo.markPaid(order.id, conf.paymentKey);
   if (paid.transitioned && paid.order) notify?.(paid.order); // F055: exactly-once (atomic write is truth)
@@ -263,6 +276,12 @@ export async function processWebhook(
     const order = await repo.get(authoritative.orderId);
     if (!order) return { status: 200, body: { status: "UNKNOWN_ORDER" } };
     await ledger.record(dedupeKey);
+    // F070 — a 가상계좌 that expired/was-canceled while still WAITING_FOR_DEPOSIT (never deposited):
+    // close it as CANCELLED (no money moved — NOT a refund). Backs DepositNotice's auto-cancel copy.
+    if (order.status === "WAITING_FOR_DEPOSIT") {
+      const moved = await repo.transition(order.id, ["WAITING_FOR_DEPOSIT"], "CANCELLED");
+      return { status: 200, body: { status: moved.ok ? "CANCELLED" : "IGNORED", orderId: order.id } };
+    }
     const moved = await repo.transition(order.id, ["PAID", "IN_PRODUCTION"], "REFUNDED");
     return { status: 200, body: { status: moved.ok ? "REFUNDED" : "IGNORED", orderId: order.id } };
   }
@@ -294,12 +313,23 @@ export function checkoutProvider(env: Record<string, string | undefined> = proce
     // returns a benign payment that settles nothing (orderId:"" → UNKNOWN_ORDER). The webhook
     // safety-net is verified hermetically by webhook.test.ts; dev/E2E use the confirm path.
     // POST …/cancel = refund (F063): approves as CANCELED so the hermetic refund flow completes.
-    json: async () =>
-      url.includes("/cancel")
-        ? { status: "CANCELED" }
-        : init.method === "GET"
-          ? { status: "DONE", totalAmount: 0, orderId: "" }
-          : { status: "DONE", approvedAt: new Date().toISOString() },
+    // POST confirm — F070: a 가상계좌 paymentKey (test marker "_va_") returns WAITING_FOR_DEPOSIT +
+    // an issued account so the deposit flow is exercisable hermetically; else immediate DONE.
+    json: async () => {
+      if (url.includes("/cancel")) return { status: "CANCELED" };
+      if (init.method === "GET") return { status: "DONE", totalAmount: 0, orderId: "" };
+      if (init.body.includes("_va_")) {
+        return {
+          status: "WAITING_FOR_DEPOSIT",
+          virtualAccount: {
+            bankCode: "20", // 우리은행
+            accountNumber: "56001234567890",
+            dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+          },
+        };
+      }
+      return { status: "DONE", approvedAt: new Date().toISOString() };
+    },
   });
   return new TossPaymentProvider({
     secretKey: env.TOSS_SECRET_KEY ?? "test_sk_checkoutsandbox",

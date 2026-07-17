@@ -6,6 +6,7 @@ import { formatWon, COVER_LABEL } from "../../_components/order/format";
 import { FinishingClient } from "../../_components/mypage/FinishingClient";
 import { CancelRequestPanel } from "../../_components/order/CancelRequestPanel";
 import { TrackingLink } from "../../_components/order/TrackingLink";
+import { DepositNotice } from "../../_components/order/DepositNotice";
 import { orderRepo } from "@/app/api/payments/_lib/orders";
 import { isPaidFamily } from "@/app/api/payments/_lib/status";
 import { hasOrderAccess } from "../_lib/orderAccess";
@@ -92,6 +93,15 @@ export default async function MypageOrderPage({ params }: { params: Promise<{ or
               />
             </section>
           </>
+        ) : order.status === "WAITING_FOR_DEPOSIT" ? (
+          <section className={styles.panel} aria-label="입금 대기">
+            <DepositNotice
+              bank={order.depositBank}
+              account={order.depositAccount}
+              amountWon={order.amountWon}
+              dueDate={order.depositDueDate}
+            />
+          </section>
         ) : (
           <section className={styles.panel} aria-label="결제 대기">
             <p className={styles.note} data-testid="mypage-not-paid">

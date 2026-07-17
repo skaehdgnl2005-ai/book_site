@@ -983,8 +983,9 @@
         "현금영수증 발급 안내가 표시된다"
       ],
       "verification": "pnpm test:e2e -- virtual-account.spec.ts",
-      "state": "not_started",
-      "passes": false
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-17 pnpm check green (lint+typecheck+unit 313/F070 신규 ~24: 상태머신·VA repo·confirm VA·입금 웹훅·만료 취소·adapter parseVirtualAccount·KST 포맷·mapOrderRow VA+constraints 0); full pnpm test:e2e 163/163 incl. virtual-account.spec.ts 3/3(가상계좌 결제→입금 대기 주문+계좌·기한(KST)·현금영수증 안내, 375px 무오버플로, /account·/mypage 입금 안내+입금 전 마무리 미개방) + 전 체크아웃·주문 스펙 무회귀 + eval S1–S11 1.0. 구현: 새 WAITING_FOR_DEPOSIT 상태(PaymentStatus·OrderStatus enum·status.ts 전이표·Prisma enum+depositBank/Account/DueDate 컬럼·마이그레이션 20260717130000 — enum ADD VALUE는 값 미사용 트랜잭션이라 PG16 안전, R10 미해당). 정산 전용 전이(admin 손 전이 불가): markAwaitingDeposit(CREATED→WFD, 계좌 저장) + markPaid 확장(CREATED|WFD→PAID, 입금 웹훅 정산). WFD는 PAID_FAMILY 제외(마무리·배송 미개방). confirm VA 분기(발급 시 메일 없음), 입금 완료 웹훅이 order_confirmation 메일 정확히 1회. 공용 DepositNotice(계좌·기한·현금영수증)로 /orders·/mypage·/account 3표면 재사용. sandbox/mock VA 경로(_va_ 마커)로 hermetic E2E. worker≠checker(14에이전트/5렌즈, refute-by-default): 8 confirmed 전부 처리 — **MAJOR①** DepositNotice가 '기한 지나면 자동 취소' 약속했으나 만료 WFD 주문 종료 코드 부재(영구 stuck)를 Toss 만료 웹훅(EXPIRED→CANCELED 매핑) 처리로 WFD→CANCELLED 구현(약속 이행)+유닛, **MAJOR②** dueDate ISO slice가 프로덕션(Prisma toISOString)에서 KST 9시간 이르게 표시되던 것을 formatKstDateTime(Asia/Seoul+KST 라벨)+유닛(UTC→KST)으로 교정, **MAJOR③** mapOrderRow VA 필드 무테스트→Date→ISO 라운드트립 유닛, minor: 만료취소 후 뒤늦은 입금 재정산 방지 유닛(CANCELLED은 markPaid 제외)·/account·/mypage E2E·입금 완료 exactly-once 메일 유닛. 배포: 마이그레이션 1건 추가(Wave B 미배포 큐) — 프로덕션 실 VA 왕복은 배포 후 카나리(Toss 상점 어드민 가상계좌 활성화 HITL)."
     },
     {
       "id": "F071",

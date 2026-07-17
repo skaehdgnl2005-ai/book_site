@@ -60,6 +60,10 @@ export type OrderDraft = {
   /** F060 — shipment record (admin-entered at the SHIPPED transition). */
   trackingCarrier?: string;
   trackingNumber?: string;
+  /** F070 — issued 가상계좌 (set at a WAITING_FOR_DEPOSIT confirm; the buyer deposits by depositDueDate). */
+  depositBank?: string;
+  depositAccount?: string;
+  depositDueDate?: string; // ISO
   /** F062 — buyer cancel request (refund EXECUTION is F063's approval-gated flow). */
   cancelRequestedAt?: string;
   cancelReason?: string;
@@ -70,6 +74,7 @@ export type OrderDraft = {
 // transition table, and labels live in ./status; this module only stores/moves the value.
 export type OrderStatus =
   | "CREATED"
+  | "WAITING_FOR_DEPOSIT" // F070 — 가상계좌 발급, 입금 대기(미정산)
   | "PAID"
   | "IN_PRODUCTION"
   | "SHIPPED"
@@ -97,6 +102,16 @@ export interface OrderRepo {
    * (F055: the confirmation email fires exactly once even when confirm and webhook race).
    */
   markPaid(id: string, paymentKey: string): Promise<{ order: StoredOrder | undefined; transitioned: boolean }>;
+  /**
+   * F070 — a 가상계좌 confirm: record the issued account + move CREATED→WAITING_FOR_DEPOSIT (idempotent
+   * conditional write, mirrors markPaid). NO money yet — the deposit webhook later transitions
+   * WAITING_FOR_DEPOSIT→PAID. `transitioned` is true only for the call that actually moved CREATED→WFD.
+   */
+  markAwaitingDeposit(
+    id: string,
+    paymentKey: string,
+    va: { bank: string; account: string; dueDate: string },
+  ): Promise<{ order: StoredOrder | undefined; transitioned: boolean }>;
   /**
    * F054 — conditional status transition: applies only while the current status is in `from`
    * (updateMany-style conditional write — two admins double-clicking apply exactly once).
@@ -151,9 +166,21 @@ export function createOrderRepo(): OrderRepo {
     async markPaid(id, paymentKey) {
       const order = map.get(id);
       if (!order) return { order: undefined, transitioned: false };
-      if (order.status !== "CREATED") return { order, transitioned: false };
+      // F070 — a deposit settles a WAITING_FOR_DEPOSIT order too (가상계좌 입금 완료), not only CREATED.
+      if (order.status !== "CREATED" && order.status !== "WAITING_FOR_DEPOSIT") return { order, transitioned: false };
       order.status = "PAID";
       order.tossPaymentKey = paymentKey;
+      return { order, transitioned: true };
+    },
+    async markAwaitingDeposit(id, paymentKey, va) {
+      const order = map.get(id);
+      if (!order) return { order: undefined, transitioned: false };
+      if (order.status !== "CREATED") return { order, transitioned: false };
+      order.status = "WAITING_FOR_DEPOSIT";
+      order.tossPaymentKey = paymentKey;
+      order.depositBank = va.bank;
+      order.depositAccount = va.account;
+      order.depositDueDate = va.dueDate;
       return { order, transitioned: true };
     },
     async transition(id, from, to) {
@@ -339,6 +366,9 @@ export type OrderRow = {
   withdrawalConsentAt?: Date | string | null;
   trackingCarrier?: string | null;
   trackingNumber?: string | null;
+  depositBank?: string | null;
+  depositAccount?: string | null;
+  depositDueDate?: Date | string | null;
   cancelRequestedAt?: Date | string | null;
   cancelReason?: string | null;
   createdAt: Date | string;
@@ -408,6 +438,13 @@ export function mapOrderRow(row: OrderRow): StoredOrder {
       : undefined,
     trackingCarrier: row.trackingCarrier ?? undefined,
     trackingNumber: row.trackingNumber ?? undefined,
+    depositBank: row.depositBank ?? undefined,
+    depositAccount: row.depositAccount ?? undefined,
+    depositDueDate: row.depositDueDate
+      ? typeof row.depositDueDate === "string"
+        ? row.depositDueDate
+        : row.depositDueDate.toISOString()
+      : undefined,
     cancelRequestedAt: row.cancelRequestedAt
       ? typeof row.cancelRequestedAt === "string"
         ? row.cancelRequestedAt
@@ -435,7 +472,7 @@ type OrderDelegate = {
   }): Promise<OrderRow[]>;
   updateMany(args: {
     where:
-      | { id: string; status?: "CREATED" | { in: OrderStatus[] }; cancelRequestedAt?: null }
+      | { id: string; status?: OrderStatus | { in: OrderStatus[] }; cancelRequestedAt?: null }
       | { buyerEmail: { equals: string; mode: "insensitive" }; userId: null };
     data: {
       status?: OrderStatus;
@@ -443,6 +480,9 @@ type OrderDelegate = {
       userId?: string;
       trackingCarrier?: string;
       trackingNumber?: string;
+      depositBank?: string;
+      depositAccount?: string;
+      depositDueDate?: Date;
       cancelRequestedAt?: Date;
       cancelReason?: string;
     };
@@ -478,12 +518,28 @@ export function createPrismaOrderRepo(getDb: () => Promise<Db>): OrderRepo {
     },
     async markPaid(id, paymentKey) {
       const db = await getDb();
-      // Idempotent: only a CREATED order transitions; an already-PAID order is untouched
-      // (count:0), preserving the first paymentKey. The DB row is then re-read + mapped.
+      // Idempotent: a CREATED order (card) OR a WAITING_FOR_DEPOSIT order (F070 가상계좌 입금 완료)
+      // transitions; an already-PAID order is untouched (count:0), preserving the first paymentKey.
       // count===1 ⟺ THIS call made the transition (the atomic exactly-once signal, F055).
       const res = await (db.order as OrderDelegate).updateMany({
-        where: { id, status: "CREATED" },
+        where: { id, status: { in: ["CREATED", "WAITING_FOR_DEPOSIT"] } },
         data: { status: "PAID", tossPaymentKey: paymentKey },
+      });
+      const row = await (db.order as OrderDelegate).findUnique({ where: { id }, include: ORDER_INCLUDE });
+      return { order: row ? mapOrderRow(row) : undefined, transitioned: res.count === 1 };
+    },
+    async markAwaitingDeposit(id, paymentKey, va) {
+      const db = await getDb();
+      // F070 — CREATED→WAITING_FOR_DEPOSIT + record the issued account (conditional; idempotent).
+      const res = await (db.order as OrderDelegate).updateMany({
+        where: { id, status: "CREATED" },
+        data: {
+          status: "WAITING_FOR_DEPOSIT",
+          tossPaymentKey: paymentKey,
+          depositBank: va.bank,
+          depositAccount: va.account,
+          depositDueDate: new Date(va.dueDate),
+        },
       });
       const row = await (db.order as OrderDelegate).findUnique({ where: { id }, include: ORDER_INCLUDE });
       return { order: row ? mapOrderRow(row) : undefined, transitioned: res.count === 1 };

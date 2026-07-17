@@ -65,6 +65,10 @@ model Order {
   // F060 — 운송장 (SHIPPED 전이 시 관리자 입력).
   trackingCarrier String?
   trackingNumber  String?
+  // F070 — 가상계좌 (WAITING_FOR_DEPOSIT confirm 시 발급 정보 기록; 입금 완료 웹훅이 PAID로 전이).
+  depositBank     String?
+  depositAccount  String?
+  depositDueDate  DateTime?
   // F062 — 구매자 취소 요청 (환불 집행은 F063의 requireApproval 게이트).
   // F067 — 결제 전 청약철회 제한 동의 시각(전자상거래법 17조 2항 6호 증거).
   withdrawalConsentAt DateTime?
@@ -227,6 +231,7 @@ enum OrderKind {
 
 enum OrderStatus {
   CREATED // 결제 전/시도
+  WAITING_FOR_DEPOSIT // F070 — 가상계좌 발급, 입금 대기(미정산)
   PAID
   IN_PRODUCTION
   SHIPPED

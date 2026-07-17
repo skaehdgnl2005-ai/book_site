@@ -1,0 +1,8 @@
+/* F070 — 가상계좌 입금 안내 (헤어라인 구획, 박스 아님; R6 no box-shadow, R7 warm tokens). */
+.deposit { margin-top: var(--space-md); padding-top: var(--space-md); border-top: 1px solid var(--line); }
+.title { margin: 0 0 var(--space-sm); font-family: var(--font-grotesk); font-weight: 600; font-size: 0.95rem; letter-spacing: 0; color: var(--ink); }
+.rows { margin: 0; display: flex; flex-direction: column; gap: var(--space-xs); }
+.row { display: flex; gap: var(--space-md); align-items: baseline; }
+.dt { flex: 0 0 5.5em; margin: 0; font-family: var(--font-grotesk); font-size: 0.82rem; letter-spacing: 0; color: var(--muted); }
+.dd { margin: 0; font-family: var(--font-grotesk); font-weight: 600; font-size: 0.98rem; color: var(--ink); word-break: break-all; min-width: 0; }
+.note { margin: var(--space-md) 0 0; font-size: 0.88rem; line-height: 1.7; color: var(--grey); }

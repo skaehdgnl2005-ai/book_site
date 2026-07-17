@@ -3,6 +3,25 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **(2026-07-17, Wave B): F070 가상계좌(무통장입금) DONE.**
+  새 `WAITING_FOR_DEPOSIT` 상태를 결제 코어에 관통: `PaymentStatus`·`OrderStatus` enum·`status.ts` 전이표·
+  Prisma enum + `depositBank/Account/DueDate` 컬럼 + 마이그레이션 `20260717130000`(enum ADD VALUE는 값
+  미사용 트랜잭션이라 PG16 안전, R10 미해당 — 새 테이블 없음). **정산 전용 전이**(admin 손 전이 불가):
+  `markAwaitingDeposit`(CREATED→WFD, 발급 계좌 저장) + `markPaid` 확장(CREATED|WFD→PAID, 입금 웹훅이 정산).
+  WFD는 `PAID_FAMILY` 제외(입금 전엔 마무리·배송 미개방). confirm의 VA 분기(발급 시 메일 없음), 입금 완료
+  웹훅이 order_confirmation 메일 정확히 1회. 공용 `DepositNotice`(계좌·기한·현금영수증)로 /orders·/mypage·
+  /account 3표면 재사용. sandbox/mock의 `_va_` 마커로 hermetic E2E. **worker≠checker 14에이전트/5렌즈 →
+  8 confirmed 전부 처리.** **MAJOR①** DepositNotice가 '기한 지나면 자동 취소'를 약속했으나 만료된 WFD 주문을
+  종료하는 코드가 전무(영구 stuck)했던 것을, **Toss 만료 웹훅**(`EXPIRED`→CANCELED 매핑) 처리로 WFD→CANCELLED
+  구현해 약속을 이행(+유닛). **MAJOR②** dueDate를 ISO slice로 표시해 프로덕션(Prisma `toISOString`)에서 KST보다
+  9시간 이르게 노출되던 것을 `formatKstDateTime`(Asia/Seoul + KST 라벨)로 교정(+UTC→KST 유닛). **MAJOR③**
+  mapOrderRow의 VA 필드 무테스트 → Date→ISO 라운드트립 유닛. minor 3: 만료취소 후 뒤늦은 입금 재정산 방지
+  유닛(CANCELLED은 markPaid 제외)·/account·/mypage E2E·입금 완료 exactly-once 메일 유닛. 검증: check green
+  (유닛 313) + **E2E 163/163** + eval 1.0. `Next:` **F071** 리뷰(후기) 시스템 — Review 모델+마이그레이션(신규
+  테이블 → R10 RLS 필수) + 구매 인증(hasOrderAccess) 후기 작성 + /reviews를 placeholder→실제 목록(F026 계약:
+  "준비 중"+80% 베타 신호 보존) + 후기 정책 고지(2026-07-21 시행). **배포 HITL(F070)**: 마이그레이션 1건
+  (`20260717130000_order_virtual_account`)이 Wave B 미배포 큐에 추가 — 다음 `prisma migrate deploy` 대상;
+  프로덕션 실 가상계좌 왕복은 배포 후 카나리(Toss 상점 어드민 가상계좌 수단 활성화 HITL).
 - **(2026-07-17, Wave B): F069 TossPayments 결제위젯 전환(간편결제 노출) DONE.**
   엔트리 `CheckoutView`를 결제창(`payment().requestPayment({method:"CARD"})`)→결제위젯(`toss.widgets()`)으로 전환:
   마운트 시 결제수단 위젯(카드+간편결제 네이버·카카오·토스페이) + Toss 약관 위젯 렌더, 제출 시 **서버 금액으로
