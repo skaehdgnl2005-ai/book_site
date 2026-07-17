@@ -966,8 +966,9 @@
         "서버 create/confirm/webhook 금액 재계산·멱등 계약이 불변이다"
       ],
       "verification": "pnpm test:e2e -- checkout-widget.spec.ts",
-      "state": "not_started",
-      "passes": false
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-17 pnpm check green (lint+typecheck+unit 298+constraints 0 violations); full pnpm test:e2e 160/160 incl. checkout-widget.spec.ts 4/4(위젯 렌더+간편결제(네이버·카카오·토스페이) 노출+결제버튼 활성, 위젯 결제→PAID, 클라이언트 카트 금액 위조에도 서버 금액 setAmount 재설정, 위젯 로드 실패→오류·다시 불러오기·버튼 잠금) + checkout-toss-sdk 3/3(F044→위젯 갱신: method 없음·gck 키·PAID) + checkout-start/success/failed/cancel + custom-written 5/5(결제창 payment() 무회귀) + eval S1–S11 1.0. **실 브라우저 검증**(dev, mock 없이 실 Toss SDK/CDN): /checkout에서 결제위젯 iframe 2개(결제수단+약관) 렌더·결제하기 버튼 활성·네이버페이 노출·콘솔 에러 0 — 실 SDK가 test_gck_ 위젯 키를 수용함을 확인(F044의 '실 창은 배포 후 카나리' 표준을 넘어 dev 렌더까지 검증). 구현: 엔트리 CheckoutView를 결제창(payment().requestPayment method:CARD)→결제위젯(toss.widgets())으로 전환 — 마운트 시 위젯 렌더(카드+간편결제+Toss 약관 UI), 제출 시 서버 금액 setAmount 재설정 후 requestPayment(수단은 위젯이 결정). 서버 create/confirm/webhook 수단 불문 재사용(금액 재계산·멱등 불변). 맞춤 written flow는 결제창 유지(범위 밖, 엔트리 우선) — mock이 payment()·widgets() 양쪽 제공. worker≠checker(17에이전트/5렌즈, refute-by-default): 11 confirmed → 전부 처리. **MAJOR**: 실 SDK v2 키 타입 상호배타(widgets()는 ck 거부/payment()는 gck 거부)인데 단일 NEXT_PUBLIC_TOSS_CLIENT_KEY(ck)를 양쪽 주입 → 실 위젯이 마운트에서 throw, 엔트리 결제 불능(mock이 은폐)이던 것을 **별도 위젯 키 NEXT_PUBLIC_TOSS_WIDGET_CLIENT_KEY(gck)** 도입으로 해소(checkoutClientKey=gck·provider=ck; mock 키타입 검증 추가로 재발 시 E2E 실패; env live_gck_ 거부·.env.example 문서화). **minor/nit 10**: checkoutClientKey 프로덕션 fail-open(테스트 키 실고객 노출)→env-aware, 위젯 로드 실패 UX(영구 잠금+모순 라벨)→다시 불러오기+실패 라벨, create 응답 dead clientKey 제거+주석 갱신, method:CARD 단언→method undefined 단언, setAmount 서버금액 재설정 E2E(카트 위조), 위젯 로드 실패 E2E. **배포 HITL**: Vercel env NEXT_PUBLIC_TOSS_WIDGET_CLIENT_KEY(실 gck) + Toss 상점 어드민 수단별 계약 활성화(네이버·카카오·토스페이). 마이그레이션 0."
     },
     {
       "id": "F070",

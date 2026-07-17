@@ -312,3 +312,20 @@ export function checkoutProvider(env: Record<string, string | undefined> = proce
 export function webhookSecret(env: Record<string, string | undefined> = process.env): string | undefined {
   return env.TOSS_WEBHOOK_SECRET ?? (env.APP_ENV !== "production" ? "test_whsec_sandbox" : undefined);
 }
+
+/**
+ * F069 — the publishable 결제위젯 연동 키(gck) the browser payment widget renders with. This is a
+ * DISTINCT key type from createCheckout's API-individual key(ck): the SDK enforces mutual exclusion
+ * (toss.widgets() rejects a ck key, toss.payment() rejects a gck key), so the 결제위젯(entry) and the
+ * 결제창(맞춤 written flow) must use different keys — hence NEXT_PUBLIC_TOSS_WIDGET_CLIENT_KEY.
+ *
+ * Non-prod → Toss's public widget test key (test_gck_docs_…) so dev/E2E render without extra env.
+ * Prod → the real gck key ONLY, with NO test-key fallback: a prod deploy that forgot it renders no
+ * widget (honest load error) rather than a functioning TEST widget to real customers — the same
+ * fail-fast-on-prod-misconfig discipline as tossFromEnv / the live-key refusal (worker≠checker F069).
+ */
+const TOSS_WIDGET_TEST_KEY = "test_gck_docs_Ovk5rk1EwkEbP0W43n07xlzm"; // Toss 공개 위젯 테스트 키
+export function checkoutClientKey(env: Record<string, string | undefined> = process.env): string {
+  if (env.APP_ENV === "production") return env.NEXT_PUBLIC_TOSS_WIDGET_CLIENT_KEY ?? "";
+  return env.NEXT_PUBLIC_TOSS_WIDGET_CLIENT_KEY ?? TOSS_WIDGET_TEST_KEY;
+}

@@ -3,6 +3,23 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **(2026-07-17, Wave B): F069 TossPayments 결제위젯 전환(간편결제 노출) DONE.**
+  엔트리 `CheckoutView`를 결제창(`payment().requestPayment({method:"CARD"})`)→결제위젯(`toss.widgets()`)으로 전환:
+  마운트 시 결제수단 위젯(카드+간편결제 네이버·카카오·토스페이) + Toss 약관 위젯 렌더, 제출 시 **서버 금액으로
+  `setAmount` 재설정** 후 `requestPayment`(수단은 위젯이 결정). 서버 create/confirm/webhook 수단 불문 재사용. 맞춤
+  written flow는 결제창 유지(범위 밖 — 엔트리 우선), mock이 `payment()`·`widgets()` 양쪽 제공. **worker≠checker
+  17에이전트/5렌즈 → 11 confirmed 전부 처리.** 핵심 **MAJOR**: 실 Toss SDK v2가 키 타입을 상호배타 강제
+  (`widgets()`는 API 개별 키(ck) 거부, `payment()`는 위젯 키(gck) 거부)인데 F069가 단일 `NEXT_PUBLIC_TOSS_CLIENT_KEY`(ck)를
+  양쪽에 주입 → 실 위젯이 마운트에서 throw해 **엔트리 결제가 프로덕션에서 불능**(hermetic mock이 은폐)이던 것을,
+  **별도 위젯 키 `NEXT_PUBLIC_TOSS_WIDGET_CLIENT_KEY`(gck)** 도입으로 해소(`checkoutClientKey`=gck·provider=ck; mock에
+  키타입 검증 추가로 재발 시 E2E가 잡음; env `live_gck_` 거부·`.env.example` 문서화). minor/nit 10건도 처리(프로덕션
+  fail-open 테스트키 노출 차단·위젯 로드 실패 재시도 UX·create dead clientKey 제거·method undefined 단언·카트 위조
+  setAmount 재설정 E2E·로드 실패 E2E). 검증: check green(유닛 298) + **E2E 160/160** + eval 1.0 + **실 브라우저 검증**
+  (dev·mock 없이 실 Toss SDK/CDN: 위젯 iframe 2개 렌더·결제하기 활성·네이버페이 노출·콘솔 에러 0 — 실 SDK가 test_gck_
+  수용 확인). 마이그레이션 0. `Next:` **F070** 가상계좌(무통장입금) — `OrderStatus` enum에 WAITING_FOR_DEPOSIT 추가
+  (status.ts 전이표 + Prisma enum + 마이그레이션) + Toss 입금통보 웹훅 처리 + 현금영수증 안내. 이어서 F071 리뷰.
+  **배포 HITL(F069)**: Vercel env `NEXT_PUBLIC_TOSS_WIDGET_CLIENT_KEY`(실 gck) + Toss 상점 어드민 간편결제 수단별 계약
+  활성화(네이버·카카오·토스페이). NEXT_PUBLIC_TOSS_CLIENT_KEY(ck)는 맞춤 결제창용으로 계속 필요.
 - **(2026-07-17, Wave B): F068 배송 알림 이메일 + 택배 조회 딥링크 DONE — 창업 체크리스트 갭 로드맵 Wave B/C 착수(F068~F071 append `fa3a64a`).**
   SHIPPED 전이(admin `advanceOrder`) 성공 시 order_shipped 이메일 발송 — EmailMessage kind 유니온 확장(주문번호·PII-free
   상품명·택배사 정규 표시명·운송장·조회 링크만; 아동 이름/헌정/주소는 메시지 타입에 필드가 없어 구조적 배제, order_confirmation

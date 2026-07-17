@@ -8,10 +8,12 @@ import { orderRepo } from "../_lib/orders";
 export const dynamic = "force-dynamic";
 
 /**
- * F012/F044 — create a TossPayments payment from the cart. The body is untrusted() at the boundary;
- * the amount is RECOMPUTED server-side from authoritative Template prices (the client totals are
- * display-only). The response carries ONLY public, non-secret fields the browser SDK needs
- * (clientKey is the publishable test key); the browser opens the real Toss window via requestPayment.
+ * F012/F044/F069 — create a TossPayments payment from the cart. The body is untrusted() at the
+ * boundary; the amount is RECOMPUTED server-side from authoritative Template prices (the client
+ * totals are display-only). The response carries only the order id + server-authoritative amount +
+ * order name + callback URLs. F069: the entry checkout renders the 결제위젯 with the page-supplied
+ * publishable widget key (checkoutClientKey), applies this amount via widgets.setAmount(), and the
+ * buyer's chosen method drives requestPayment — so the response no longer needs to carry a clientKey.
  */
 export async function POST(req: Request): Promise<Response> {
   let body: unknown;
@@ -41,8 +43,7 @@ export async function POST(req: Request): Promise<Response> {
 
   return NextResponse.json({
     orderId: order.id,
-    clientKey: checkout.clientKey,
-    amount: checkout.amount, // server-issued; the client forwards this to requestPayment as-is
+    amount: checkout.amount, // server-authoritative; the client applies it via widgets.setAmount()
     orderName: checkout.orderName,
     successUrl: checkout.successUrl,
     failUrl: checkout.failUrl,

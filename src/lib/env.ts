@@ -20,7 +20,11 @@ const schema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   SUPABASE_STORAGE_BUCKET: z.string().optional(),
   TOSS_SECRET_KEY: z.string().optional(),
+  // API 개별 연동 키(ck) — 결제창(payment(), 맞춤 written flow). publishable.
   NEXT_PUBLIC_TOSS_CLIENT_KEY: z.string().optional(),
+  // F069 — 결제위젯 연동 키(gck) — 결제위젯(widgets(), 엔트리 체크아웃 간편결제). 위 ck 키와 상호
+  // 배타적(SDK가 키 타입을 강제: widgets()는 ck 거부, payment()는 gck 거부)이라 별도 변수. publishable.
+  NEXT_PUBLIC_TOSS_WIDGET_CLIENT_KEY: z.string().optional(),
   TOSS_WEBHOOK_SECRET: z.string().optional(),
   BASE_URL: z.string().url().default("http://localhost:3000"),
   // HMAC key for the mypage OTP-hash + capability cookie (F046). Required in production (boot check below);
@@ -65,7 +69,8 @@ export function parseEnv(raw: Record<string, string | undefined> = process.env):
 
   const live =
     env.TOSS_SECRET_KEY?.startsWith("live_sk_") === true ||
-    env.NEXT_PUBLIC_TOSS_CLIENT_KEY?.startsWith("live_ck_") === true;
+    env.NEXT_PUBLIC_TOSS_CLIENT_KEY?.startsWith("live_ck_") === true ||
+    env.NEXT_PUBLIC_TOSS_WIDGET_CLIENT_KEY?.startsWith("live_gck_") === true;
   if (live && env.APP_ENV !== "production") {
     throw new Error(
       "Refusing to boot: TossPayments LIVE key detected outside production. " +

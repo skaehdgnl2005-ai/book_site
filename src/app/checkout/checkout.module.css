@@ -31,6 +31,24 @@
 .shipRowGrow { flex: 1; min-width: 0; }
 /* inputs must shrink with their flex item — their intrinsic size (~20ch) would overflow 375px */
 .shipRow .input { width: 100%; min-width: 0; }
+/* F069 — 결제위젯 슬롯(카드+간편결제 UI, 이용약관 UI). Toss가 iframe을 주입 — 폭만 붙잡아 준다. */
+.methodGroup {
+  border: 0; margin: 0; padding: var(--space-md) 0 0; min-width: 0;
+  border-top: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: var(--space-sm);
+}
+.widgetSlot { min-width: 0; }
+.widgetLoading {
+  margin: 0; font-family: var(--font-grotesk); font-weight: 500;
+  font-size: 0.75rem; letter-spacing: 0; color: var(--muted);
+}
+.widgetError { display: flex; flex-direction: column; gap: var(--space-xs); align-items: flex-start; }
+.widgetRetry {
+  border: 0; background: none; padding: 0; cursor: pointer;
+  font-family: var(--font-grotesk); font-weight: 600; font-size: 0.8rem;
+  letter-spacing: 0; color: var(--accent);
+  border-bottom: 1px solid var(--accent);
+}
 .error { margin: 0; font-size: 0.82rem; color: var(--accent); }
 /* 필수 안내 문구 — microLabel 톤(작게·muted). 한글이므로 자간 0·대문자 변환 없음. */
 .note {
