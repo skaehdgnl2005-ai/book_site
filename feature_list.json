@@ -1000,8 +1000,9 @@
         "후기 정책(작성권한·게시기간·등급기준·삭제기준·이의제기)이 고지된다"
       ],
       "verification": "pnpm test:e2e -- review-write.spec.ts",
-      "state": "not_started",
-      "passes": false
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-17 pnpm check green (lint+typecheck+unit 326/F071 신규 16: validateReview 5·in-memory store 3·Prisma store 3·mapping 2 등+constraints 0 violations, R10: Review 테이블 RLS ENABLE 확인); full pnpm test:e2e 165/166 — 1 실패는 F063 refund의 page.goto 30s 내비게이션 타임아웃(전체 스위트 동시부하 flake, 격리 재실행 2/2 green; F071 무관) — incl. review-write.spec.ts 3/3(결제 완료 구매자 후기 작성→/reviews 목록에 별점·표시명·게시 후기 평균 평점·운영정책 노출·주문당 1개 재차단, 빈 내용 거부, 미결제 주문엔 작성 폼 부재) + reviews.spec.ts(F026) 2/2 계약 보존('준비 중'+80% 베타 신호) + eval S1–S11 1.0. 구현: Review 모델(orderId @unique·rating·body·authorName)+마이그레이션 20260717140000(CREATE TABLE+FK+@unique+createdAt 인덱스+RLS ENABLE — R10). 두 백엔드 reviewStore(in-memory/Prisma, 주문당 1개 조건부 create) + 순수 validateReview(별점 1~5·본문·표시명). submitReview 서버 액션: hasOrderAccess(주문 소유)+isPaidFamily(구매 인증) 이중 게이트(클라이언트 폼은 게이트 아님)+untrusted 경계. 결제 완료 마이페이지에 ReviewForm, /reviews를 placeholder→실제 목록+게시 후기 산술 평균 평점 표시+후기 운영정책 고지(2026-07-21 시행: 작성권한·게시기간·등급기준·삭제기준·이의제기). F026 계약 보존(도입 문구에 '준비 중' 1회 유지·80% 베타 신호). React 기본 이스케이프(raw HTML 미사용). worker≠checker(11에이전트/5렌즈, refute-by-default): 4 confirmed 전부 처리 — **MAJOR** 작성 게이트 부정 경로(비소유·미결제) 미검증 → 미결제 주문 페이지 게이트 E2E(폼 부재) 추가, 비소유는 기존 mypage 접근 프롬프트 테스트로 커버, 액션 재검증은 accepted 미검증 서버액션 패턴(@/ alias+Next 런타임 의존)의 방어심층; minor×2 운영정책이 표시 안 되는 '산술 평균 평점'을 present-tense 고지 → 평균 평점 실제 표시로 정합(+E2E 단언); nit Prisma store·중복 분기 미검증 → fake delegate 유닛(중복·경합·매핑). 배포: 마이그레이션 1건 추가(20260717140000_review) — Wave B 미배포 큐."
     }
   ]
 }

@@ -72,3 +72,24 @@
   line-height: 1.6;
   color: var(--grey);
 }
+
+/* F071 — 게시된 후기의 산술 평균 평점 (운영정책 등급 기준이 고지하는 표시값). */
+.reviewAvg { margin: 0 0 var(--space-md); font-family: var(--font-grotesk); font-size: 0.95rem; letter-spacing: 0; color: var(--grey); }
+.reviewAvg strong { color: var(--ink); font-weight: 700; }
+.reviewAvgStars { color: var(--accent); letter-spacing: 0.1em; margin-right: var(--space-xs); }
+
+/* F071 — 구매 인증 후기 목록 (헤어라인 구분 카드 아님). */
+.reviewList { list-style: none; margin: 0 0 var(--space-xl); padding: 0; display: flex; flex-direction: column; }
+.reviewItem { padding: var(--space-md) 0; border-top: 1px solid var(--line); min-width: 0; }
+.reviewHead { display: flex; flex-wrap: wrap; gap: var(--space-xs) var(--space-md); align-items: baseline; margin-bottom: var(--space-xs); }
+.reviewStars { font-size: 0.95rem; letter-spacing: 0.1em; color: var(--accent); }
+.reviewMeta { font-family: var(--font-grotesk); font-size: 0.8rem; letter-spacing: 0; color: var(--muted); }
+.reviewBody { margin: 0; font-size: 0.98rem; line-height: 1.75; color: var(--ink); white-space: pre-wrap; word-break: break-word; }
+
+/* F071 — 후기 운영정책 고지. */
+.policy { margin-top: var(--space-xl); padding-top: var(--space-md); border-top: 1px solid var(--line); }
+.policyTitle { margin: 0; font-family: var(--font-grotesk); font-weight: 600; font-size: 0.95rem; letter-spacing: 0; color: var(--ink); }
+.policyMeta { margin: var(--space-xs) 0 var(--space-sm); font-family: var(--font-grotesk); font-size: 0.78rem; letter-spacing: 0; color: var(--muted); }
+.policyList { margin: 0; padding-left: 1.1em; display: flex; flex-direction: column; gap: var(--space-xs); }
+.policyList li { font-size: 0.88rem; line-height: 1.7; color: var(--grey); }
+.policyList strong { color: var(--ink); font-weight: 600; }

@@ -7,8 +7,10 @@ import { FinishingClient } from "../../_components/mypage/FinishingClient";
 import { CancelRequestPanel } from "../../_components/order/CancelRequestPanel";
 import { TrackingLink } from "../../_components/order/TrackingLink";
 import { DepositNotice } from "../../_components/order/DepositNotice";
+import { ReviewForm } from "../../_components/mypage/ReviewForm";
 import { orderRepo } from "@/app/api/payments/_lib/orders";
 import { isPaidFamily } from "@/app/api/payments/_lib/status";
+import { reviewStore } from "../../reviews/_lib/reviews";
 import { hasOrderAccess } from "../_lib/orderAccess";
 import styles from "../../_components/mypage/mypage.module.css";
 
@@ -55,6 +57,7 @@ export default async function MypageOrderPage({ params }: { params: Promise<{ or
   const order = await orderRepo().get(orderId);
   if (!order) notFound();
   const paid = isPaidFamily(order.status); // F054: finishing stays open through fulfillment
+  const alreadyReviewed = paid ? await reviewStore().hasReviewFor(order.id) : false; // F071
 
   return (
     <>
@@ -91,6 +94,10 @@ export default async function MypageOrderPage({ params }: { params: Promise<{ or
                 status={order.status}
                 cancelRequestedAt={order.cancelRequestedAt ?? null}
               />
+            </section>
+            <section className={styles.panel} aria-label="후기 작성">
+              <p className={styles.note}>받아 보신 그림책은 어떠셨나요? 구매 인증 후기를 남겨 주세요.</p>
+              <ReviewForm orderId={order.id} alreadyReviewed={alreadyReviewed} />
             </section>
           </>
         ) : order.status === "WAITING_FOR_DEPOSIT" ? (

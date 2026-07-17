@@ -59,6 +59,7 @@ model Order {
   items         OrderItem[]
   customRequest CustomRequest?
   assets        Asset[]
+  review        Review? // F071 — 구매 인증 후기(주문당 1개)
   // F057 — 회원 연결(선택): 로그인 결제 시 즉시, 게스트 주문은 이메일 소유 증명 시 소급 claim.
   user          User?       @relation(fields: [userId], references: [id])
   userId        String?
@@ -227,6 +228,20 @@ enum CoverType {
 enum OrderKind {
   ENTRY
   CUSTOM
+}
+
+// F071 — 구매 인증 후기. 주문 소유 게이트(hasOrderAccess)를 통과한 구매자만 작성, 주문당 1개.
+// 표시명은 구매자가 입력하는 닉네임(실명/아동 이름 금지 안내) — 주문/구매자 PII를 담지 않는다.
+model Review {
+  id         String   @id @default(cuid())
+  orderId    String   @unique
+  rating     Int // 1~5 별점
+  body       String
+  authorName String // 표시명(닉네임)
+  createdAt  DateTime @default(now())
+  order      Order    @relation(fields: [orderId], references: [id])
+
+  @@index([createdAt])
 }
 
 enum OrderStatus {

@@ -112,6 +112,9 @@
   font-size: 0.92rem;
   color: var(--accent);
 }
+/* F071 — 후기 별점 라디오 그룹 (헤어라인 없이 세로 나열). */
+.ratingGroup { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-xs); min-width: 0; }
+.ratingLabel { display: flex; align-items: center; gap: var(--space-xs); font-size: 0.95rem; color: var(--ink); cursor: pointer; }
 
 .qrSection {
   display: flex;

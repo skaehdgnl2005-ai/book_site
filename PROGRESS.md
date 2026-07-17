@@ -3,6 +3,26 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **(2026-07-17, Wave B/C 완료): F071 리뷰(후기) 시스템 DONE — 창업 체크리스트 갭 로드맵 Wave B/C(F068~F071) 4건 전부 완주.**
+  구매 인증 후기 시스템: `Review` 모델(orderId `@unique`·rating·body·authorName) + 마이그레이션 `20260717140000`
+  (CREATE TABLE + FK + `@unique` + createdAt 인덱스 + **RLS ENABLE — R10**). 두 백엔드 `reviewStore`(in-memory/
+  Prisma, 주문당 1개 조건부 create) + 순수 `validateReview`(별점 1~5·본문·표시명). `submitReview` 서버 액션 =
+  **이중 게이트** `hasOrderAccess`(주문 소유) + `isPaidFamily`(구매 인증), 클라이언트 폼은 게이트 아님(untrusted).
+  결제 완료 마이페이지에 `ReviewForm`, /reviews를 placeholder→실제 목록 + 게시 후기 산술 평균 평점 + 후기
+  운영정책 고지(2026-07-21 시행: 작성권한·게시기간·등급기준·삭제기준·이의제기). **F026 계약 보존**(도입 문구에
+  '준비 중' 1회 유지·80% 베타 신호 — reviews.spec 2/2). React 기본 이스케이프(raw HTML 미사용). **worker≠checker
+  11에이전트/5렌즈 → 4 confirmed 전부 처리**: MAJOR 작성 게이트 부정 경로(비소유·미결제) 미검증 → 미결제 페이지
+  게이트 E2E 추가(폼 부재) + 비소유는 기존 mypage 접근 프롬프트로 커버 + 액션 재검증은 accepted 미검증 서버액션
+  패턴의 방어심층; minor×2 운영정책이 표시 안 되는 평균 평점을 present-tense 고지 → 평균 평점 실제 표시로 정합;
+  nit Prisma store 미검증 → fake delegate 유닛. 검증: check green(유닛 326) + 비-flake E2E 전부 green(1 실패는
+  F063 refund page.goto 타임아웃 flake·격리 2/2 green·F071 무관) + eval 1.0. 배포 중 발견 버그 1건 직접 수정
+  (revalidatePath가 폼을 alreadyReviewed=true로 재렌더해 success 상태를 가림 → state.ok 우선 체크로 재정렬).
+  **Wave B/C 요약(모두 이 세션, 순차 WIP=1)**: F068 배송 알림+택배 딥링크 → F069 Toss 결제위젯(간편결제; MAJOR
+  키타입 상호배타 수정+실 SDK 검증) → F070 가상계좌(MAJOR 자동취소 미이행+KST 오표시 수정) → F071 리뷰. 각 피처
+  worker≠checker 적대적 리뷰 통과. **배포 HITL(Wave B/C 누적)**: 미배포 마이그레이션 2건 — `20260717130000_order_
+  virtual_account`(F070)·`20260717140000_review`(F071) → 다음 `prisma migrate deploy` 대상. env: F069
+  `NEXT_PUBLIC_TOSS_WIDGET_CLIENT_KEY`(실 gck 위젯 키). Toss 상점 어드민: 간편결제 수단별 계약(네이버·카카오·
+  토스페이)·가상계좌 수단 활성화. `Next:` 사용자 배포 체크포인트(migrate 2건 + env + 카나리) 또는 후속 갭 로드맵.
 - **(2026-07-17, Wave B): F070 가상계좌(무통장입금) DONE.**
   새 `WAITING_FOR_DEPOSIT` 상태를 결제 코어에 관통: `PaymentStatus`·`OrderStatus` enum·`status.ts` 전이표·
   Prisma enum + `depositBank/Account/DueDate` 컬럼 + 마이그레이션 `20260717130000`(enum ADD VALUE는 값
