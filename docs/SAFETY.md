@@ -13,6 +13,7 @@ These actions have real-world, non-undoable effects and are **default-deny**:
 |---|---|
 | `toss.charge.live` / `toss.refund.live` | Real money moves (TossPayments live) |
 | `order.confirm` | Commits a customer order |
+| `order.close_unpaid_va` | 기한 만료 가상계좌 미입금 종료 — 터미널 CANCELLED; 서버가 `depositDueDate < now`를 추가 강제하고, 종료 후 뒤늦은 입금은 LATE_DEPOSIT으로 감지된다(환불은 Toss 대시보드 — `docs/RUNBOOK_VA.md`) |
 | `consultation.book` | Books a 맞춤 제작 phone consultation (a real customer-facing commitment) |
 | `fulfillment.trigger` | Ships / fulfills |
 | `inventory.write.production` | Mutates prod stock (generic guard; the store is made-to-order) |

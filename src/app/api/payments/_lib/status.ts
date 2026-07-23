@@ -49,6 +49,18 @@ export function canTransition(from: OrderStatus, to: OrderStatus): boolean {
   return ALLOWED[from]?.includes(to) ?? false;
 }
 
+/**
+ * F081 — 미입금 종료(WAITING_FOR_DEPOSIT→CANCELLED)의 순수 만료 게이트. 종료는 기한이 실제로
+ * 지난 주문에만 허용된다(엄격 미만): 기한 전 무게이트 취소는 은행의 비동기 입금과 경합해 터미널
+ * CANCELLED(REFUNDED 엣지 없음)로 실입금을 앱 내 환불 경로 0에 가둔다. 기한 데이터가 없거나
+ * 깨져 있으면 fail-closed(false) — 앱 내 종료 불가, docs/RUNBOOK_VA.md의 Toss 대시보드 경로만.
+ */
+export function vaDepositExpired(depositDueDate: string | null | undefined, now: number): boolean {
+  if (!depositDueDate) return false;
+  const due = Date.parse(depositDueDate);
+  return Number.isFinite(due) && due < now;
+}
+
 /** 한글 표시 라벨 (구매자/관리자 화면 공용). */
 export const ORDER_STATUS_LABEL: Record<OrderStatus, string> = {
   CREATED: "결제 대기",

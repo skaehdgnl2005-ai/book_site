@@ -31,6 +31,7 @@ export const IRREVERSIBLE_ACTIONS = [
   "toss.charge.live",
   "toss.refund.live",
   "order.confirm",
+  "order.close_unpaid_va", // F081 — 기한 만료 가상계좌 미입금 종료(터미널 CANCELLED; 뒤늦은 입금과 경합)
   "consultation.book",
   "fulfillment.trigger",
   "inventory.write.production",
