@@ -65,14 +65,25 @@
   color: var(--accent);
 }
 
-/* ── Stage: --panel mat, the book centered on it. */
+/* ── Stage: --panel mat, the book centered on it. position:relative anchors the F079
+   pan capture layer; touch-action:none hands ALL touch gestures to JS (StPageFlip's
+   swipes + our double-tap/pinch) — the browser's own double-tap/pinch page zoom would
+   otherwise race the viewer's zoom. The body is scroll-locked, so nothing is lost. */
 .stage {
+  position: relative;
   flex: 1;
   min-height: 0;
   display: grid;
   place-items: center;
   padding: var(--space-sm) var(--space-md);
   background: var(--panel);
+  touch-action: none;
+}
+/* While zoomed the enlarged spread must clip at the stage, not spill under the bars.
+   NOT unconditional: mid-flip leaves sweep OUTSIDE the book box, and clipping that
+   animation would crop it — but the flip is locked whenever zoom is on. */
+.overlay[data-zoomed="true"] .stage {
+  overflow: hidden;
 }
 /* Leaf (mobile) stage cap 540px: with minWidth 280 in the flip settings this keeps
    blockWidth < 2*minWidth, so StPageFlip deterministically stays single-leaf portrait
@@ -92,6 +103,50 @@
    width — so the lib gets this mount to own, and .book above stays ours to size. */
 .bookMount {
   width: 100%;
+}
+/* ── F079 — leaf zoom. The scale/translate go on THIS wrapper, between .book (our size
+   box) and .bookMount (engine-owned inline styles) — never fight the lib on the mount.
+   The transition covers the zoom toggle only; while dragging, pan must track 1:1. */
+.zoomPane {
+  transition: transform 260ms var(--ease);
+}
+.zoomPane.dragging {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .zoomPane {
+    transition: none; /* 줌 전환도 즉시 (DESIGN.md motion hard guard) */
+  }
+}
+/* Pan capture layer — covers the stage while zoomed: physically keeps pointers away
+   from StPageFlip (the flip lock) and hosts drag-to-pan / double-tap / pinch-out. */
+.panLayer {
+  position: absolute;
+  inset: 0;
+  cursor: grab;
+  touch-action: none;
+}
+.panLayer:active {
+  cursor: grabbing;
+}
+/* '크게 보기' — quiet toggle in the bottom bar's center stack (same text-action
+   voice as the nav buttons; pressed state = the accent, no second hue). */
+.zoomToggle {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  padding: 4px var(--space-xs);
+  font-family: var(--font-grotesk);
+  font-weight: 500;
+  font-size: 0.78rem;
+  letter-spacing: 0; /* 한글 라벨 — 양수 자간 금지 */
+  color: var(--grey);
+}
+.zoomToggle:hover {
+  color: var(--accent);
+}
+.zoomToggle[aria-pressed="true"] {
+  color: var(--accent);
 }
 /* Fade fallback (prefers-reduced-motion / lib load failure): we size the host ourselves
    and stack full-spread pages; no flip engine involved. */

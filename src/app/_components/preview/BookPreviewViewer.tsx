@@ -1,5 +1,12 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import type { PageFlip } from "page-flip";
 import type { CatalogTemplate } from "../catalog/templates";
 import {
@@ -184,6 +191,178 @@ export function BookPreviewViewer({
   const onCloseRef = useRef(onClose);
   const onCtaRef = useRef(onCta ?? onClose);
 
+  // F079 — leaf-only zoom. One step (fit-height, measured at toggle time); while
+  // zoomed the flip is LOCKED and dragging pans instead. The scale/translate live on
+  // .zoomPane — OUTSIDE the engine-owned .bookMount, whose inline styles StPageFlip
+  // rewrites (F077 함정: autoSize forces width:100% on the mount, UI.ts:60).
+  const [zoomed, setZoomed] = useState(false);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const bookBoxRef = useRef<HTMLDivElement>(null);
+  const zoomPaneRef = useRef<HTMLDivElement>(null);
+  const zoomedRef = useRef(false);
+  const zoomScaleRef = useRef(1);
+  const panPosRef = useRef({ x: 0, y: 0 });
+  // Tap / pinch / drag tracker shared by the two gesture surfaces: the .book box
+  // (zoom-in) and the pan capture layer (pan + zoom-out). Pointer events unify
+  // mouse and touch, so the same FSM serves both input kinds.
+  const gestureRef = useRef({
+    points: new Map<number, { x: number; y: number }>(),
+    pinchStartDist: 0,
+    tap: { id: null as number | null, x: 0, y: 0, t: 0, moved: false },
+    lastTap: { t: 0, x: 0, y: 0 },
+    drag: null as null | { id: number; x: number; y: number; startX: number; startY: number },
+  });
+
+  /** Write the current zoom/pan onto the pane (imperative — pan must not re-render). */
+  const applyZoomTransform = useCallback(() => {
+    const pane = zoomPaneRef.current;
+    if (!pane) return;
+    if (!zoomedRef.current) {
+      pane.style.transform = "";
+      return;
+    }
+    const { x, y } = panPosRef.current;
+    pane.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${zoomScaleRef.current})`;
+  }, []);
+
+  /** Keep the scaled spread's edges pinned to the stage (no panning into the void). */
+  const clampPan = useCallback((x: number, y: number) => {
+    const stage = stageRef.current;
+    const book = bookBoxRef.current;
+    if (!stage || !book) return { x: 0, y: 0 };
+    const k = zoomScaleRef.current;
+    const maxX = Math.max(0, (book.clientWidth * k - stage.clientWidth) / 2);
+    const maxY = Math.max(0, (book.clientHeight * k - stage.clientHeight) / 2);
+    return { x: Math.min(maxX, Math.max(-maxX, x)), y: Math.min(maxY, Math.max(-maxY, y)) };
+  }, []);
+
+  const setZoom = useCallback(
+    (on: boolean) => {
+      if (on) {
+        const stage = stageRef.current;
+        const book = bookBoxRef.current;
+        if (!stage || !book) return;
+        // fit-height, single step (다단계 배율은 비목표) — measured live so the bar
+        // heights, safe-area inset and the 540px width cap are all accounted for.
+        const k = stage.clientHeight / Math.max(1, book.clientHeight);
+        zoomScaleRef.current = Math.round(Math.min(4, Math.max(1, k)) * 100) / 100;
+      }
+      panPosRef.current = { x: 0, y: 0 };
+      zoomedRef.current = on;
+      setZoomed(on);
+      applyZoomTransform();
+    },
+    [applyZoomTransform],
+  );
+
+  const panBy = useCallback(
+    (dx: number, dy: number) => {
+      panPosRef.current = clampPan(panPosRef.current.x + dx, panPosRef.current.y + dy);
+      applyZoomTransform();
+    },
+    [applyZoomTransform, clampPan],
+  );
+
+  const onZoomSurfacePointerDown = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    const g = gestureRef.current;
+    g.points.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (g.points.size === 2) {
+      // A pinch begins — it supersedes tap and drag tracking.
+      const [a, b] = Array.from(g.points.values());
+      g.pinchStartDist = Math.hypot(a.x - b.x, a.y - b.y);
+      g.tap.id = null;
+      g.drag = null;
+      zoomPaneRef.current?.classList.remove(styles.dragging);
+      return;
+    }
+    g.tap = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), moved: false };
+    if (zoomedRef.current) {
+      g.drag = {
+        id: e.pointerId,
+        x: panPosRef.current.x,
+        y: panPosRef.current.y,
+        startX: e.clientX,
+        startY: e.clientY,
+      };
+      e.currentTarget.setPointerCapture(e.pointerId);
+      zoomPaneRef.current?.classList.add(styles.dragging); // pan tracks 1:1 — no easing lag
+    }
+  }, []);
+
+  const onZoomSurfacePointerMove = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      const g = gestureRef.current;
+      if (g.points.has(e.pointerId)) g.points.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      if (g.points.size === 2 && g.pinchStartDist > 0) {
+        const [a, b] = Array.from(g.points.values());
+        const ratio = Math.hypot(a.x - b.x, a.y - b.y) / g.pinchStartDist;
+        // One-step zoom ⇒ pinch is a toggle: spread far enough to enlarge, squeeze to restore.
+        if (!zoomedRef.current && ratio > 1.3) {
+          g.pinchStartDist = 0;
+          setZoom(true);
+        } else if (zoomedRef.current && ratio < 0.75) {
+          g.pinchStartDist = 0;
+          setZoom(false);
+        }
+        return;
+      }
+      if (g.tap.id === e.pointerId && Math.hypot(e.clientX - g.tap.x, e.clientY - g.tap.y) > 12) {
+        g.tap.moved = true;
+      }
+      if (zoomedRef.current && g.drag && g.drag.id === e.pointerId) {
+        panPosRef.current = clampPan(
+          g.drag.x + (e.clientX - g.drag.startX),
+          g.drag.y + (e.clientY - g.drag.startY),
+        );
+        applyZoomTransform();
+      }
+    },
+    [applyZoomTransform, clampPan, setZoom],
+  );
+
+  const onZoomSurfacePointerUp = useCallback(
+    (e: ReactPointerEvent<HTMLDivElement>) => {
+      const g = gestureRef.current;
+      g.points.delete(e.pointerId);
+      if (g.points.size < 2) g.pinchStartDist = 0;
+      if (g.drag?.id === e.pointerId) {
+        g.drag = null;
+        zoomPaneRef.current?.classList.remove(styles.dragging);
+      }
+      if (g.tap.id !== e.pointerId) return;
+      const now = performance.now();
+      const isTap = !g.tap.moved && now - g.tap.t < 300;
+      g.tap.id = null;
+      if (!isTap) return;
+      const isDouble =
+        now - g.lastTap.t < 320 &&
+        Math.hypot(e.clientX - g.lastTap.x, e.clientY - g.lastTap.y) < 40;
+      if (isDouble) {
+        g.lastTap.t = 0;
+        setZoom(!zoomedRef.current); // ② gesture sugar — double-tap toggles the same state
+      } else {
+        g.lastTap = { t: now, x: e.clientX, y: e.clientY };
+      }
+    },
+    [setZoom],
+  );
+
+  const onZoomSurfacePointerCancel = useCallback((e: ReactPointerEvent<HTMLDivElement>) => {
+    const g = gestureRef.current;
+    g.points.delete(e.pointerId);
+    if (g.points.size < 2) g.pinchStartDist = 0;
+    if (g.drag?.id === e.pointerId) {
+      g.drag = null;
+      zoomPaneRef.current?.classList.remove(styles.dragging);
+    }
+    if (g.tap.id === e.pointerId) g.tap.id = null;
+  }, []);
+
+  // Zoom is leaf-only: crossing into book mode (rotation/breakpoint) restores 1:1.
+  useEffect(() => {
+    if (mode !== "leaf" && zoomedRef.current) setZoom(false);
+  }, [mode, setZoom]);
+
   useEffect(() => {
     onCloseRef.current = onClose;
     onCtaRef.current = onCta ?? onClose;
@@ -211,11 +390,13 @@ export function BookPreviewViewer({
   }, []);
 
   const goPrev = useCallback(() => {
+    if (zoomedRef.current) return; // F079 — flip locked while zoomed
     const engine = engineRef.current;
     if (engine) engine.flipPrev();
     else setIndex((i) => Math.max(i - 1, 0));
   }, []);
   const goNext = useCallback(() => {
+    if (zoomedRef.current) return; // F079 — flip locked while zoomed
     const engine = engineRef.current;
     if (engine) engine.flipNext();
     else setIndex((i) => Math.min(i + 1, total - 1));
@@ -284,6 +465,19 @@ export function BookPreviewViewer({
         onCloseRef.current();
         return;
       }
+      // F079 — zoomed: arrow keys PAN (the keyboard twin of drag; flip stays locked).
+      if (
+        zoomedRef.current &&
+        (e.key === "ArrowRight" || e.key === "ArrowLeft" || e.key === "ArrowUp" || e.key === "ArrowDown")
+      ) {
+        e.preventDefault();
+        const step = 48;
+        panBy(
+          e.key === "ArrowLeft" ? step : e.key === "ArrowRight" ? -step : 0,
+          e.key === "ArrowUp" ? step : e.key === "ArrowDown" ? -step : 0,
+        );
+        return;
+      }
       if (e.key === "ArrowRight") {
         e.preventDefault();
         goNext();
@@ -315,7 +509,7 @@ export function BookPreviewViewer({
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [goNext, goPrev]);
+  }, [goNext, goPrev, panBy]);
 
   return (
     <div
@@ -326,6 +520,7 @@ export function BookPreviewViewer({
       aria-label={`『${template.label}』 미리보기`}
       data-testid="preview-dialog"
       data-mode={mode}
+      data-zoomed={zoomed ? "true" : "false"}
     >
       <div className={styles.topBar}>
         <div className={styles.titleGroup}>
@@ -343,10 +538,36 @@ export function BookPreviewViewer({
         </button>
       </div>
 
-      <div className={styles.stage}>
-        <div className={styles.book} data-testid="preview-stage">
-          <div ref={bookRef} className={styles.bookMount} />
+      <div ref={stageRef} className={styles.stage}>
+        {/* Zoom-in gesture surface (leaf only): taps bubble up from the engine's pages. */}
+        <div
+          ref={bookBoxRef}
+          className={styles.book}
+          data-testid="preview-stage"
+          onPointerDown={mode === "leaf" ? onZoomSurfacePointerDown : undefined}
+          onPointerMove={mode === "leaf" ? onZoomSurfacePointerMove : undefined}
+          onPointerUp={mode === "leaf" ? onZoomSurfacePointerUp : undefined}
+          onPointerCancel={mode === "leaf" ? onZoomSurfacePointerCancel : undefined}
+        >
+          {/* The zoom transform lives HERE — never on .bookMount (engine-owned inline styles). */}
+          <div ref={zoomPaneRef} className={styles.zoomPane} data-testid="preview-zoom-pane">
+            <div ref={bookRef} className={styles.bookMount} />
+          </div>
         </div>
+        {zoomed ? (
+          // Pan capture layer: physically blocks pointers from reaching StPageFlip
+          // (the flip lock), hosts drag-to-pan, double-tap-out and pinch-in. Not a
+          // focus stop — keyboard panning goes through the arrow keys instead.
+          <div
+            className={styles.panLayer}
+            data-testid="preview-pan-layer"
+            aria-hidden="true"
+            onPointerDown={onZoomSurfacePointerDown}
+            onPointerMove={onZoomSurfacePointerMove}
+            onPointerUp={onZoomSurfacePointerUp}
+            onPointerCancel={onZoomSurfacePointerCancel}
+          />
+        ) : null}
       </div>
 
       <div className={styles.bottomBar}>
@@ -354,7 +575,7 @@ export function BookPreviewViewer({
           type="button"
           className={`${styles.navBtn} ${styles.navBtnPrev}`}
           onClick={goPrev}
-          disabled={index === 0}
+          disabled={index === 0 || zoomed}
           data-testid="preview-prev"
         >
           <span className={styles.navArrow} aria-hidden="true">
@@ -369,12 +590,24 @@ export function BookPreviewViewer({
           <p className={styles.rotateHint} data-testid="preview-rotate-hint">
             휴대폰을 가로로 돌리면 더 크게 볼 수 있어요
           </p>
+          {mode === "leaf" ? (
+            // F079 ① — the explicit, keyboardable zoom path (gestures are sugar only).
+            <button
+              type="button"
+              className={styles.zoomToggle}
+              onClick={() => setZoom(!zoomed)}
+              aria-pressed={zoomed}
+              data-testid="preview-zoom"
+            >
+              크게 보기
+            </button>
+          ) : null}
         </div>
         <button
           type="button"
           className={`${styles.navBtn} ${styles.navBtnNext}`}
           onClick={goNext}
-          disabled={index === total - 1}
+          disabled={index === total - 1 || zoomed}
           data-testid="preview-next"
         >
           다음 장

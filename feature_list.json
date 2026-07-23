@@ -1123,6 +1123,25 @@
       "state": "passing",
       "passes": true,
       "evidence": "2026-07-23 pnpm check green (unit 364 passed/10 skipped, constraints 0 violations). pnpm test:e2e book-preview 5/5 — F077 기존 3 무회귀 + F078 신규 2(TDD red→green): ① /anniversary 카드 '미리 읽기'→다이얼로그 오픈·URL 카테고리 잔류(중첩 Link 내비 차단)·aria-label 『탄생』·5장까지 넘김 후 CTA '이 책 만들기'→/order/birth 라우팅+order-wizard 렌더 ② /first-moments Esc 닫기→카테고리 잔류·진입 버튼 포커스 복귀·버튼 외 카드 영역(제목) 클릭→/order/first_steps. category-anniversary 2/2 + category-first-moments 2/2 무회귀(template-card href 계약 유지). 전체 E2E 176 중 173 + 실패 3건 전부 격리 재실행 green으로 환경성 판정: perf 3경로는 동시부하 스파이크(무접촉 대조군 home까지 p95 2089ms → 격리 767·774·776ms로 F068 기록 대역 복귀, 카테고리↔home 델타 ~10ms = F078 경로 특이 회귀 0), mypage-finish는 직전 런 웹서버 경합 후 5/5. eval 11/11 pass. 구현: TemplateCard \"use client\" 전환(카테고리 페이지는 서버 컴포넌트 유지 — 클라이언트 경계는 카드에서 시작), 카드 안 '미리 읽기' 텍스트 액션(DESIGN.md #4 문법: 배지/아이콘 없음·카드당 1개·한글 자간 0·hover 화살표 5px·reduced-motion 가드·focus-visible 네이비 링, 위저드 previewLink와 동일 문법)이 preventDefault(네이티브 앵커)+stopPropagation(Next Link onClick)으로 링크 내비게이션을 차단하고 BookPreviewViewer 오픈. 뷰어는 Link의 형제로 렌더(Link 내부에 두면 다이얼로그 클릭이 앵커로 버블). BookPreviewViewer 선택적 onCta prop — 기본값 onClose(F077 위저드 컨텍스트 '닫기=복귀' 무변경), 카드 컨텍스트는 router.push(/order/<key>). formatWon은 클라이언트 안전 쌍둥이 _components/order/format.ts 사용(templates.ts의 @/lib/db 동적 임포트 클라이언트 번들 유입 차단 — CartView 등 기존 선례). 닫힘 시 그 카드의 진입 버튼으로 포커스 복귀(위저드 패리티). 마이그레이션 0."
+    },
+    {
+      "id": "F079",
+      "category": "functional",
+      "track": "product",
+      "priority": 2,
+      "description": "미리보기 뷰어 줌(F077 후속) — 모바일 낱장(leaf) 모드에서 스프레드 확대. ① 접근성/E2E-안정 경로: 하단 바 명시적 '크게 보기' 토글 버튼(키보드 가능, aria-pressed, data-testid=preview-zoom, leaf 모드에서만 렌더). ② 제스처 슈가: 스테이지 더블탭 토글 + 핀치(포인터 2점 거리 비율 임계 — 벌리면 확대·모으면 원복). 배율은 fit-height 1단계(토글 시점에 스테이지/북 실측으로 계산). 확대 상태에선 스와이프=팬(pan) 전환 + 플립 잠금: 팬 캡처 레이어가 StPageFlip 마운트로의 포인터를 차단(물리적 잠금), 이전/다음 버튼 disabled, ←/→/↑/↓ 키는 팬 스텝으로 전환. 축소 시 전부 원복(팬 오프셋 리셋·내비 재활성). 줌 transform은 StPageFlip 마운트(.bookMount)의 인라인 스타일과 싸우지 않도록 마운트 '바깥' 래퍼(.zoomPane)에만 적용(F077 함정: lib autoSize가 마운트에 인라인 width:100% 강제 — UI.ts:60). prefers-reduced-motion이면 줌 전환 애니메이션 없이 즉시(CSS 미디어 가드). 데스크톱(book 모드)·다단계 배율은 비목표. Esc는 기존대로 다이얼로그 닫기(무변경).",
+      "steps": [
+        "모바일 세로(390×844) 뷰어 하단 바에 '크게 보기' 토글이 보이고 aria-pressed=false로 시작한다",
+        "토글을 누르면 aria-pressed=true가 되고 스프레드가 fit-height 배율로 실제 확대된다(transform scale>1)",
+        "확대 상태에선 이전/다음 버튼이 잠기고(disabled) 드래그가 페이지 플립 대신 팬으로 동작한다",
+        "토글을 다시 누르면 원래 배율로 복귀하고 플립 내비게이션이 다시 활성화된다",
+        "스테이지 더블탭으로도 확대/원복이 토글된다",
+        "데스크톱(book 모드) 하단 바에는 줌 토글이 렌더되지 않는다"
+      ],
+      "verification": "pnpm test:e2e -- book-preview.spec.ts",
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-23 pnpm check green (unit 364 passed/10 skipped, constraints 0 violations). pnpm test:e2e book-preview 8/8 — 기존 5(F077 3+F078 2) 무회귀 + F079 신규 3(TDD red→green): ① '크게 보기' 토글 — aria-pressed false→true·data-zoomed 반영, zoomPane computed matrix scale>1.1(fit-height 실확대), 이전/다음 disabled(플립 잠금), 재토글 시 identity 복귀 후 넘김 재개(2/5) ② 더블탭 확대 → 마우스 드래그 팬(tx<-40 이동, 인디케이터 1/5 유지=플립 아님) → 팬 레이어 더블탭 원복 ③ 데스크톱 book 모드 하단 바에 preview-zoom 미렌더(비목표 가드). 줌 3케이스 --repeat-each 3 = 9/9(4워커 병렬 — 더블탭 320ms 창 타이밍 flake 내성 확인). 전체 E2E 179 중 178 + 유일 실패 perf category-anniversary는 격리 3/3 green(771·777·795ms — F068·F078과 동일한 전체 스위트 동시부하 아티팩트, F079는 카테고리 페이지 무접촉). eval 11/11 pass. 구현: 줌 transform은 신규 .zoomPane(사이즈 박스 .book과 엔진 소유 .bookMount 사이 래퍼) — StPageFlip 인라인 스타일(autoSize width:100%, UI.ts:60)과 구조적 무충돌(F077 함정 준수). fit-height 1단계 = 토글 시점 stage.clientHeight/book.clientHeight 실측(clamp 1~4 — 바 높이·safe-area·540px 캡 자동 반영). 플립 잠금 3중: 팬 캡처 레이어가 스테이지 포인터를 StPageFlip에서 물리 차단 + prev/next disabled + goNext/goPrev 가드; ←/→/↑/↓ 키는 팬 스텝(48px, clampPan — 스프레드 가장자리를 스테이지에 고정)으로 전환. 제스처는 포인터 이벤트 단일 FSM(마우스·터치 동일 경로): 더블탭 토글(탭<300ms·창 320ms/40px), 핀치=2포인터 거리비 토글(>1.3 확대/<0.75 원복), 드래그 중 .dragging 클래스로 transition 제거(1:1 추적). 줌 전환 260ms, prefers-reduced-motion 즉시(CSS 가드). .stage touch-action:none(브라우저 더블탭/핀치 페이지 줌과의 경합 차단 — body 스크롤 락 상태라 손실 0), 확대 중에만 .stage overflow:hidden(무조건이면 낱장 플립 스윕이 잘림). book 모드 진입(회전/리사이즈) 시 자동 원복. Esc·닫기·CTA(F078 onCta) 기존 계약 무변경. 마이그레이션 0."
     }
   ]
 }

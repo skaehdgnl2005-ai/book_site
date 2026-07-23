@@ -117,3 +117,92 @@ test.describe("책 미리보기 — 모바일 세로(낱장 플립)", () => {
     await expect(page.getByTestId("preview-dialog")).toHaveCount(0);
   });
 });
+
+// F079 — 모바일 낱장(leaf) 줌. ① the a11y/E2E-stable path is the explicit '크게 보기'
+// toggle (aria-pressed); ② double-tap is gesture sugar over the same state. Zoomed:
+// the flip is LOCKED (nav disabled + a pan capture layer physically blocks pointers
+// to the StPageFlip mount) and dragging pans instead; unzooming restores everything.
+// The zoom transform lives on .zoomPane — OUTSIDE the engine-owned .bookMount, which
+// StPageFlip styles inline (F077 함정 — never fight it there).
+test.describe("책 미리보기 — 모바일 줌(leaf)", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+
+  /** Computed scaleX / translateX of the zoom pane ("none" ⇒ identity). */
+  const paneMatrix = (sel: string) => async (page: import("@playwright/test").Page) =>
+    page.getByTestId(sel).evaluate((el) => {
+      const t = getComputedStyle(el).transform;
+      const m = t === "none" ? null : new DOMMatrixReadOnly(t);
+      return { scale: m ? m.m11 : 1, tx: m ? m.m41 : 0 };
+    });
+  const zoomPane = paneMatrix("preview-zoom-pane");
+
+  test("'크게 보기' 토글 — fit-height 확대·플립 잠금·원복 후 넘김 재개", async ({ page }) => {
+    await page.goto("/order/birth");
+    await page.getByTestId("preview-open").click();
+
+    const dialog = page.getByTestId("preview-dialog");
+    await expect(dialog).toHaveAttribute("data-mode", "leaf");
+    await expect(dialog).toHaveAttribute("data-zoomed", "false");
+
+    const zoom = page.getByTestId("preview-zoom");
+    await expect(zoom).toHaveAttribute("aria-pressed", "false");
+
+    await zoom.click();
+    await expect(zoom).toHaveAttribute("aria-pressed", "true");
+    await expect(dialog).toHaveAttribute("data-zoomed", "true");
+    // Actually enlarged (fit-height ⇒ well past 1 on a 390×844 portrait stage).
+    await expect.poll(async () => (await zoomPane(page)).scale).toBeGreaterThan(1.1);
+    // Flip locked while zoomed.
+    await expect(page.getByTestId("preview-next")).toBeDisabled();
+    await expect(page.getByTestId("preview-prev")).toBeDisabled();
+
+    // Toggle back: identity transform, nav re-enabled, flipping works again.
+    await zoom.click();
+    await expect(zoom).toHaveAttribute("aria-pressed", "false");
+    await expect(dialog).toHaveAttribute("data-zoomed", "false");
+    await expect.poll(async () => (await zoomPane(page)).scale).toBeLessThan(1.05);
+    await page.getByTestId("preview-next").click();
+    await expect(page.getByTestId("preview-indicator")).toHaveText("2 / 5");
+  });
+
+  test("더블탭 확대 → 드래그=팬(플립 아님) → 더블탭 원복", async ({ page }) => {
+    await page.goto("/order/birth");
+    await page.getByTestId("preview-open").click();
+    const dialog = page.getByTestId("preview-dialog");
+    await expect(dialog).toHaveAttribute("data-mode", "leaf");
+
+    const stageBox = await page.getByTestId("preview-stage").boundingBox();
+    if (!stageBox) throw new Error("preview-stage has no bounding box");
+    const cx = stageBox.x + stageBox.width / 2;
+    const cy = stageBox.y + stageBox.height / 2;
+
+    // Double-tap the spread — gesture sugar for the same zoom state.
+    await page.touchscreen.tap(cx, cy);
+    await page.touchscreen.tap(cx, cy);
+    await expect(dialog).toHaveAttribute("data-zoomed", "true");
+
+    // Dragging now PANS (translate moves) and never flips (indicator unchanged).
+    await page.mouse.move(cx, cy);
+    await page.mouse.down();
+    await page.mouse.move(cx - 120, cy, { steps: 8 });
+    await page.mouse.up();
+    await expect.poll(async () => (await zoomPane(page)).tx).toBeLessThan(-40);
+    await expect(page.getByTestId("preview-indicator")).toHaveText("1 / 5");
+
+    // Double-tap (on the pan layer) restores.
+    await page.touchscreen.tap(cx, cy);
+    await page.touchscreen.tap(cx, cy);
+    await expect(dialog).toHaveAttribute("data-zoomed", "false");
+  });
+
+  test.describe("데스크톱(book) — 줌 비목표", () => {
+    test.use({ viewport: { width: 1280, height: 800 } });
+
+    test("book 모드 하단 바에는 줌 토글이 렌더되지 않는다", async ({ page }) => {
+      await page.goto("/order/birth");
+      await page.getByTestId("preview-open").click();
+      await expect(page.getByTestId("preview-dialog")).toHaveAttribute("data-mode", "book");
+      await expect(page.getByTestId("preview-zoom")).toHaveCount(0);
+    });
+  });
+});

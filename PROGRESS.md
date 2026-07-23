@@ -3,6 +3,20 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **(2026-07-23): F079 미리보기 뷰어 모바일 줌 DONE — `/change` 접수(F077 후속 2). F077~F079 커밋 완료.**
+  모바일 낱장(leaf) 한정 fit-height 1단계 줌: ① a11y/E2E-안정 경로 = 하단 바 '크게 보기' 토글(aria-pressed,
+  leaf에서만 렌더) ② 슈가 = 더블탭 토글(320ms/40px 창) + 핀치(2포인터 거리비 >1.3/<0.75). 확대 중 스와이프=팬,
+  **플립 3중 잠금**(팬 캡처 레이어가 포인터를 엔진에서 물리 차단 + prev/next disabled + goNext/goPrev 가드),
+  ←/→/↑/↓는 팬 스텝(48px, clampPan)으로 전환. **줌 transform은 신규 .zoomPane(.book↔.bookMount 사이)** —
+  StPageFlip 인라인(autoSize width:100%, UI.ts:60)과 무충돌(F077 함정 준수). 배율은 토글 시점 실측
+  stage/book clientHeight(clamp 1~4). .stage touch-action:none(브라우저 제스처 경합 차단), 확대 중에만
+  overflow:hidden(무조건이면 플립 스윕 잘림). 전환 260ms·드래그 중 transition 제거·reduced-motion 즉시.
+  book 모드 진입 시 자동 원복, Esc·CTA 계약 무변경. 검증: check green(유닛 364/10skip·R 0위반) +
+  book-preview 8/8(신규 3, TDD red→green) + 줌 3케이스 반복 9/9(타이밍 flake 내성) + 전체 E2E 179 중 178
+  (유일 실패 perf category-anniversary 격리 3/3 green 771·777·795ms — 동시부하 아티팩트 3번째 기록) +
+  eval 11/11. 마이그레이션 0. **커밋**: `92ba224` feat(F077-F078: 뷰어+카드 진입, 사용자 지시로 이번 세션
+  선커밋) → F079 본 커밋. 이질 파일 2건(.gitignore·app.json)은 계속 미스테이징(타 도구 유입분).
+  `Next:` 트랙 O(사용자 우선순위 지정 대기). 실 내지 에셋 도착 시 previewSpreads 분기 소작업은 그대로 유효.
 - **(2026-07-23): F078 카테고리 카드 미리보기 진입 DONE — `/change` 접수(F077 후속).**
   /anniversary·/first-moments TemplateCard 안 '미리 읽기' 텍스트 액션(DESIGN.md #4 — 배지/아이콘 없음, 카드당 1개,
   위저드 previewLink 동일 문법)으로 주문 페이지 이동 없이 F077 뷰어를 카테고리에서 바로 오픈. 카드 전체가 /order/<key>
