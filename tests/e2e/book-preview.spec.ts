@@ -118,6 +118,56 @@ test.describe("책 미리보기 — 모바일 세로(낱장 플립)", () => {
   });
 });
 
+// F080 — 실제 내지 이미지. birth carries real spread assets (public/previews/birth/),
+// so its deck renders kind:"image" spreads: leaf shows the whole 10:7 file, book mode
+// CLIPS the same file into left/right halves (the file itself is never split — the
+// F077 .half/.halfInner 200% structure does the slicing). Asset-less templates keep
+// the typographic placeholder deck — the fallback path this describe pins down.
+test.describe("책 미리보기 — 실제 내지 이미지", () => {
+  test("birth: 이미지 스프레드 데크(1장 즉시 로드·10:7 원본·양쪽 클리핑) + 마지막 CTA 장", async ({
+    page,
+  }) => {
+    await page.goto("/order/birth");
+    await page.getByTestId("preview-open").click();
+    const dialog = page.getByTestId("preview-dialog");
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toHaveAttribute("data-mode", "book");
+
+    // First spread is a real image, loaded eagerly, with the reader-facing alt.
+    const firstImg = dialog.locator('img[alt="『탄생』 미리보기 1번째 펼침면"]');
+    await expect(firstImg).toBeVisible();
+    await expect
+      .poll(async () => firstImg.evaluate((el) => (el as HTMLImageElement).naturalWidth))
+      .toBeGreaterThan(0);
+    // The 10:7 original travels whole — slicing is CSS clipping, never a cut file.
+    const dims = await firstImg.evaluate((el) => {
+      const i = el as HTMLImageElement;
+      return { w: i.naturalWidth, h: i.naturalHeight };
+    });
+    expect(dims.w * 7).toBe(dims.h * 10);
+    // Book mode: the SAME file appears twice (left half + right half copy).
+    await expect(dialog.locator('img[src="/previews/birth/spread-01.webp"]')).toHaveCount(2);
+
+    // The deck stays 4 images + the CTA spread — image assets never displace the CTA.
+    for (const n of [2, 3, 4, 5]) {
+      await page.getByTestId("preview-next").click();
+      await expect(page.getByTestId("preview-indicator")).toHaveText(`${n} / 5`);
+    }
+    await expect(page.getByTestId("preview-cta")).toBeVisible();
+  });
+
+  test("에셋 없는 템플릿(백일)은 타이포 플레이스홀더 데크 유지", async ({ page }) => {
+    await page.goto("/order/hundred_days");
+    await page.getByTestId("preview-open").click();
+    const dialog = page.getByTestId("preview-dialog");
+    await expect(dialog).toBeVisible();
+    // No image spreads — the bespoke story lines still render (fallback preserved).
+    await expect(dialog.locator("img[data-spread-no]")).toHaveCount(0);
+    await expect(dialog.getByText(/백 번의 아침/).first()).toBeVisible();
+    await expect(page.getByTestId("preview-indicator")).toHaveText("1 / 5");
+  });
+});
+
 // F079 — 모바일 낱장(leaf) 줌. ① the a11y/E2E-stable path is the explicit '크게 보기'
 // toggle (aria-pressed); ② double-tap is gesture sugar over the same state. Zoomed:
 // the flip is LOCKED (nav disabled + a pan capture layer physically blocks pointers

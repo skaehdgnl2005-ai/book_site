@@ -16,7 +16,28 @@ export type PreviewSpread =
       /** "split" = 좌 글/우 그림 자리, "bleed" = 양면을 가로지르는 장면(10:7 풀블리드). */
       layout: "split" | "bleed";
     }
+  | {
+      /** F080 — 실제 내지 스프레드(10:7 webp, 워터마크·페이지번호는 파이프라인이 픽셀에 굽기). */
+      kind: "image";
+      id: string;
+      src: string;
+      alt: string;
+    }
   | { kind: "cta"; id: string; text: string };
+
+/**
+ * F080 — 실물 내지 에셋 대장: public/previews/<key>/spread-01..NN.webp (10:7 · 장당
+ * ≤300KB). fs는 클라이언트 번들에 유입 금지라 이 빌드타임 상수가 유일한 분기 근거이며,
+ * 실제 파일과의 드리프트(개수·크기·비율·고아 디렉토리)는 preview-assets.test.ts가 Node
+ * fs로 강제한다. 파이프라인이 새 템플릿 에셋을 드롭하면 여기 개수를 갱신하는 것이 등록
+ * 절차의 전부다. 4장 미만 드롭은 데크를 전환하지 않는다(빈 책 금지 — 아래 게이트).
+ */
+export const PREVIEW_IMAGE_COUNTS: Record<string, number> = {
+  birth: 4,
+};
+
+/** 데크 전환 최소 장수 — 이미지 데크도 완전한 책이어야 한다(플레이스홀더 계약과 동형). */
+const MIN_IMAGE_DECK = 4;
 
 export const PREVIEW_CTA_TEXT = "이야기의 끝은 아이의 이름으로 완성됩니다";
 export const PREVIEW_CTA_BUTTON = "이 책 만들기";
@@ -84,6 +105,23 @@ const FALLBACK_LINES: [string, string, string, string] = [
 export function previewSpreadsFor(
   template: Pick<CatalogTemplate, "key" | "label">,
 ): PreviewSpread[] {
+  const cta = { kind: "cta" as const, id: `${template.key}-cta`, text: PREVIEW_CTA_TEXT };
+
+  // F080 — 에셋 보유 템플릿은 실제 내지 이미지 데크. CTA 장은 이미지 여부와 무관하게
+  // 마지막을 지킨다. 대장에 없는(또는 4장 미만인) 템플릿은 아래 타이포 플레이스홀더로.
+  const imageCount = PREVIEW_IMAGE_COUNTS[template.key] ?? 0;
+  if (imageCount >= MIN_IMAGE_DECK) {
+    return [
+      ...Array.from({ length: imageCount }, (_, i) => ({
+        kind: "image" as const,
+        id: `${template.key}-image-${i + 1}`,
+        src: `/previews/${encodeURIComponent(template.key)}/spread-${String(i + 1).padStart(2, "0")}.webp`,
+        alt: `『${template.label}』 미리보기 ${i + 1}번째 펼침면`,
+      })),
+      cta,
+    ];
+  }
+
   const lines = STORY_LINES[template.key] ?? FALLBACK_LINES;
   return [
     ...lines.map((text, i) => ({
@@ -93,6 +131,6 @@ export function previewSpreadsFor(
       // 홀수 번째(둘째·넷째)를 풀블리드 장면으로 — split/bleed 두 구성을 모두 시연.
       layout: i % 2 === 1 ? ("bleed" as const) : ("split" as const),
     })),
-    { kind: "cta" as const, id: `${template.key}-cta`, text: PREVIEW_CTA_TEXT },
+    cta,
   ];
 }

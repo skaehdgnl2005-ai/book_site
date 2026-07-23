@@ -214,6 +214,18 @@
   padding: 6% 12%;
   background: var(--panel); /* tone step hints a full-bleed 장면 across the gutter */
 }
+/* F080 — 실제 내지 스프레드: 캔버스를 꽉 채우는 10:7 원본(비율 동일 → 레터박스 없음).
+   book 모드의 좌/우 슬라이싱은 파일이 아니라 .half/.halfInner 클리핑이 담당(F077 구조).
+   워터마크·페이지 번호는 파이프라인이 에셋 픽셀에 굽는다 — 웹 CSS 오버레이 없음. */
+.imageSpread {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  user-select: none;
+  -webkit-user-drag: none;
+}
 .storyText {
   margin: 0;
   font-family: var(--font-sans);

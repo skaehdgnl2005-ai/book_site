@@ -56,6 +56,33 @@ function buildCanvas(
   side: "full" | "left" | "right",
   onCta: () => void,
 ): HTMLElement {
+  if (spread.kind === "image") {
+    // F080 — 실제 내지 스프레드. The whole 10:7 file fills the canvas; in book mode the
+    // surrounding .half/.halfInner (200%) clips it into left/right pages — the FILE is
+    // never split. Page numbers + watermark are baked INTO the asset by the backstage
+    // pipeline (design §에셋 계약), so no DOM overlays here.
+    const canvas = make("div", styles.canvas);
+    const img = make("img", styles.imageSpread);
+    img.src = spread.src;
+    // The right-half copy is a visual duplicate of the same spread — hide it from
+    // screen readers so each spread announces once.
+    img.alt = side === "right" ? "" : spread.alt;
+    if (side === "right") img.setAttribute("aria-hidden", "true");
+    img.decoding = "async";
+    img.draggable = false;
+    img.dataset.spreadNo = String(spreadNo);
+    if (spreadNo === 1) {
+      // First spread shows immediately on open — fetch it at full priority.
+      img.loading = "eager";
+      img.setAttribute("fetchpriority", "high");
+    } else {
+      // The rest start lazy; the viewer promotes current±1 to eager on every flip.
+      img.loading = "lazy";
+    }
+    canvas.appendChild(img);
+    return canvas;
+  }
+
   const isBleed = spread.kind === "story" && spread.layout === "bleed";
   const canvas = make(
     "div",
@@ -456,6 +483,20 @@ export function BookPreviewViewer({
       el.classList.toggle(styles.fadePageActive, i === index);
     });
   }, [index, useFlip, mode, spreads]);
+
+  // F080 — image decks: everything but the first spread starts lazy; as the reader
+  // flips, the current spread's neighbors are promoted to eager so the next flip never
+  // reveals a still-loading page (인접 장 프리로드). Re-runs after mode/engine rebuilds
+  // (the imperative pages — and their <img>s — are recreated then).
+  useEffect(() => {
+    const host = bookRef.current;
+    if (!host) return;
+    host.querySelectorAll<HTMLImageElement>("img[data-spread-no]").forEach((img) => {
+      if (img.loading !== "lazy") return;
+      const no = Number(img.dataset.spreadNo);
+      if (Math.abs(no - (index + 1)) <= 1) img.loading = "eager";
+    });
+  }, [index, spreads, mode, useFlip]);
 
   // Esc closes · arrows page · Tab cycles inside the dialog (visible controls only).
   useEffect(() => {

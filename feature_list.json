@@ -1142,6 +1142,24 @@
       "state": "passing",
       "passes": true,
       "evidence": "2026-07-23 pnpm check green (unit 364 passed/10 skipped, constraints 0 violations). pnpm test:e2e book-preview 8/8 — 기존 5(F077 3+F078 2) 무회귀 + F079 신규 3(TDD red→green): ① '크게 보기' 토글 — aria-pressed false→true·data-zoomed 반영, zoomPane computed matrix scale>1.1(fit-height 실확대), 이전/다음 disabled(플립 잠금), 재토글 시 identity 복귀 후 넘김 재개(2/5) ② 더블탭 확대 → 마우스 드래그 팬(tx<-40 이동, 인디케이터 1/5 유지=플립 아님) → 팬 레이어 더블탭 원복 ③ 데스크톱 book 모드 하단 바에 preview-zoom 미렌더(비목표 가드). 줌 3케이스 --repeat-each 3 = 9/9(4워커 병렬 — 더블탭 320ms 창 타이밍 flake 내성 확인). 전체 E2E 179 중 178 + 유일 실패 perf category-anniversary는 격리 3/3 green(771·777·795ms — F068·F078과 동일한 전체 스위트 동시부하 아티팩트, F079는 카테고리 페이지 무접촉). eval 11/11 pass. 구현: 줌 transform은 신규 .zoomPane(사이즈 박스 .book과 엔진 소유 .bookMount 사이 래퍼) — StPageFlip 인라인 스타일(autoSize width:100%, UI.ts:60)과 구조적 무충돌(F077 함정 준수). fit-height 1단계 = 토글 시점 stage.clientHeight/book.clientHeight 실측(clamp 1~4 — 바 높이·safe-area·540px 캡 자동 반영). 플립 잠금 3중: 팬 캡처 레이어가 스테이지 포인터를 StPageFlip에서 물리 차단 + prev/next disabled + goNext/goPrev 가드; ←/→/↑/↓ 키는 팬 스텝(48px, clampPan — 스프레드 가장자리를 스테이지에 고정)으로 전환. 제스처는 포인터 이벤트 단일 FSM(마우스·터치 동일 경로): 더블탭 토글(탭<300ms·창 320ms/40px), 핀치=2포인터 거리비 토글(>1.3 확대/<0.75 원복), 드래그 중 .dragging 클래스로 transition 제거(1:1 추적). 줌 전환 260ms, prefers-reduced-motion 즉시(CSS 가드). .stage touch-action:none(브라우저 더블탭/핀치 페이지 줌과의 경합 차단 — body 스크롤 락 상태라 손실 0), 확대 중에만 .stage overflow:hidden(무조건이면 낱장 플립 스윕이 잘림). book 모드 진입(회전/리사이즈) 시 자동 원복. Esc·닫기·CTA(F078 onCta) 기존 계약 무변경. 마이그레이션 0."
+    },
+    {
+      "id": "F080",
+      "category": "functional",
+      "track": "product",
+      "priority": 2,
+      "description": "미리보기 실제 내지 이미지 교체(F077 후속 3) — previewSpreadsFor가 에셋 보유 템플릿에서 kind:\"image\" 스프레드 데크(이미지 4장+CTA 장)를 반환하도록 분기. 에셋 대장은 클라이언트 안전 빌드타임 상수 PREVIEW_IMAGE_COUNTS(fs 접근은 클라이언트 번들 금지 — 실파일과의 드리프트는 신규 유닛 preview-assets.test.ts가 Node fs로 강제: spread-01..NN 연속 파일명·장당 ≤300KB·webp 헤더 파싱 10:7 검증·public/previews 고아 디렉토리 역방향 검사·데크 전환 게이트 ≥4장). 렌더: leaf/fade=스프레드 전체 <img> fit, book=같은 파일을 F077 .half/.halfInner 200% 구조로 좌/우 클리핑(파일 안 자름), 오른쪽 반 사본은 alt=\"\"+aria-hidden(중복 낭독 방지). 로딩: 첫 장 eager+fetchpriority high, 이후 lazy → flip마다 현재±1장 eager 승격(인접 프리로드). alt=\"『라벨』 미리보기 n번째 펼침면\". 이미지 스프레드에는 DOM 페이지 번호 오버레이 없음(번호·워터마크는 에셋에 굽는 파이프라인 계약). 에셋 없는 템플릿·미지 키는 기존 타이포 플레이스홀더 데크 유지(빈 책 금지 계약 보존), CTA 마지막 장은 이미지 여부 무관 유지. 에셋: public/previews/birth/spread-01..04.webp(1200×840=10:7, 장당 17~20KB, 문장·페이지번호·워터마크 픽셀에 굽기 — 백스테이지 파이프라인 대역으로 이 세션에서 Chromium CDP 캡처로 생성·사용자 지시로 선행 조건 직접 충족, 실 파이프라인 산출물 도착 시 같은 파일명으로 덮어쓰고 대장 개수만 갱신).",
+      "steps": [
+        "/order/birth 미리보기 뷰어의 1~4장이 실제 이미지 스프레드로 렌더된다(첫 장 즉시 로드·naturalWidth>0, 10:7 원본, alt 제공)",
+        "데스크톱 book 모드에서 같은 이미지 파일이 좌/우 두 페이지로 클리핑되어 책등 접힘을 이룬다(파일은 안 자름, 사본 2개)",
+        "마지막 장은 이미지 여부와 무관하게 CTA 장('이 책 만들기')이다",
+        "에셋 없는 템플릿(예: 백일)은 기존 타이포그래픽 플레이스홀더 데크를 유지한다(이미지 0개·이야기 문장 렌더)",
+        "에셋 대장 상수와 실제 public/previews 파일의 드리프트(개수·크기·10:7 비율·고아 디렉토리)는 유닛이 기계적으로 잡는다"
+      ],
+      "verification": "pnpm test:e2e -- book-preview.spec.ts",
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-23 pnpm check green (unit 367 passed/10 skipped — 신규 preview-assets.test.ts: 대장↔실파일 드리프트 가드(birth 4장 연속 파일명·각 ≤300KB 실측 17~20KB·webp 헤더(VP8) 파싱 1200×840=10:7·고아 디렉토리 역검사·≥4 데크 게이트) + preview-spreads.test.ts 이미지 분기 재계약(에셋 템플릿=전량 image kind·src /previews/<key>/spread-NN.webp·alt '『라벨』 미리보기 n번째 펼침면'·CTA 유일 최종, 무에셋 7템플릿=기존 전용 문장 계약 그대로); constraints 0 violations). pnpm test:e2e book-preview 10/10 — 기존 8(F077 3+F078 2+F079 3) 무회귀 + F080 신규 2(TDD red→green): ① /order/birth book 모드 — 1장 img 가시·naturalWidth>0(eager)·naturalWidth*7==naturalHeight*10(10:7 원본 통짜)·같은 src 사본 2개(.half 좌/우 클리핑 — 파일 안 자름)·5장까지 넘겨 CTA 장 유지 ② /order/hundred_days — img[data-spread-no] 0개·'백 번의 아침' 문장 렌더(타이포 폴백 보존). 전체 E2E 181 중 180 — 유일 실패 home.spec 첫 로드 5099ms(예산 5000ms, 99ms 초과)는 격리 3/3 green 3.2s(동시부하 노이즈, F080 무접촉 경로). eval 11/11. 시각 실측: 데스크톱 스크린샷 접힘선 책등 정중앙(문장=좌·달/집=우), 모바일 F079 줌이 이미지 데크 위에서 동작. 구현: PreviewSpread kind:'image' 추가 + 에셋 대장 PREVIEW_IMAGE_COUNTS 빌드타임 상수(클라이언트 fs 금지 — 실파일 강제는 유닛 소관, 등록 절차=상수 갱신뿐, 4장 미만 드롭은 데크 미전환 게이트로 빈 책 금지 보존). buildCanvas 이미지 조기 반환: 캔버스 전체 <img> object-fit cover, book 우측 사본 alt=''+aria-hidden(중복 낭독 방지), DOM 페이지번호·워터마크 오버레이 없음(에셋에 굽는 파이프라인 계약 — 웹 CSS 워터마크 금지 준수). 로딩: 1장 eager+fetchpriority high, 이후 lazy → flip마다 현재±1 eager 승격(모드/엔진 리빌드 후 재실행 deps). 에셋: public/previews/birth/spread-01..04.webp — 사용자 지시('네가 충족시키고 진행해')로 백스테이지 파이프라인 대역을 이 세션에서 생성(레포 Playwright Chromium CDP webp 캡처, 신규 의존성 0; 문장·페이지번호 01~08·'그림책 제작소 · PREVIEW' 대각 워터마크 전부 픽셀에 굽음), 실 파이프라인 산출물은 같은 파일명 덮어쓰기+대장 갱신으로 교체. 마이그레이션 0."
     }
   ]
 }

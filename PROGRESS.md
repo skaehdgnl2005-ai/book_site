@@ -3,6 +3,20 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **(2026-07-23): F080 미리보기 실제 내지 이미지 DONE — `/change` 접수(F077 후속 3). 커밋 완료.**
+  선행 조건(실물 에셋 부재로 1차 중단)을 사용자 지시("네가 충족시키고 진행해")로 직접 충족: birth 4장
+  1200×840(10:7) webp를 레포 Playwright Chromium CDP 캡처로 생성(장당 17~20KB — 문장·페이지번호 01~08·
+  '그림책 제작소 · PREVIEW' 대각 워터마크 전부 **픽셀에 굽기**, 웹 CSS 워터마크 금지 준수; 생성 스크립트는
+  스크래치패드(레포 밖) — 실 파이프라인 산출물 도착 시 **같은 파일명 덮어쓰기 + 대장 갱신**이 교체 절차의 전부).
+  previewSpreadsFor에 kind:"image" 분기 — 에셋 대장 **PREVIEW_IMAGE_COUNTS 빌드타임 상수**(클라이언트 fs 금지),
+  실파일 드리프트는 신규 preview-assets.test.ts가 Node fs로 강제(연속 파일명·≤300KB·webp 헤더 파싱 10:7·고아
+  디렉토리 역검사·≥4 데크 게이트=빈 책 금지 동형). 렌더: leaf=통짜 fit, book=**같은 파일**을 F077 .half/.halfInner
+  클리핑(파일 안 자름; 우측 사본 alt=""+aria-hidden 중복 낭독 방지; DOM 번호/워터마크 오버레이 없음), 1장
+  eager+fetchpriority → flip마다 현재±1 eager 승격(인접 프리로드). 무에셋 템플릿·미지 키는 타이포 폴백 유지,
+  CTA 최종 장 불변. 검증: check green(유닛 367/10skip·R 0위반) + book-preview 10/10(신규 2, TDD red→green) +
+  전체 E2E 181 중 180(유일 실패 home 첫 로드 5099ms→격리 3/3 green 3.2s — 동시부하 노이즈 4번째 기록) +
+  eval 11/11 + 시각 실측(접힘선 책등 정중앙·모바일 줌 이미지 데크 상호작용). 마이그레이션 0.
+  `Next:` 트랙 O(사용자 우선순위 지정 대기). 잔여: 나머지 7템플릿 에셋은 파이프라인 드롭 대기(등록=대장 갱신).
 - **(2026-07-23): F079 미리보기 뷰어 모바일 줌 DONE — `/change` 접수(F077 후속 2). F077~F079 커밋 완료.**
   모바일 낱장(leaf) 한정 fit-height 1단계 줌: ① a11y/E2E-안정 경로 = 하단 바 '크게 보기' 토글(aria-pressed,
   leaf에서만 렌더) ② 슈가 = 더블탭 토글(320ms/40px 창) + 핀치(2포인터 거리비 >1.3/<0.75). 확대 중 스와이프=팬,
