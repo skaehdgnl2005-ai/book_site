@@ -1,6 +1,6 @@
 import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
 import { accessSecret } from "./access"; // reuse MYPAGE_ACCESS_SECRET — NO new secret (access.ts unchanged)
-import { isProductionRuntime } from "../../../lib/env";
+import { devAuthEnabled } from "../../../lib/env";
 import type { Db } from "../../../lib/db";
 
 /**
@@ -13,12 +13,16 @@ export const TTL_MS = 10 * 60 * 1000;
 export const SEND_WINDOW_MS = 60 * 60 * 1000;
 export const MAX_SENDS_PER_WINDOW = 5;
 export const MAX_ATTEMPTS = 5;
-export const OTP_TEST_CODE = "424242"; // deterministic non-prod code (gated by isProductionRuntime; spec §9/K)
+export const OTP_TEST_CODE = "424242"; // deterministic dev-auth code (gated by devAuthEnabled; spec §9/K)
 
-/** Canonical 6 ASCII digits. Prod: CSPRNG. Non-prod: deterministic so hermetic E2E knows it. */
+/**
+ * Canonical 6 ASCII digits. Deterministic OTP_TEST_CODE ONLY when dev-auth is opted in
+ * (non-prod + ALLOW_DEV_AUTH, F074) so hermetic E2E knows it; otherwise (production, OR a
+ * non-prod deploy without the flag) CSPRNG — a public staging box can't be logged into with 424242.
+ */
 export function generateCode(env: Record<string, string | undefined> = process.env): string {
-  if (isProductionRuntime(env)) return String(randomInt(0, 1_000_000)).padStart(6, "0");
-  return OTP_TEST_CODE;
+  if (devAuthEnabled(env)) return OTP_TEST_CODE;
+  return String(randomInt(0, 1_000_000)).padStart(6, "0");
 }
 
 /** HMAC(secret, `${orderId}.${code}`) hex — binds the hash to the order; reuses the mypage access secret. */

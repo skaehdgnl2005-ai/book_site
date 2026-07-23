@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
-import { isProductionRuntime } from "@/lib/env";
+import { devAuthEnabled, isProductionRuntime } from "@/lib/env";
 import { KAKAO_STATE_COOKIE, kakaoProviderFromEnv, sandboxCode } from "@/app/account/_lib/kakao";
 
 export const dynamic = "force-dynamic";
@@ -19,24 +19,27 @@ export async function GET(req: Request): Promise<Response> {
   const state = randomBytes(16).toString("hex");
 
   let target: string;
-  if (isProductionRuntime(process.env)) {
-    if (!process.env.KAKAO_REST_API_KEY) {
-      return NextResponse.redirect(`${url.origin}/login?error=kakao`); // fail-closed, not a 500
-    }
-    target = kakaoProviderFromEnv().authorizeUrl(state, redirectUri);
-  } else {
-    // Hermetic sandbox round-trip (dev / Playwright / pnpm check) — no network.
+  if (devAuthEnabled(process.env)) {
+    // F074 — Hermetic sandbox round-trip (dev / Playwright / pnpm check), non-prod + ALLOW_DEV_AUTH
+    // ONLY. Without the opt-in this branch is unreachable, so an arbitrary sbx_email can't mint a
+    // session on a public preview/staging box (the callback's provider is also real then — kakao.ts).
     const kakaoId = url.searchParams.get("sbx_id") ?? "kakao_sandbox_user";
     const sbxEmail = url.searchParams.get("sbx_email");
     const code = sandboxCode({ kakaoId, email: sbxEmail ? sbxEmail.trim().toLowerCase() : null });
     target = `${url.origin}/api/auth/kakao/callback?code=${encodeURIComponent(code)}&state=${state}`;
+  } else {
+    // Real Kakao (production, or a non-prod deploy without dev-auth). No key ⇒ fail-closed to /login.
+    if (!process.env.KAKAO_REST_API_KEY) {
+      return NextResponse.redirect(`${url.origin}/login?error=kakao`); // fail-closed, not a 500
+    }
+    target = kakaoProviderFromEnv().authorizeUrl(state, redirectUri);
   }
 
   const res = NextResponse.redirect(target);
   res.cookies.set(KAKAO_STATE_COOKIE, state, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.APP_ENV === "production",
+    secure: isProductionRuntime(),
     path: "/api/auth/kakao",
     maxAge: 600, // 10분 — an OAuth round-trip, not a session
   });

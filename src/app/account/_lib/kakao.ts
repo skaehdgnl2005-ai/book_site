@@ -9,7 +9,7 @@
  * Email trust rule: kapi's email is accepted ONLY when Kakao asserts BOTH is_email_valid and
  * is_email_verified — an unverified email must never auto-link an account (takeover vector).
  */
-import { isProductionRuntime } from "../../../lib/env";
+import { devAuthEnabled } from "../../../lib/env";
 
 export interface KakaoProfile {
   kakaoId: string;
@@ -140,8 +140,10 @@ export function sandboxKakaoProvider(): KakaoProvider {
 export function kakaoProviderFromEnv(
   env: Record<string, string | undefined> = process.env,
 ): KakaoProvider {
-  if (isProductionRuntime(env)) {
-    return realKakaoProvider({ restApiKey: env.KAKAO_REST_API_KEY ?? "", clientSecret: env.KAKAO_CLIENT_SECRET });
-  }
-  return sandboxKakaoProvider();
+  // F074 — 샌드박스(임의 sbx_email 신원 발급)는 dev-auth 옵트인(비프로덕션+ALLOW_DEV_AUTH)에서만.
+  // 그 외(프로덕션, 또는 플래그 없는 비프로덕션)는 실 카카오 provider — 키/네트워크 없으면 exchange가
+  // null로 fail-closed. provider를 한 곳에서 게이트하므로 start·callback 양쪽이 함께 닫힌다(직접 callback
+  // 타격으로 크래프트한 sandboxCode를 넣어도 real provider가 해독하지 않음).
+  if (devAuthEnabled(env)) return sandboxKakaoProvider();
+  return realKakaoProvider({ restApiKey: env.KAKAO_REST_API_KEY ?? "", clientSecret: env.KAKAO_CLIENT_SECRET });
 }

@@ -78,6 +78,89 @@ for (const f of await walk(ROOT)) {
         "Irreversible side-effect without requireApproval() (G-HITL).",
       );
     }
+
+    // R11 (F072, ADR-0024 하드닝): the app must ship anti-clickjacking headers so /admin can never
+    // be framed and UI-redressed into an unapproved transition. next.config MUST set BOTH
+    // X-Frame-Options: DENY and CSP frame-ancestors 'none' (X-Frame-Options for legacy, CSP for
+    // modern browsers). Runtime presence is covered by admin-security-headers.spec.ts; this is the
+    // config-source backstop so a refactor that drops the headers() block fails the gate, not prod.
+    if (rel === "next.config.ts") {
+      const hasXFrame = /X-Frame-Options[\s\S]*?DENY/i.test(src);
+      const hasFrameAncestors = /frame-ancestors[\s\S]*?'none'/i.test(src);
+      add(
+        !(hasXFrame && hasFrameAncestors),
+        rel,
+        "R11:frame-blocking-headers",
+        "next.config must ship anti-clickjacking headers (X-Frame-Options: DENY AND CSP frame-ancestors 'none') — /admin must never be framable (ADR-0024 하드닝).",
+      );
+    }
+
+    // R12 (F074): every non-prod dev-auth SHORTCUT must be gated by devAuthEnabled() — never plain
+    // !isProductionRuntime / APP_ENV!=="production" — so a public preview/staging deploy without
+    // ALLOW_DEV_AUTH fails closed (no free session/admin/capability). The four shortcut sites: the
+    // deterministic OTP (`return OTP_TEST_CODE`), the admin fallback (`DEV_ADMIN_RE =`), the kakao
+    // sandbox selection (`return sandboxKakaoProvider()`), and the mypage/session signing-key dev
+    // fallback (`test_mypage_access_dev`, which signs the session + capability cookie + OTP hashes).
+    if (rel.startsWith("src/")) {
+      const isDevAuthShortcut =
+        /return OTP_TEST_CODE\b/.test(src) ||
+        /DEV_ADMIN_RE\s*=/.test(src) ||
+        /return sandboxKakaoProvider\(\)/.test(src) ||
+        /test_mypage_access_dev/.test(src) ||
+        /devApprovalToken\b/.test(src); // F076 — deterministic approval token
+      add(
+        isDevAuthShortcut && !/devAuthEnabled\(/.test(src),
+        rel,
+        "R12:gate-dev-auth",
+        "dev-auth shortcut (deterministic OTP / DEV_ADMIN_RE / kakao sandbox / mypage-session dev secret) must be gated by devAuthEnabled() (F074) — a non-prod deploy without ALLOW_DEV_AUTH must fail closed, not mint sessions/admin/capabilities.",
+      );
+    }
+
+    // R13 (F075): admin gate coverage IN DEPTH. (a) every admin RENDER module must call requireAdmin
+    // itself — never lean solely on the layout (a future PPR/route-interception could bypass it and leak
+    // full order PII). Covers page/layout/route + parallel-route default/template (all can fetch PII);
+    // error/loading/not-found are UI boundaries that don't fetch, deliberately excluded. (b) an admin
+    // "use server" module must gate: a fail-closed FLOOR (the module calls requireAdmin somewhere —
+    // catches export{}/default/re-export action forms the per-fn slicer can't parse) PLUS a per-EXPORTED-
+    // action check (a second action appended to a file that already gates elsewhere must NOT ride the
+    // floor). The directive is matched as a REAL top-of-file directive (^-anchored), so a client component
+    // that merely mentions "use server" in a comment/string is not mis-scanned. Accepted residuals of a
+    // static guardrail: an INLINE "use server" action inside a component, and a requireAdmin( that appears
+    // only in a comment / dead code — both out of the current convention (actions live in _lib files).
+    if (rel.startsWith("src/app/admin/")) {
+      if (/\/(?:page|layout|route|default|template)\.[tj]sx?$/.test(rel)) {
+        add(
+          !/requireAdmin\(/.test(src),
+          rel,
+          "R13:admin-gate",
+          "admin render module (page/layout/route/default/template) must call requireAdmin() itself (defense in depth — never rely solely on the layout gate).",
+        );
+      }
+      if (/^\s*["']use server["']/m.test(src)) {
+        add(
+          !/requireAdmin\(/.test(src),
+          rel,
+          "R13:admin-gate",
+          'admin "use server" module must call requireAdmin() (fail-closed floor — no ungated server-action module, incl. export{}/default/re-export forms).',
+        );
+        // Slice the source at each exported top-level function; every slice (= one server action) must
+        // contain its own requireAdmin(. Next requires all exports of a "use server" module to be async
+        // server functions, so an ungated export is an unauthenticated action.
+        const fnRe = /export\s+(?:async\s+)?function\s+(\w+)|export\s+const\s+(\w+)\s*=\s*(?:async\s*)?(?:function\b|\()/g;
+        const marks = [];
+        let fm;
+        while ((fm = fnRe.exec(src))) marks.push({ name: fm[1] ?? fm[2], start: fm.index });
+        for (let i = 0; i < marks.length; i++) {
+          const body = src.slice(marks[i].start, i + 1 < marks.length ? marks[i + 1].start : src.length);
+          add(
+            !/requireAdmin\(/.test(body),
+            rel,
+            "R13:admin-gate",
+            `admin server action "${marks[i].name}" must call requireAdmin() itself (per-action gate — the layout never protects a POST).`,
+          );
+        }
+      }
+    }
   }
 
   // --- Design SoR (DESIGN.md / Atelier Sans): UI under src/ only. Minimal set, grows as UI lands.

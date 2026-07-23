@@ -44,6 +44,9 @@ const schema = z.object({
   // 관리자 allowlist (F059, ADR-0024): 콤마 구분 이메일, lowercase 비교. 프로덕션 미설정 ⇒
   // /admin 전면 deny(404). 비프로덕션은 hermetic E2E용 결정적 폴백(admin@example.com — adminAuth.ts).
   ADMIN_EMAILS: z.string().optional(),
+  // F074 — 비프로덕션 인증 지름길(결정론적 OTP·DEV_ADMIN_RE·카카오 샌드박스) 옵트인. "true"/"1"일 때만
+  // 활성(devAuthEnabled). 프로덕션에서는 무시. 미설정 = 비프로덕션에서도 fail-closed(공개 staging 보호).
+  ALLOW_DEV_AUTH: z.string().optional(),
 });
 
 /**
@@ -55,6 +58,17 @@ const schema = z.object({
  */
 export function isProductionRuntime(raw: Record<string, string | undefined> = process.env): boolean {
   return raw.APP_ENV === "production" || raw.VERCEL_ENV === "production";
+}
+
+/**
+ * F074 — 비프로덕션 개발/E2E 인증 지름길(결정론적 OTP 424242 · 관리자 DEV_ADMIN_RE 폴백 · 카카오
+ * 샌드박스 신원 발급)의 단일 fail-closed 게이트. 프로덕션에서는 언제나 false(우회 불가). 비프로덕션에서도
+ * ALLOW_DEV_AUTH가 명시적으로 켜져야만 true — 공개된 preview/staging(플래그 미설정 non-prod)에서 아무나
+ * 세션/관리자를 발급받는 무자격 접근을 막는다(레드팀: sbx_email·DEV_ADMIN_RE·OTP 세 경로 공통 옵트인).
+ */
+export function devAuthEnabled(raw: Record<string, string | undefined> = process.env): boolean {
+  if (isProductionRuntime(raw)) return false;
+  return raw.ALLOW_DEV_AUTH === "true" || raw.ALLOW_DEV_AUTH === "1";
 }
 
 export type Env = z.infer<typeof schema>;

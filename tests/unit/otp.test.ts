@@ -6,7 +6,8 @@ import {
 
 const ORDER = "ord_0001";
 const T0 = 1_000_000_000_000;
-const DEV = { APP_ENV: "development" } as Record<string, string | undefined>;
+// F074 — accessSecret's dev fallback (used by hashCode) is now behind the dev-auth opt-in.
+const DEV = { APP_ENV: "development", ALLOW_DEV_AUTH: "true" } as Record<string, string | undefined>;
 
 describe("F046 OTP generation/hash", () => {
   it("generateCode is a canonical 6 ASCII digits (prod + non-prod)", () => {

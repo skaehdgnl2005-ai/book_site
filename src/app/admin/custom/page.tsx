@@ -6,6 +6,7 @@ import {
   type CustomPath,
   type CustomStatus,
 } from "@/lib/customRequest";
+import { requireAdmin } from "../_lib/adminAuth";
 import styles from "../admin.module.css";
 
 const PATHS: readonly CustomPath[] = ["PHONE", "WRITTEN"];
@@ -21,6 +22,7 @@ export default async function AdminCustomPage({
 }: {
   searchParams: Promise<{ path?: string; status?: string }>;
 }) {
+  await requireAdmin(); // F075 — own gate, not just the layout (defense in depth)
   const sp = await searchParams;
   const path = PATHS.includes(sp.path as CustomPath) ? (sp.path as CustomPath) : undefined;
   const status = STATUSES.includes(sp.status as CustomStatus) ? (sp.status as CustomStatus) : undefined;

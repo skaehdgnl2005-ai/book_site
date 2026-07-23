@@ -39,6 +39,9 @@ export default defineConfig({
       SUPABASE_SERVICE_ROLE_KEY: "",
       SUPABASE_STORAGE_BUCKET: "",
       BIZ_REG_NO: "123-45-67890",
+      // F074 — the hermetic buyer/admin login helpers rely on the deterministic OTP 424242 + the
+      // DEV_ADMIN_RE / kakao-sandbox shortcuts, which are now fail-closed behind this opt-in.
+      ALLOW_DEV_AUTH: "true",
     },
   },
 });

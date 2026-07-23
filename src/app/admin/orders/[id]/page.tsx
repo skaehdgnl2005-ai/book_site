@@ -7,6 +7,7 @@ import { ORDER_STATUS_LABEL, canTransition } from "../../../api/payments/_lib/st
 import { TransitionPanel } from "./TransitionPanel";
 import { RefundPanel } from "./RefundPanel";
 import { TrackingLink } from "../../../_components/order/TrackingLink";
+import { requireAdmin } from "../../_lib/adminAuth";
 import styles from "../../admin.module.css";
 
 const GENDER_LABEL = { MALE: "남아", FEMALE: "여아" } as const;
@@ -18,6 +19,7 @@ const GENDER_LABEL = { MALE: "남아", FEMALE: "여아" } as const;
  * of it (E3). Status transitions land with F060.
  */
 export default async function AdminOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireAdmin(); // F075 — own gate, not just the layout (defense in depth on a PII-heavy page)
   const { id } = await params;
   const order = await orderRepo().get(id);
   if (!order) notFound();

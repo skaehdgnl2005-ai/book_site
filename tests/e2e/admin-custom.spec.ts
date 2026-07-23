@@ -66,8 +66,9 @@ test.describe("admin custom requests (F061)", () => {
     await expect(page.getByTestId("custom-confirm-error")).toBeVisible();
     await expect(page.getByTestId("admin-custom-consultation")).toContainText("요청됨");
 
-    // `pnpm approve consultation.book`이 발급하는 1회성 의도 토큰(고정 계약: APPROVED:<action>)
-    await page.getByTestId("custom-approval-token").fill("APPROVED:consultation.book");
+    // F076 — 이 의뢰에 바인딩된 대상·시간 한정 승인 토큰. hermetic E2E는 dev-auth 옵트인 하의
+    // 결정론적 토큰(DEV:<action>:<targetId>)을 사용(프로덕션에선 HMAC 토큰만 유효).
+    await page.getByTestId("custom-approval-token").fill(`DEV:consultation.book:${id}`);
     await page.getByTestId("custom-confirm-consultation").click();
     await expect(page.getByTestId("admin-custom-consultation")).toContainText("확정");
     await expect(page.getByTestId("custom-confirm-consultation")).toHaveCount(0); // no re-confirm

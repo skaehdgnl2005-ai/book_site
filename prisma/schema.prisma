@@ -244,6 +244,22 @@ model Review {
   @@index([createdAt])
 }
 
+// F073 — 관리자 감사 로그. 관리자 변이(주문/맞춤 전이·환불·상담 확정)마다 append-only 기록.
+// ADR-0024 D2(관리자 PII 미로깅) 준수: actorUserId(내부 식별자)·action·target(type/id)·전후
+// 상태값만 — 구매자 이름/이메일/주소 등 PII는 절대 기록하지 않는다(before/after는 상태 enum 문자열).
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  actorUserId String  // 행위 관리자 User.id (PII 아님)
+  action     String   // order.advance | order.refund | custom.move | consultation.confirm
+  targetType String   // order | customRequest | consultation
+  targetId   String   // 대상 레코드 id (PII 아님)
+  before     String?  // 전이 전 상태 (해당 시)
+  after      String?  // 전이 후 상태 (해당 시)
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 enum OrderStatus {
   CREATED // 결제 전/시도
   WAITING_FOR_DEPOSIT // F070 — 가상계좌 발급, 입금 대기(미정산)

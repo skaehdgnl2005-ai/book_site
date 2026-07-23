@@ -9,6 +9,7 @@ import {
   CONSULTATION_STATUS_LABEL,
 } from "@/lib/customRequest";
 import { CustomAdminPanel } from "./CustomAdminPanel";
+import { requireAdmin } from "../../_lib/adminAuth";
 import styles from "../../admin.module.css";
 
 /**
@@ -16,6 +17,7 @@ import styles from "../../admin.module.css";
  * 상태 이동 + 상담 확정(requireApproval 게이트). 게이트는 admin/layout.tsx + 액션 재검증.
  */
 export default async function AdminCustomDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireAdmin(); // F075 — own gate, not just the layout (defense in depth on a PII-heavy page)
   const { id } = await params;
   const rec = await customRequestStore.get(id);
   if (!rec) notFound();

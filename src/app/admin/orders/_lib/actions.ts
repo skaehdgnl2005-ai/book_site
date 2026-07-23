@@ -2,7 +2,8 @@
 
 import { after } from "next/server";
 import { revalidatePath } from "next/cache";
-import { untrusted, requireApproval } from "@/lib/guardrails";
+import { untrusted } from "@/lib/guardrails";
+import { requireApproval } from "@/lib/approval";
 import { emailAdapter } from "@/lib/email";
 import { redact } from "@/lib/env";
 import { customTossProvider } from "@/lib/customRequest";
@@ -11,6 +12,7 @@ import { canTransition } from "@/app/api/payments/_lib/status";
 import { trackingUrl, carrierDisplayName } from "@/app/api/payments/_lib/tracking";
 import { checkoutProvider } from "@/app/api/payments/_lib/checkout";
 import { requireAdmin } from "../../_lib/adminAuth";
+import { recordAuditSafe } from "../../_lib/auditLog";
 
 /**
  * F060 — admin fulfillment actions. Defense in depth: requireAdmin() re-runs INSIDE every
@@ -25,7 +27,7 @@ export type AdminActionState = { error?: string };
 const FORWARD_TARGETS: readonly OrderStatus[] = ["IN_PRODUCTION", "SHIPPED", "COMPLETED"];
 
 export async function advanceOrder(_prev: AdminActionState, formData: FormData): Promise<AdminActionState> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const orderId = String(untrusted(formData.get("orderId")).value ?? "").trim();
   const to = String(untrusted(formData.get("to")).value ?? "").trim() as OrderStatus;
   if (!FORWARD_TARGETS.includes(to)) return { error: "허용되지 않은 상태입니다." };
@@ -34,6 +36,9 @@ export async function advanceOrder(_prev: AdminActionState, formData: FormData):
   const order = await repo.get(orderId);
   if (!order) return { error: "주문을 찾을 수 없습니다." };
   if (!canTransition(order.status, to)) return { error: "현재 상태에서 허용되지 않는 전이입니다." };
+  // Snapshot BEFORE the transition — the in-memory repo mutates the stored order in place, and
+  // `order` is that same reference, so reading order.status after transition() would read the NEW value.
+  const fromStatus = order.status;
 
   // SHIPPED requires the shipment record — validate the carrier + number in the same move, BEFORE
   // the transition (never flip to SHIPPED with a missing waybill), but persist it only AFTER the
@@ -49,6 +54,16 @@ export async function advanceOrder(_prev: AdminActionState, formData: FormData):
 
   const res = await repo.transition(orderId, [order.status], to);
   if (!res.ok) return { error: "이미 처리되었거나 상태가 바뀌었습니다. 새로고침해 주세요." };
+
+  // F073 — 전이 승자만 감사 기록(actor·전후 상태; PII 없음). best-effort: 기록 실패가 전이를 되돌리지 않음.
+  await recordAuditSafe({
+    actorUserId: admin.id,
+    action: "order.advance",
+    targetType: "order",
+    targetId: orderId,
+    before: fromStatus,
+    after: to,
+  });
 
   if (shipment) {
     const { carrier, trackingNumber } = shipment;
@@ -95,14 +110,14 @@ export async function advanceOrder(_prev: AdminActionState, formData: FormData):
  * that's success, not an error) + after()-scheduled refund-confirmation email.
  */
 export async function refundOrder(_prev: AdminActionState, formData: FormData): Promise<AdminActionState> {
-  await requireAdmin();
+  const admin = await requireAdmin();
   const orderId = String(untrusted(formData.get("orderId")).value ?? "").trim();
-  const token = String(formData.get("approvalToken") ?? "").trim();
+  const token = String(untrusted(formData.get("approvalToken")).value ?? "").trim();
 
   try {
-    requireApproval("toss.refund.live", token);
+    requireApproval("toss.refund.live", orderId, token); // F076 — token is bound to THIS order + TTL
   } catch {
-    return { error: "승인 토큰이 필요합니다. `pnpm approve toss.refund.live` 발급 토큰을 입력해 주세요." };
+    return { error: `승인 토큰이 필요합니다. \`pnpm approve toss.refund.live ${orderId}\`로 발급한 토큰(이 주문·10분 한정)을 입력해 주세요.` };
   }
 
   const repo = orderRepo();
@@ -110,6 +125,7 @@ export async function refundOrder(_prev: AdminActionState, formData: FormData): 
   if (!order) return { error: "주문을 찾을 수 없습니다." };
   if (!order.tossPaymentKey) return { error: "결제 이력이 없는 주문입니다." };
   if (!canTransition(order.status, "REFUNDED")) return { error: "현재 상태에서는 환불할 수 없습니다." };
+  const fromStatus = order.status; // snapshot before transition (in-memory repo mutates in place)
 
   const provider = order.kind === "CUSTOM" ? customTossProvider() : checkoutProvider();
   const res = await provider.cancelPayment({
@@ -121,7 +137,21 @@ export async function refundOrder(_prev: AdminActionState, formData: FormData): 
     return { error: "결제 취소가 승인되지 않았습니다. Toss 대시보드에서 결제 상태를 확인해 주세요." };
   }
 
-  await repo.transition(orderId, ["PAID", "IN_PRODUCTION"], "REFUNDED"); // webhook race → benign no-op
+  // 동시 환불/재클릭 시 조건부 전이가 승자를 1명으로 확정(패자는 benign no-op). cancelPayment는
+  // 멱등(Idempotency-Key)이라 양쪽 다 CANCELED지만, 감사 기록은 전이 승자에게만 — 중복/오귀속 방지.
+  const transitionRes = await repo.transition(orderId, ["PAID", "IN_PRODUCTION"], "REFUNDED");
+
+  // F073 — 전이 승자만 감사 기록(actor·전후 상태; 금액/이메일 등 PII 미기록). best-effort.
+  if (transitionRes.ok) {
+    await recordAuditSafe({
+      actorUserId: admin.id,
+      action: "order.refund",
+      targetType: "order",
+      targetId: orderId,
+      before: fromStatus,
+      after: "REFUNDED",
+    });
+  }
 
   const to = order.buyerEmail;
   const orderName = order.orderName;

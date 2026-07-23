@@ -47,19 +47,7 @@ export function isIrreversible(action: string): action is IrreversibleAction {
   return (IRREVERSIBLE_ACTIONS as readonly string[]).includes(action);
 }
 
-/**
- * Guard an irreversible action. Default-deny: throws unless an explicit, matching
- * approval token (issued out-of-band by `pnpm approve <action>`) is supplied.
- */
-export function requireApproval(
-  action: IrreversibleAction,
-  approvalToken: string | undefined,
-): void {
-  const expected = `APPROVED:${action}`;
-  if (approvalToken !== expected) {
-    throw new Error(
-      `Blocked irreversible action "${action}" (G-HITL). ` +
-        `Obtain approval via:  pnpm approve ${action}  then pass the issued token.`,
-    );
-  }
-}
+// F076 — approval-token verification (requireApproval + the token mint/verify helpers) lives in the
+// server-only `src/lib/approval.ts` (it needs node:crypto). It is kept OUT of this module because
+// `untrusted()`/`trusted()` above are imported by CLIENT components (e.g. ContactForm), and a top-level
+// node:crypto import here would break the client bundle.

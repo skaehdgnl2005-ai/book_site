@@ -5,6 +5,7 @@
  * outstanding token — ADR-0023 D3).
  */
 import { cookies } from "next/headers";
+import { isProductionRuntime } from "../../../lib/env";
 import { SESSION_COOKIE, SESSION_TTL_MS, mintSession, verifySessionToken } from "./session";
 import { userRepo, type StoredUser } from "./users";
 
@@ -24,7 +25,7 @@ export async function setSessionCookie(user: StoredUser): Promise<boolean> {
   (await cookies()).set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.APP_ENV === "production",
+    secure: isProductionRuntime(),
     path: "/",
     maxAge: Math.floor(SESSION_TTL_MS / 1000),
   });

@@ -86,7 +86,10 @@ describe("sandbox provider (non-production only)", () => {
     expect(await sbx.exchange(code, "r")).toEqual({ kakaoId: "k1", email: "e@x.com" });
     expect(await sbx.exchange(sandboxCode({ kakaoId: "k2", email: null }), "r")).toEqual({ kakaoId: "k2", email: null });
     expect(await sbx.exchange("not_a_sandbox_code", "r")).toBeNull();
-    expect(kakaoProviderFromEnv({ APP_ENV: "development" }).name).toBe("kakao-sandbox");
+    // F074 — the sandbox provider is picked only under the dev-auth opt-in (ALLOW_DEV_AUTH); a
+    // flagless non-prod box gets the REAL provider (fail-closed without a key/network).
+    expect(kakaoProviderFromEnv({ APP_ENV: "development", ALLOW_DEV_AUTH: "true" }).name).toBe("kakao-sandbox");
+    expect(kakaoProviderFromEnv({ APP_ENV: "development" }).name).toBe("kakao"); // no opt-in → real
     expect(kakaoProviderFromEnv({ APP_ENV: "production", KAKAO_REST_API_KEY: "rk" }).name).toBe("kakao");
   });
 });

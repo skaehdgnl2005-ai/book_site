@@ -13,7 +13,7 @@ import { finishingStore } from "./finishing";
 import { after } from "next/server";
 import { generateCode, hashCode, otpStore, verifyAndConsume } from "./otp";
 import { emailAdapter } from "@/lib/email";
-import { redact } from "@/lib/env";
+import { isProductionRuntime, redact } from "@/lib/env";
 
 /**
  * Server actions for 마이페이지 (F017/F018). Every input is `untrusted()` at the boundary
@@ -90,7 +90,7 @@ export async function verifyAccessCode(_prev: LookupState, formData: FormData): 
   (await cookies()).set(cookieName(orderId), result.token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.APP_ENV === "production",
+    secure: isProductionRuntime(),
     path: "/mypage",
     maxAge: Math.floor(ACCESS_TTL_MS / 1000),
   });

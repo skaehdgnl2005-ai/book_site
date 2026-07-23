@@ -74,7 +74,7 @@ export function CustomAdminPanel({
           <input type="hidden" name="id" value={id} />
           <div className={styles.moveFields}>
             <label className={styles.moveLabel}>
-              승인 토큰 (pnpm approve consultation.book)
+              승인 토큰 (pnpm approve consultation.book {id})
               <input className={styles.moveInput} name="approvalToken" data-testid="custom-approval-token" />
             </label>
           </div>

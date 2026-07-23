@@ -6,6 +6,7 @@ import { resolveKakaoLogin } from "@/app/account/_lib/kakaoLogin";
 import { userRepo } from "@/app/account/_lib/users";
 import { SESSION_COOKIE, SESSION_TTL_MS, mintSession } from "@/app/account/_lib/session";
 import { orderRepo } from "@/app/api/payments/_lib/orders";
+import { isProductionRuntime } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +48,7 @@ export async function GET(req: Request): Promise<Response> {
   res.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.APP_ENV === "production",
+    secure: isProductionRuntime(),
     path: "/",
     maxAge: Math.floor(SESSION_TTL_MS / 1000),
   });

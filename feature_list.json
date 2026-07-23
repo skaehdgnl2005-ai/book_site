@@ -1003,6 +1003,90 @@
       "state": "passing",
       "passes": true,
       "evidence": "2026-07-17 pnpm check green (lint+typecheck+unit 326/F071 신규 16: validateReview 5·in-memory store 3·Prisma store 3·mapping 2 등+constraints 0 violations, R10: Review 테이블 RLS ENABLE 확인); full pnpm test:e2e 165/166 — 1 실패는 F063 refund의 page.goto 30s 내비게이션 타임아웃(전체 스위트 동시부하 flake, 격리 재실행 2/2 green; F071 무관) — incl. review-write.spec.ts 3/3(결제 완료 구매자 후기 작성→/reviews 목록에 별점·표시명·게시 후기 평균 평점·운영정책 노출·주문당 1개 재차단, 빈 내용 거부, 미결제 주문엔 작성 폼 부재) + reviews.spec.ts(F026) 2/2 계약 보존('준비 중'+80% 베타 신호) + eval S1–S11 1.0. 구현: Review 모델(orderId @unique·rating·body·authorName)+마이그레이션 20260717140000(CREATE TABLE+FK+@unique+createdAt 인덱스+RLS ENABLE — R10). 두 백엔드 reviewStore(in-memory/Prisma, 주문당 1개 조건부 create) + 순수 validateReview(별점 1~5·본문·표시명). submitReview 서버 액션: hasOrderAccess(주문 소유)+isPaidFamily(구매 인증) 이중 게이트(클라이언트 폼은 게이트 아님)+untrusted 경계. 결제 완료 마이페이지에 ReviewForm, /reviews를 placeholder→실제 목록+게시 후기 산술 평균 평점 표시+후기 운영정책 고지(2026-07-21 시행: 작성권한·게시기간·등급기준·삭제기준·이의제기). F026 계약 보존(도입 문구에 '준비 중' 1회 유지·80% 베타 신호). React 기본 이스케이프(raw HTML 미사용). worker≠checker(11에이전트/5렌즈, refute-by-default): 4 confirmed 전부 처리 — **MAJOR** 작성 게이트 부정 경로(비소유·미결제) 미검증 → 미결제 주문 페이지 게이트 E2E(폼 부재) 추가, 비소유는 기존 mypage 접근 프롬프트 테스트로 커버, 액션 재검증은 accepted 미검증 서버액션 패턴(@/ alias+Next 런타임 의존)의 방어심층; minor×2 운영정책이 표시 안 되는 '산술 평균 평점'을 present-tense 고지 → 평균 평점 실제 표시로 정합(+E2E 단언); nit Prisma store·중복 분기 미검증 → fake delegate 유닛(중복·경합·매핑). 배포: 마이그레이션 1건 추가(20260717140000_review) — Wave B 미배포 큐."
+    },
+    {
+      "id": "F072",
+      "category": "admin",
+      "track": "product",
+      "priority": 3,
+      "description": "관리자 보안 헤더 — 앱 전역에 클릭재킹·다운그레이드·MIME 스니핑 차단 헤더(X-Frame-Options DENY, CSP frame-ancestors 'none', Strict-Transport-Security, X-Content-Type-Options nosniff, Referrer-Policy, Permissions-Policy) 추가(next.config headers). 세션·OAuth·마이페이지 쿠키의 secure 플래그를 process.env.APP_ENV 문자열 비교 대신 isProductionRuntime()로 정규화(비-Vercel prod에서도 Secure 보장). 신규 규칙 R11: next.config가 프레임 차단 헤더를 싣지 않으면 pnpm constraints 실패. ADR-0024 하드닝(트랙 S #1).",
+      "steps": [
+        "구매자·관리자 페이지 응답에 클릭재킹 차단 헤더(X-Frame-Options DENY / CSP frame-ancestors 'none')가 실린다",
+        "전송·콘텐츠 보안 헤더(HSTS·X-Content-Type-Options nosniff·Referrer-Policy·Permissions-Policy)가 실린다",
+        "세션 쿠키가 프로덕션 런타임에서 항상 Secure로 설정된다(APP_ENV 문자열이 아니라 isProductionRuntime 기준)",
+        "next.config에서 프레임 차단 헤더가 빠지면 pnpm constraints(R11)가 실패한다"
+      ],
+      "verification": "pnpm test:e2e -- admin-security-headers.spec.ts",
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-20 pnpm check green (lint+typecheck+unit 326 passed/10 skipped+constraints 0 violations, R11 clean); pnpm test:e2e -- admin-security-headers.spec.ts 3/3(구매자 '/'·관리자 '/admin/orders' 200·비로그인 '/admin/orders' 404 존재은닉 응답 모두 X-Frame-Options DENY+CSP frame-ancestors 'none'+HSTS+nosniff+Referrer-Policy+Permissions-Policy 확인). 구현: next.config async headers()가 source '/:path*' 전역으로 6개 보안 헤더 부여(프레임 차단 X-Frame-Options DENY+CSP frame-ancestors 'none', 전송 HSTS, MIME nosniff, Referrer-Policy strict-origin-when-cross-origin, Permissions-Policy). 전체 CSP(script-src/style-src)는 인라인 스타일·하이드레이션 충돌 위험으로 후속 트랙 S에서 nonce와 도입 — F072는 앱을 깨지 않는 frame-ancestors만. 세션·OAuth state·마이페이지 capability 쿠키 4곳(sessionUser·kakao callback·kakao start·mypage actions) secure 플래그를 process.env.APP_ENV 문자열 비교→isProductionRuntime()로 정규화(비-Vercel prod에서도 Secure 보장; 기존보다 엄격, non-prod hermetic 불변). 신규 R11(check-constraints): next.config가 X-Frame-Options DENY AND frame-ancestors 'none' 미포함 시 실패(config-source 백스톱; 런타임 헤더는 E2E가 authoritative). sessionUser는 vitest의 @ alias 미해결로 relative ../../../lib/env import(adminAuth 선례). worker≠checker(checker 1, refute-by-default): CONFIRMED 0 — '/:path*' 루트 매칭·404 헤더 적용 empirically 확인, isProductionRuntime는 기존보다 엄격해 회귀 없음, R11 whole-file substring 한계는 E2E가 커버(문서화), frame-ancestors만 배포는 명시적 defer, 잔여 APP_ENV==='production' 쿠키 secure 사이트 0(4곳 전부 이관). 선택 강화 1건 채택: 비로그인 404도 프레임 차단 헤더 싣는지 E2E 단언 추가. 배포: 마이그레이션 0(next.config·쿠키 플래그·constraint만)."
+    },
+    {
+      "id": "F073",
+      "category": "admin",
+      "track": "product",
+      "priority": 3,
+      "description": "관리자 감사 로그 — 관리자 변이(주문 전이 advanceOrder·환불 refundOrder·맞춤 전이 moveCustomRequest·상담 확정 confirmConsultationAction)마다 행위자(actorUserId)·액션·대상(type/id)·전후 상태를 append 기록(AdminAuditLog 모델+마이그레이션, R10 RLS ENABLE). ADR-0024 D2(관리자 PII 미로깅) 준수 위해 식별자·상태값만 저장(구매자 이름·이메일·주소 미기록). /admin/audit 최신순 열람 뷰. 양 백엔드 auditStore(in-memory/Prisma). 트랙 S #2.",
+      "steps": [
+        "관리자가 주문·맞춤 상태를 전이하거나 환불하면 누가·언제·무엇을 어떤 상태로 바꿨는지 감사 로그에 남는다",
+        "감사 로그에는 행위자 식별자와 상태값만 있고 구매자 이름·이메일·주소 등 PII는 기록되지 않는다",
+        "관리자가 /admin/audit에서 최근 감사 기록을 최신순으로 볼 수 있다",
+        "비로그인·비관리자는 /admin/audit에 접근하면 404(존재 은닉)"
+      ],
+      "verification": "pnpm test:e2e -- admin-audit.spec.ts",
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-20 pnpm check green (lint+typecheck+unit 334 passed/10 skipped — F073 신규 8: in-memory record/listRecent·null 기본값·buildAuditCreateData·mapAuditRow Date↔ISO·Prisma fake delegate 2 +constraints 0 violations, R10: AdminAuditLog 테이블 RLS ENABLE 확인); pnpm test:e2e -- admin-audit.spec.ts 2/2(관리자 PAID→IN_PRODUCTION 전이가 감사 로그에 action·targetId·before→after로 남음·구매자명 미노출·비로그인 404) + 무회귀 admin-transitions 2/2·admin-custom 3/3·refund 2/2. 구현: AdminAuditLog 모델+마이그레이션 20260720100000(F070/F071 미배포 큐 뒤 순서; CREATE TABLE+createdAt 인덱스+RLS ENABLE — R10). dual-backend auditStore(in-memory/Prisma)+순수 매핑. 4개 변이(advanceOrder·refundOrder·moveCustomRequest·confirmConsultationAction)가 requireAdmin 반환 admin.id를 포착해 recordAuditSafe로 append(best-effort — 기록 실패가 완료된 변이를 되돌리지 않음, 발송 실패 선례). ADR-0024 D2 준수: actorUserId·action·target(type/id)·전후 상태값만 저장(구매자 이름/이메일/주소 미기록). /admin/audit 최신순 열람(자체 requireAdmin 재검증 — 심층 방어). worker≠checker(1 checker, refute-by-default): 1 CONFIRMED(refundOrder가 전이 res.ok 게이트 없이 무조건 감사 기록 → 동시/재클릭 환불 시 중복·오귀속 행) 수정(전이 승자만 기록, advanceOrder/moveCustomRequest와 동일 패턴); low 2 처리(Prisma listRecent에 id 2차 정렬키 추가로 백엔드 간 결정적 순서, best-effort swallow는 의도적·문서화). E2E가 잡은 실버그 1건 수정: in-memory repo가 저장 order를 in-place 변이 → order.status를 전이 후 읽으면 신값이라 before=after가 되던 것을 fromStatus 전이 전 스냅샷으로 캡처(3개 사이트). 배포: 마이그레이션 1건 추가(20260720100000_admin_audit_log) — 미배포 큐(F070·F071 뒤)."
+    },
+    {
+      "id": "F074",
+      "category": "admin",
+      "track": "harness",
+      "priority": 3,
+      "description": "비프로덕션 인증 우회 fail-closed 옵트인 — 세 dev-auth 지름길(결정론적 OTP 424242·관리자 DEV_ADMIN_RE 폴백·카카오 샌드박스 sbx_email 신원 발급)을 단일 게이트 devAuthEnabled(비프로덕션 + ALLOW_DEV_AUTH)로 이동. 플래그 없는 공개 preview/staging에서 무자격 세션/관리자 발급 차단(프로덕션은 언제나 닫힘). 신규 R12(세 지름길이 devAuthEnabled 미참조 시 constraints 실패). 테스트 러너 env(vitest·playwright)에 ALLOW_DEV_AUTH 주입. 트랙 S #3. 레드팀 교정: sbx_email·DEV_ADMIN_RE에 더해 OTP 424242 세 번째 경로까지 공통 게이트.",
+      "steps": [
+        "ALLOW_DEV_AUTH가 꺼진 비프로덕션에서는 결정론적 OTP·DEV_ADMIN_RE 관리자 폴백·카카오 샌드박스가 모두 비활성(fail-closed)이다",
+        "프로덕션에서는 ALLOW_DEV_AUTH가 켜져 있어도 세 지름길이 모두 닫혀 있다",
+        "ALLOW_DEV_AUTH가 켜진 개발/테스트에서는 기존 hermetic 로그인·관리자 접근이 그대로 동작한다",
+        "세 지름길 중 하나라도 devAuthEnabled 게이트 없이 남으면 pnpm constraints(R12)가 실패한다"
+      ],
+      "verification": "pnpm test -- dev-auth-gate.test.ts",
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-20 pnpm check green (lint+typecheck+unit 341 passed/10 skipped — F074 신규 dev-auth-gate.test.ts 6(devAuthEnabled 2 + OTP/DEV_ADMIN_RE/kakao/accessSecret 게이트 4) + admin-auth fail-closed 1; constraints 0 violations, R12 4마커 통과); 전체 pnpm test:e2e 171/171(ALLOW_DEV_AUTH=true 부팅 — 모든 로그인/관리자/카카오 플로우 무회귀) + access.ts 서명키 수정 후 auth-signing 서브셋 20/20(account-login·account-kakao 샌드박스·mypage-finish 권한쿠키·account-orders·admin-audit). 검증 유닛: pnpm test -- dev-auth-gate.test.ts. 구현: 신규 devAuthEnabled(env)=비프로덕션 && ALLOW_DEV_AUTH∈{'true','1'} — 프로덕션은 언제나 false(VERCEL_ENV 포함). 네 dev-auth 지름길을 이 단일 게이트로 이동: ①결정론적 OTP 424242(otp.generateCode) ②관리자 DEV_ADMIN_RE 폴백(adminAuth.isAdminEmail) ③카카오 샌드박스 provider 선택(kakao.kakaoProviderFromEnv — start·callback 양쪽이 한 곳에서 닫힘, 직접 callback 타격도 real provider가 sbx 코드 거부) ④마이페이지/세션 서명키 dev 폴백 test_mypage_access_dev(access.accessSecret — 세션 쿠키·권한 쿠키·OTP 해시 서명). 신규 R12: 네 마커 파일이 devAuthEnabled 미참조 시 constraints 실패. 테스트 러너 env(vitest.config·playwright.config)에 ALLOW_DEV_AUTH 주입(없으면 hermetic 스위트 전면 red) + admin-auth·account-kakao·otp의 명시적 dev dict에 플래그 추가 + fail-closed 케이스 추가. worker≠checker(1 checker, refute-by-default): 1 CONFIRMED — access.ts의 test_mypage_access_dev가 devAuthEnabled 아닌 APP_ENV!=='production' 게이트(더 약함: VERCEL_ENV 무시)라 플래그 없는 공개 staging에서 권한/세션 쿠키를 소스 상수로 위조 가능한 네 번째 우회 → devAuthEnabled로 게이트 + R12 4번째 마커 + 유닛 추가로 수정. B/C/E refuted(콜백 직격 봉쇄·게이트 로직 건전·플래그 없는 비프로덕션은 CSPRNG OTP + 미배달 mock로 안전 fail-closed), D(R12 co-location 한계)는 회귀 백스톱으로 수용하고 실거동은 E2E가 검증, F(harness 트랙 — 단일 hermetic 서버가 flag-on 부팅 필수라 fail-closed는 유닛으로만 검증 가능)는 정당. 배포 HITL: 프로덕션 Vercel env에 ALLOW_DEV_AUTH 설정 금지(미설정=닫힘); preview/staging에서 hermetic 테스트 필요 시 그 환경에만 명시 설정. 마이그레이션 0."
+    },
+    {
+      "id": "F075",
+      "category": "admin",
+      "track": "harness",
+      "priority": 3,
+      "description": "관리자 게이트 커버리지 머신 규칙(R13) + 기존 페이지 리트로핏 — src/app/admin 하위 각 page/layout/route 모듈이 자체 requireAdmin()을 호출하고, 각 'use server' 파일의 export된 서버 액션마다 개별 requireAdmin()을 검증(파일 substring 아님 — 다중 액션 파일의 두 번째 무게이트 통과 방지). 레이아웃 게이트에만 의존하던 5개 페이지(admin/·orders·orders/[id]·custom·custom/[id])에 자체 requireAdmin 추가(심층 방어; 향후 PPR/route-handler가 레이아웃 우회 시 PII 유출 차단). 트랙 S #4. 레드팀 교정(파일 substring→export 함수 개별 검증) 반영.",
+      "steps": [
+        "관리자 모든 페이지·상세가 레이아웃뿐 아니라 자체적으로 관리자 인증을 재확인한다(비관리자·비로그인 404)",
+        "관리자 'use server' 파일에 requireAdmin() 없는 export 서버 액션이 있으면 pnpm constraints(R13)가 실패한다",
+        "관리자 page/layout/route 모듈에 requireAdmin() 호출이 없으면 pnpm constraints(R13)가 실패한다"
+      ],
+      "verification": "pnpm test:e2e -- admin-orders.spec.ts admin-custom.spec.ts",
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-20 pnpm check green (constraints 0 violations — R13 통과, 실 admin 파일 오탐 없음); admin E2E 무회귀 10/10(admin-orders 3·admin-custom 3·admin-transitions 2·admin-audit 2). 구현: 신규 R13(check-constraints) — (a) src/app/admin 하위 모든 렌더 모듈(page/layout/route/default/template)이 자체 requireAdmin() 호출; (b) 'use server' 모듈은 fail-closed 플로어(모듈이 requireAdmin 최소 1회 — export{}/default/re-export 등 슬라이서가 못 읽는 형태 포착) + export 서버 액션별 개별 requireAdmin 검증(다중 액션 파일의 추가 무게이트 액션 포착). 지시문은 top-of-file(^) 앵커 매칭으로 주석 속 'use server' 오탐 방지. 레이아웃 게이트에만 의존하던 5개 페이지(admin/·orders·orders/[id]·custom·custom/[id])에 자체 requireAdmin 추가. **검증 정직성**: 페이지별 requireAdmin은 런타임상 레이아웃 게이트와 중복(비관리자는 레이아웃에서 이미 404)이라 Playwright로 신규 거동을 구별할 수 없음 — F074와 동일 논리로 실 강제자는 **R13(정적) + 프로브**이며 E2E는 무회귀 + 레이아웃 404 확인용(트랙 harness). 프로브: 무게이트 page.tsx·export async·export default·export{} 배럴·admin default.tsx 전부 R13 발화 확인, 클라이언트 컴포넌트 주석 속 'use server'는 미발화(오탐 없음). worker≠checker(3렌즈 워크플로, refute-by-default): critic1 2 CONFIRMED(플로어 부재→export{}/default/re-export 우회, default/template 누락) 수정, critic3 1 CONFIRMED(주석 'use server' 오탐) 수정 + 정직 evidence 반영; 잔여(인라인 use server 액션·주석 텍스트 매칭·api/admin 스코프 밖·이중게이트 2x userRepo 조회)는 정적 가드 한계/설계상 심층방어로 문서화, React cache() dedupe는 선택 후속. 마이그레이션 0."
+    },
+    {
+      "id": "F076",
+      "category": "admin",
+      "track": "harness",
+      "priority": 3,
+      "description": "승인 토큰 위조·재사용 차단 — 정적 소스 리터럴 'APPROVED:<action>'(소스 공개·전 주문 무한 재사용) 대신 대상+시간 바인딩 HMAC 토큰(exp.hmac = HMAC(MYPAGE_ACCESS_SECRET, action.targetId.exp), ~10분 TTL)으로 requireApproval 교체. 서버 전용 src/lib/approval.ts로 분리(node:crypto — guardrails.ts는 클라이언트 컴포넌트가 쓰는 untrusted 유지). approve.mjs가 <targetId> 인자로 토큰 발급. 호출부(환불·상담확정)가 orderId/requestId 바인딩 + approvalToken untrusted() 래핑. hermetic E2E는 devAuthEnabled(F074) 하의 결정론적 DEV 토큰. 트랙 S #5. 레드팀 교정(smoke·refund·admin-custom spec 전 scope, non-prod 토큰 경로 dev-auth 게이트) 반영.",
+      "steps": [
+        "환불·상담확정 승인 토큰은 특정 주문/의뢰에만·짧은 시간(10분)만 유효하다",
+        "만료됐거나 다른 대상·다른 액션의 토큰은 거부된다",
+        "소스에 노출된 고정 문자열('APPROVED:<action>')로는 더 이상 승인이 통과되지 않는다",
+        "hermetic 결정론적 토큰은 dev-auth 옵트인에서만 수용되고 프로덕션에서는 거부된다"
+      ],
+      "verification": "pnpm test:e2e -- refund.spec.ts admin-custom.spec.ts",
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-20 pnpm check green (unit 353 passed/10 skipped — F076 신규 approval-token.test.ts 12: HMAC mint→verify roundtrip·대상/액션/만료/변조 거부·구 리터럴 무효·dev토큰 게이트·도메인 분리(cap-style 거부)·approve.mjs 패리티 3; constraints 0 violations, R12 devApprovalToken 마커 통과); pnpm test:e2e refund 2/2 + admin-custom 3/3 + contact 3/3(ContactForm 클라이언트 번들 무손상 — node:crypto 미유입 확인). 구현: 정적 'APPROVED:<action>'(소스 공개·전 주문 무한 재사용) → 서버 전용 src/lib/approval.ts의 target+TTL HMAC 토큰(wire `${exp}.${hmac}`, hmac=HMAC-SHA256(MYPAGE_ACCESS_SECRET, 'approval.v1|action|targetId|exp'), 10분 TTL). guardrails.ts는 클라이언트(ContactForm)가 쓰는 untrusted 유지 위해 node:crypto 미포함(approval.ts로 분리). 호출부: refundOrder(orderId 바인딩)·confirmConsultationAction(id 바인딩), approvalToken untrusted() 래핑. approve.mjs가 <targetId> 인자로 HMAC 발급(비-prod dev는 DEV 토큰). 신규 R12 마커 devApprovalToken. SAFETY.md §1/§5 갱신. hermetic E2E는 devAuthEnabled(F074) 게이트 DEV:action:targetId 토큰(프로덕션 거부). worker≠checker(3렌즈 워크플로, refute-by-default): critic1·critic2 공통 지적 — approval 메시지가 mypage cap `${orderId}.${exp}`·세션·OTP와 같은 시크릿+와이어포맷이라 충돌 방지가 id-format 우연에만 의존 → 'approval.v1|'+파이프 구분자 도메인 태깅으로 구성적 충돌 불가 교정(델리미터 모호성도 해소, cap-style 토큰 거부 유닛); critic3 CONFIRMED — approve.mjs가 prod HMAC 민팅을 중복 구현하나 패리티 테스트 부재(TTL·메시지포맷·IRREVERSIBLE 리스트 드리프트 시 prod 토큰 조용히 거부) → approve.mjs 소스 대조 + 재현 토큰 requireApproval 수용 유닛 3건 추가. replay(10분 TTL 재사용)는 게이트 액션 멱등/터미널(환불 REFUNDED+Idempotency-Key·상담 조건부쓰기)이라 무해 — 주석 명문화(비멱등 액션 추가 시 one-shot jti 필요). untrusted 래핑은 코스메틱이나 관례 준수. 마이그레이션 0. 배포 HITL: 프로덕션 운영자는 pnpm approve <action> <targetId>로 토큰 발급(로컬 MYPAGE_ACCESS_SECRET 필요)."
     }
   ]
 }

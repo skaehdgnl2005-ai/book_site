@@ -23,7 +23,7 @@ export function RefundPanel({ orderId, cancelRequested }: { orderId: string; can
       </p>
       <div className={styles.moveFields}>
         <label className={styles.moveLabel}>
-          승인 토큰 (pnpm approve toss.refund.live)
+          승인 토큰 (pnpm approve toss.refund.live {orderId})
           <input className={styles.moveInput} name="approvalToken" data-testid="refund-approval-token" />
         </label>
       </div>

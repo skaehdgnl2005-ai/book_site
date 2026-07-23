@@ -29,8 +29,9 @@ test.describe("refund (F063)", () => {
     await expect(page.getByTestId("refund-error")).toBeVisible();
     await expect(page.getByTestId("admin-order-status")).toHaveText("결제 완료");
 
-    // `pnpm approve toss.refund.live` 발급 토큰(고정 계약: APPROVED:<action>)으로만 실행
-    await page.getByTestId("refund-approval-token").fill("APPROVED:toss.refund.live");
+    // F076 — 승인 토큰은 이 주문에 바인딩된 대상·시간 한정 토큰. hermetic E2E는 dev-auth 옵트인 하의
+    // 결정론적 토큰(DEV:<action>:<targetId>)을 사용(프로덕션에선 HMAC 토큰만 유효).
+    await page.getByTestId("refund-approval-token").fill(`DEV:toss.refund.live:${orderId}`);
     await page.getByTestId("refund-submit").click();
     await expect(page.getByTestId("admin-order-status")).toHaveText("환불 완료");
     await expect(page.getByTestId("refund-panel")).toHaveCount(0); // terminal — no re-refund surface

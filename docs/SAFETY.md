@@ -20,11 +20,16 @@ These actions have real-world, non-undoable effects and are **default-deny**:
 | `email.transactional.send` / `email.marketing.send` | External email |
 | `deploy.production` | Production deploy / live-key switch |
 
-**How the gate works**
-1. Code calls `requireApproval(action, token)` (`src/lib/guardrails.ts`) before the effect.
-2. With no matching token it **throws** — the action cannot run.
-3. A human runs `pnpm approve <action>`, types the action name to confirm, and receives a
-   token `APPROVED:<action>` to pass into the guarded call.
+**How the gate works** (F076 — target- and time-bound tokens)
+1. Code calls `requireApproval(action, targetId, token)` (`src/lib/guardrails.ts`) before the effect,
+   binding the approval to ONE target (the order id / request id).
+2. With no valid token it **throws** — the action cannot run.
+3. A human runs `pnpm approve <action> <targetId>`, types the action name to confirm, and receives a
+   **target-bound, ~10-minute** token `${exp}.${hmac}` (HMAC over `action.targetId.exp`, signed with
+   `MYPAGE_ACCESS_SECRET`) to paste into the guarded call. The old static `APPROVED:<action>` literal
+   is gone — it was source-visible and forgeable, so a stolen admin session could refund every order.
+   Hermetic E2E uses a deterministic dev token gated by the F074 dev-auth opt-in (`ALLOW_DEV_AUTH`),
+   fail-closed in production.
 4. `scripts/check-constraints.mjs` rule **R3** fails CI if a `src/` side-effect
    (`.charge(`, `.refund(`, `sendEmail(`, `fulfill(`) lacks `requireApproval()`.
 
@@ -61,7 +66,8 @@ until separately approved (ADR-0004).
 - DB access goes through Prisma (parameterized) — no string-built SQL.
 
 ## 5. Permission scope (E5)
-- Approval tokens are **per-action** (`APPROVED:order.confirm` ≠ `APPROVED:deploy.production`).
+- Approval tokens are **per-action, per-target, and time-bound** (HMAC over `action.targetId.exp`,
+  ~10min TTL) — a token issued for one order's refund cannot refund another order, and expires (F076).
 - TossPayments test keys; DB user scoped to the app schema.
 - The approval CLI only *issues intent tokens* — it never performs the action itself.
 

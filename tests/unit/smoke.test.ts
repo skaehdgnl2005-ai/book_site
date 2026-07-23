@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { parseEnv, redact } from "../../src/lib/env";
-import { requireApproval, isIrreversible, untrusted } from "../../src/lib/guardrails";
+import { isIrreversible, untrusted } from "../../src/lib/guardrails";
+import { requireApproval } from "../../src/lib/approval";
 import { emit } from "../../src/lib/observability";
 
 describe("env contract (G-ERR / E3)", () => {
@@ -60,12 +61,15 @@ describe("HITL guardrails (G-HITL / E1 / E4)", () => {
   });
 
   it("blocks irreversible actions without an approval token (default-deny)", () => {
-    expect(() => requireApproval("order.confirm", undefined)).toThrow(/Blocked irreversible/);
-    expect(() => requireApproval("order.confirm", "APPROVED:order.confirm")).not.toThrow();
+    // F076 — tokens are target-bound; the dev token is accepted under vitest's ALLOW_DEV_AUTH opt-in.
+    expect(() => requireApproval("order.confirm", "ord_x", undefined)).toThrow(/Blocked irreversible/);
+    expect(() => requireApproval("order.confirm", "ord_x", "DEV:order.confirm:ord_x")).not.toThrow();
   });
 
-  it("rejects a mismatched approval token", () => {
-    expect(() => requireApproval("order.confirm", "APPROVED:deploy.production")).toThrow();
+  it("rejects a token bound to a different target or action, and the old static literal", () => {
+    expect(() => requireApproval("order.confirm", "ord_x", "DEV:order.confirm:ord_OTHER")).toThrow();
+    expect(() => requireApproval("order.confirm", "ord_x", "DEV:deploy.production:ord_x")).toThrow();
+    expect(() => requireApproval("order.confirm", "ord_x", "APPROVED:order.confirm")).toThrow();
   });
 
   it("tags untrusted content at the trust boundary", () => {

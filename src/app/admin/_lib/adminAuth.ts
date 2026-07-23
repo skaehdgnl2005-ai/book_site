@@ -3,11 +3,11 @@
  * (ADR-0023) is the identity; `ADMIN_EMAILS` (comma-separated, lowercase) is the role.
  * Failure mode is `notFound()` — /admin's existence is not advertised to non-admins (404,
  * never 403). Production without ADMIN_EMAILS denies everything (fail-closed); non-prod
- * falls back to a deterministic allowlist so hermetic E2E can drive /admin with zero config
- * (the accessSecret dev-fallback precedent).
+ * falls back to a deterministic allowlist so hermetic E2E can drive /admin — but ONLY under the
+ * F074 dev-auth opt-in (ALLOW_DEV_AUTH), so a public preview/staging box can't grant itself admin.
  */
 import { notFound } from "next/navigation";
-import { isProductionRuntime } from "../../../lib/env";
+import { devAuthEnabled } from "../../../lib/env";
 import { getSessionUser } from "../../account/_lib/sessionUser";
 import type { StoredUser } from "../../account/_lib/users";
 
@@ -31,9 +31,9 @@ export function isAdminEmail(
   if (!email) return false;
   const norm = email.trim().toLowerCase();
   if (adminEmails(env).includes(norm)) return true;
-  // Deterministic non-prod fallback — ONLY when no explicit list is configured (an explicit
-  // list replaces it, so tests can also exercise strictness). Production: env list or nothing.
-  if (env.ADMIN_EMAILS == null && !isProductionRuntime(env)) return DEV_ADMIN_RE.test(norm);
+  // Deterministic dev fallback — ONLY when no explicit list is configured AND dev-auth is opted in
+  // (non-prod + ALLOW_DEV_AUTH, F074). An explicit list replaces it; production / flagless non-prod: deny.
+  if (env.ADMIN_EMAILS == null && devAuthEnabled(env)) return DEV_ADMIN_RE.test(norm);
   return false;
 }
 

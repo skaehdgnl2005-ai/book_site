@@ -20,14 +20,25 @@ describe("adminEmails / isAdminEmail", () => {
     expect(isAdminEmail("admin+x@example.com", prod)).toBe(false);
   });
 
-  it("non-prod falls back to the deterministic dev admin family (parallel-E2E identities), overridable", () => {
-    const dev = { APP_ENV: "development" } as Record<string, string | undefined>;
+  it("non-prod WITH dev-auth opt-in falls back to the deterministic dev admin family, overridable", () => {
+    // F074 — the fallback is now gated by ALLOW_DEV_AUTH (dev-auth opt-in), not merely non-prod.
+    const dev = { APP_ENV: "development", ALLOW_DEV_AUTH: "true" } as Record<string, string | undefined>;
     expect(isAdminEmail(DEV_ADMIN_EMAIL, dev)).toBe(true);
     expect(isAdminEmail("admin+f059@example.com", dev)).toBe(true); // plus-address family
     expect(isAdminEmail("administrator@example.com", dev)).toBe(false);
     expect(isAdminEmail("admin@evil.com", dev)).toBe(false);
     // an explicit list REPLACES the fallback (never additive)
-    expect(isAdminEmail(DEV_ADMIN_EMAIL, { APP_ENV: "development", ADMIN_EMAILS: "only@shop.kr" })).toBe(false);
+    expect(isAdminEmail(DEV_ADMIN_EMAIL, { APP_ENV: "development", ALLOW_DEV_AUTH: "true", ADMIN_EMAILS: "only@shop.kr" })).toBe(false);
+  });
+
+  it("F074: non-prod WITHOUT the dev-auth opt-in denies the dev admin family (fail-closed)", () => {
+    // A public preview/staging box (non-prod, no ALLOW_DEV_AUTH, no ADMIN_EMAILS) must NOT grant admin.
+    const bare = { APP_ENV: "development" } as Record<string, string | undefined>;
+    expect(isAdminEmail(DEV_ADMIN_EMAIL, bare)).toBe(false);
+    expect(isAdminEmail("admin+f059@example.com", bare)).toBe(false);
+    // ALLOW_DEV_AUTH is inert in production (dev-auth is never on there)
+    const prodFlagged = { APP_ENV: "production", ALLOW_DEV_AUTH: "true" } as Record<string, string | undefined>;
+    expect(isAdminEmail(DEV_ADMIN_EMAIL, prodFlagged)).toBe(false);
   });
 });
 

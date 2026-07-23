@@ -3,6 +3,7 @@ import { Nav } from "../../_components/Nav";
 import { formatWon } from "../../_components/order/format";
 import { orderRepo, type OrderStatus } from "../../api/payments/_lib/orders";
 import { ORDER_STATUSES, ORDER_STATUS_LABEL } from "../../api/payments/_lib/status";
+import { requireAdmin } from "../_lib/adminAuth";
 import styles from "../admin.module.css";
 
 /**
@@ -14,6 +15,7 @@ export default async function AdminOrdersPage({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
+  await requireAdmin(); // F075 — own gate, not just the layout (defense in depth)
   const { status } = await searchParams;
   const filter = ORDER_STATUSES.includes(status as OrderStatus) ? (status as OrderStatus) : undefined;
   const orders = await orderRepo().listRecent({ status: filter, take: 50 });
