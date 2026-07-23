@@ -132,13 +132,14 @@ export interface OrderRepo {
    * AND status still in CANCELLABLE_STATUSES (환불/배송 전이로 처리 경로가 닫힌 건은 제외 —
    * 처리 완료 이력은 REFUNDED 상태 필터로 조회). Filters compose (intersection).
    */
-  listRecent(opts?: { status?: OrderStatus; take?: number; cancelRequested?: boolean }): Promise<StoredOrder[]>;
+  listRecent(opts?: OrderListFilter & { take?: number }): Promise<StoredOrder[]>;
   /**
    * F082 — honest full count over the SAME filter vocabulary as listRecent, with NO take cut:
-   * the queue badge must never present a 50-row slice as the total. Also the counting path
-   * the 트랙 O #3 dashboard reuses (per-status counts).
+   * the queue badge must never present a 50-row slice as the total. F083 — the dashboard's
+   * counting path: `statusIn` (set counts) + `createdFrom` (inclusive ≥, ISO — e.g. the KST
+   * '오늘' boundary from kstDayStartIso).
    */
-  count(opts?: { status?: OrderStatus; cancelRequested?: boolean }): Promise<number>;
+  count(opts?: OrderListFilter): Promise<number>;
   /** F060 — record the shipment (carrier + tracking number) ahead of the SHIPPED transition. */
   setTracking(id: string, carrier: string, trackingNumber: string): Promise<StoredOrder | undefined>;
   /**
@@ -153,13 +154,37 @@ export interface WebhookLedger {
   record(id: string): Promise<void>;
 }
 
+/**
+ * F082/F083 — the admin list/count filter vocabulary. Every provided constraint must hold
+ * (conjunction); status constraints (`status`, `statusIn`, `cancelRequested`'s cancellable set)
+ * therefore INTERSECT. Both backends implement this identically.
+ */
+export type OrderListFilter = {
+  status?: OrderStatus;
+  /** F083 — set count (e.g. '오늘 주문' = PAID_FAMILY ∪ WAITING_FOR_DEPOSIT). */
+  statusIn?: readonly OrderStatus[];
+  cancelRequested?: boolean;
+  /** F083 — inclusive lower bound on createdAt (ISO instant). */
+  createdFrom?: string;
+};
+
 // ── In-memory backend (hermetic; used when no DATABASE_URL) ────────────────────
 
 /** F082 — the ONE list/count predicate (composed filters; mirrors the Prisma where builder). */
-function matchesListFilter(o: StoredOrder, opts: { status?: OrderStatus; cancelRequested?: boolean }): boolean {
+function matchesListFilter(o: StoredOrder, opts: OrderListFilter): boolean {
   if (opts.status && o.status !== opts.status) return false;
+  if (opts.statusIn && !opts.statusIn.includes(o.status)) return false;
   if (opts.cancelRequested && !(o.cancelRequestedAt != null && CANCELLABLE_STATUSES.includes(o.status))) return false;
+  if (opts.createdFrom && Date.parse(o.createdAt) < parseCreatedFrom(opts.createdFrom)) return false;
   return true;
+}
+
+/** F083 — invalid createdFrom fails LOUD in both backends alike (the Prisma client would throw
+ *  on an Invalid Date anyway; silently matching everything in-memory would diverge). */
+function parseCreatedFrom(iso: string): number {
+  const ms = Date.parse(iso);
+  if (!Number.isFinite(ms)) throw new Error("Invalid createdFrom instant.");
+  return ms;
 }
 
 export function createOrderRepo(): OrderRepo {
@@ -484,10 +509,11 @@ export function mapOrderRow(row: OrderRow): StoredOrder {
 type TemplateDelegate = {
   findMany(args: { where: { key: { in: string[] } }; select: { id: true; key: true } }): Promise<Array<{ id: string; key: string }>>;
 };
-/** F082 — the admin list/count where shape (status filter and/or the cancel-request queue). */
+/** F082/F083 — the admin list/count where shape (status/queue/date-range filters). */
 type OrderListWhere = {
   status?: OrderStatus | { in: OrderStatus[] };
   cancelRequestedAt?: { not: null };
+  createdAt?: { gte: Date };
 };
 
 type OrderDelegate = {
@@ -523,20 +549,28 @@ type ProcessedWebhookDelegate = {
   create(args: { data: { id: string } }): Promise<{ id: string }>;
 };
 
-/** F082 — build the Prisma where for list/count (mirror of `matchesListFilter`, composed). */
-function buildListWhere(opts: { status?: OrderStatus; cancelRequested?: boolean }): OrderListWhere {
+/**
+ * F082/F083 — build the Prisma where for list/count (mirror of `matchesListFilter`). Every
+ * status-shaped constraint (`status`, `statusIn`, the queue's cancellable set) contributes a
+ * set; the where carries their INTERSECTION — so e.g. REFUNDED + cancelRequested is honestly
+ * empty (history ≠ queue), never the raw request-history set. A lone `status` stays scalar
+ * (the pre-F082 wire contract).
+ */
+function buildListWhere(opts: OrderListFilter): OrderListWhere {
   const where: OrderListWhere = {};
-  if (opts.status) where.status = opts.status;
+  const statusSets: (readonly OrderStatus[])[] = [];
+  if (opts.status) statusSets.push([opts.status]);
+  if (opts.statusIn) statusSets.push(opts.statusIn);
   if (opts.cancelRequested) {
     where.cancelRequestedAt = { not: null };
-    // Queue semantics: only orders still refundable count as 처리 대기. An explicit status
-    // filter INTERSECTS with the cancellable set (matching matchesListFilter's conjunction) —
-    // outside it (e.g. REFUNDED + cancelRequested) the result is honestly empty, not the
-    // raw request-history set.
-    where.status = opts.status
-      ? { in: CANCELLABLE_STATUSES.includes(opts.status) ? [opts.status] : [] }
-      : { in: [...CANCELLABLE_STATUSES] };
+    statusSets.push(CANCELLABLE_STATUSES);
   }
+  if (statusSets.length === 1 && opts.status) {
+    where.status = opts.status; // lone scalar filter — unchanged F059 shape
+  } else if (statusSets.length > 0) {
+    where.status = { in: statusSets.reduce<OrderStatus[]>((acc, s) => acc.filter((v) => s.includes(v)), [...statusSets[0]]) };
+  }
+  if (opts.createdFrom) where.createdAt = { gte: new Date(parseCreatedFrom(opts.createdFrom)) };
   return where;
 }
 

@@ -19,6 +19,17 @@ export const COVER_LABEL: Record<CoverType, string> = {
  * has round-tripped through Prisma's `.toISOString()` — a wrong payment deadline for KR buyers
  * (worker≠checker F070). Uses Intl (full ICU in Node 20 / the browser) for a deterministic format.
  */
+/**
+ * F083 — the KST (Asia/Seoul, fixed UTC+9, no DST) start-of-day instant for a given moment, as an
+ * ISO string. The 관리자 대시보드 '오늘 주문' boundary: a naive UTC date slice would flip the day at
+ * KST 09:00 (formatKstDateTime's F070 lesson, applied to counting). Pure arithmetic — no Intl.
+ */
+export function kstDayStartIso(nowMs: number): string {
+  const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  return new Date(Math.floor((nowMs + KST_OFFSET_MS) / DAY_MS) * DAY_MS - KST_OFFSET_MS).toISOString();
+}
+
 export function formatKstDateTime(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;

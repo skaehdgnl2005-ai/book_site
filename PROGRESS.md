@@ -3,6 +3,20 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **(2026-07-23): 트랙 O #3 — F083 관리자 대시보드 DONE (F082와 같은 세션 연속 — count 경로 컨텍스트 재사용).**
+  /admin 리다이렉트(F059)→**6타일 카운트 오버뷰**(기존 bare-/admin 의존 스펙 없음 grep 실측; 익명·회원 404 존재 은닉 E2E 유지).
+  타일: **오늘 주문**(= `todayOrdersFilter` — createdAt ≥ KST 오늘 00:00 && status ∈ PAID_FAMILY∪입금대기; **admin/_lib/dashboard.ts에
+  조합 자체를 이름으로 추출, 유닛이 배선 고정**) · 입금대기 · 취소요청(F082 큐 재사용) · 제작중 · 배송중 · 신규맞춤(SUBMITTED).
+  repo 확장: orders `OrderListFilter`(statusIn·createdFrom 추가 — **모든 상태 제약 교집합 conjunction**, 단독 status 스칼라 wire 보존,
+  invalid createdFrom 양 백엔드 동형 fail-loud) + customRequest `count` 신설(양 백엔드+delegate). 신규 CSS 0·PII 렌더 0.
+  **worker≠checker CONFIRMED 4 처리**: major ①오늘 타일 필터 배선 무테스트(조각만 유닛) → todayOrdersFilter 추출+유닛 ②오늘 타일
+  무필터 링크 vs '필터 적용' 문구·스텝 과약속 → 집계 전용 명시+배송중 클릭스루 시드 추가(필터 타일 5종 전수); minor ③invalid
+  createdFrom 백엔드 발산 → 동형 throw ④tileCount 정수 단언 공허(빈 렌더) → `^\d+$`. 검증: check green(유닛 399/10skip·R 0위반) +
+  admin-dashboard 2/2 + 인접 배치 green + **전체 E2E 186/186 all green(perf 포함 무결)** + eval 11/11. 마이그레이션 0.
+  `Next:` **트랙 O #4 리뷰 모더레이션**(soft-hide hiddenAt — 마이그레이션은 미배포 큐 20260717130000·20260717140000·20260720100000
+  **뒤** 타임스탬프 + R10 RLS; F071 공표 삭제기준 이행) → #5 문의 인박스(신규 Inquiry 모델+RLS+throttle) → #6 매출 요약(gross=
+  PAID_FAMILY+REFUNDED 이중차감 방지·환불 인식일 명시·월경계 E2E — 대시보드 count 어휘의 createdFrom에 createdTo 쌍 확장 예상).
+  배포 HITL 누적 변동 없음(신규 마이그레이션 0).
 - **(2026-07-23): 트랙 O #2 — F082 취소요청 큐 DONE (메인 직진 — 착수 시점 메인 한가·worktree 없음·포트 3000 무점유 실측).**
   **큐 의미론(확정·E2E 고정)**: 처리 대기 = `cancelRequestedAt ≠ null && status ∈ CANCELLABLE_STATUSES`(PAID/IN_PRODUCTION —
   신규 단일 상수, requestCancel 전제조건·RefundPanel 렌더 집합·전이표 →REFUNDED 엣지와 동일). 환불(REFUNDED)·배송(SHIPPED)

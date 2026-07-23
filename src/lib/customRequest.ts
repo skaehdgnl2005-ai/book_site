@@ -329,6 +329,8 @@ export interface CustomBackend {
   linkOrder(id: string, orderId: string): Promise<StoredCustomRequest | undefined>;
   /** F061 — admin listing: newest first, optional path/status filter, bounded take (default 50). */
   list(opts?: { path?: CustomPath; status?: CustomStatus; take?: number }): Promise<StoredCustomRequest[]>;
+  /** F083 — honest full count over list's filter vocabulary, NO take cut (대시보드 '신규 맞춤' 타일). */
+  count(opts?: { path?: CustomPath; status?: CustomStatus }): Promise<number>;
   /** F061 — conditional status move (updateMany idiom): applies only while status ∈ from. */
   updateStatus(id: string, from: readonly CustomStatus[], to: CustomStatus): Promise<{ ok: boolean }>;
   /** F061 — 상담 확정: REQUESTED→CONFIRMED, conditional. Caller holds the requireApproval gate. */
@@ -373,6 +375,12 @@ export function createInMemoryCustomBackend(): CustomBackend {
         .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
         .slice(0, take);
     },
+    async count(opts = {}) {
+      // Full scan, NO take — the dashboard tile is honest even when the list is cut (F083).
+      return [...s.map.values()]
+        .filter((r) => (opts.path ? r.path === opts.path : true))
+        .filter((r) => (opts.status ? r.status === opts.status : true)).length;
+    },
     async updateStatus(id, from, to) {
       const rec = s.map.get(id);
       if (!rec || !from.includes(rec.status)) return { ok: false };
@@ -410,6 +418,7 @@ type CustomDelegate = {
     where: { id: string; status?: "PENDING_PAYMENT" | { in: CustomStatus[] }; orderId?: null };
     data: { status?: CustomStatus; orderId?: string };
   }): Promise<{ count: number }>;
+  count(args: { where: { path?: CustomPath; status?: CustomStatus } }): Promise<number>;
 };
 type ConsultationDelegate = {
   updateMany(args: {
@@ -503,6 +512,14 @@ export function createPrismaBackend(getDb: () => Promise<Db>): CustomBackend {
       });
       return rows.map(mapCustomRow);
     },
+    async count(opts = {}) {
+      const db = await getDb();
+      // Same where vocabulary as list, NO take — the honest tile total (F083).
+      const where: { path?: CustomPath; status?: CustomStatus } = {};
+      if (opts.path) where.path = opts.path;
+      if (opts.status) where.status = opts.status;
+      return (db.customRequest as CustomDelegate).count({ where });
+    },
     async updateStatus(id, from, to) {
       const db = await getDb();
       const res = await (db.customRequest as CustomDelegate).updateMany({
@@ -542,6 +559,8 @@ export const customRequestStore = {
   /** F061 — admin listing (newest first, optional path/status filter). */
   list: (opts?: { path?: CustomPath; status?: CustomStatus; take?: number }): Promise<StoredCustomRequest[]> =>
     backend().list(opts),
+  /** F083 — honest full count (no take cut) over list's filter vocabulary. */
+  count: (opts?: { path?: CustomPath; status?: CustomStatus }): Promise<number> => backend().count(opts),
   /** F061 — conditional status move; callers gate the pair via canTransitionCustom. */
   updateStatus: (id: string, from: readonly CustomStatus[], to: CustomStatus): Promise<{ ok: boolean }> =>
     backend().updateStatus(id, from, to),
