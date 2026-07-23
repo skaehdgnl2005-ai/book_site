@@ -292,7 +292,7 @@ export async function processWebhook(
   const order = await repo.get(authoritative.orderId); // authoritative id, never the body's
   if (!order) return { status: 200, body: { status: "UNKNOWN_ORDER" } };
 
-  // F078 — 뒤늦은 입금 감지: 만료 종료된(터미널 CANCELLED) 가상계좌 주문에 은행 입금이 도착한 케이스.
+  // F081 — 뒤늦은 입금 감지: 만료 종료된(터미널 CANCELLED) 가상계좌 주문에 은행 입금이 도착한 케이스.
   // CANCELLED은 markPaid 대상이 아니라(F070) 재정산은 구조적으로 0이지만, 실제 돈은 Toss에 들어와
   // 있다 — 조용히 삼키면 운영자가 모른 채 남의 돈을 쥔다. system 감사 기록 + LATE_DEPOSIT 응답으로
   // 가시화하고, 환불은 앱 밖(운영자, docs/RUNBOOK_VA.md의 Toss 대시보드 절차)에서 집행한다.
@@ -322,7 +322,7 @@ export async function processWebhook(
   const paid = await repo.markPaid(order.id, paymentKey);
   if (paid.transitioned && paid.order) notify?.(paid.order); // F055: only if the confirm didn't win first
 
-  // F078 — 경합 창 재확인: 위의 order 읽기는 WFD였지만 markPaid 전에 관리자 종료(WFD→CANCELLED)가
+  // F081 — 경합 창 재확인: 위의 order 읽기는 WFD였지만 markPaid 전에 관리자 종료(WFD→CANCELLED)가
   // 커밋되면 markPaid는 no-op이고, 사전 read의 CANCELLED 분기는 이미 지나쳤다. 여기서 재확인하지
   // 않으면 이 밀리초 창의 뒤늦은 입금은 영구 미감지(200 응답 — Toss 재시도 없음)가 된다.
   if (!paid.transitioned && paid.order?.status === "CANCELLED") {
@@ -362,7 +362,7 @@ export function checkoutProvider(env: Record<string, string | undefined> = proce
           virtualAccount: {
             bankCode: "20", // 우리은행
             accountNumber: "56001234567890",
-            // F078 — "_va_expired_" 마커는 이미 지난 기한을 발급(비프로덕션 sandbox 전용): 만료 종료
+            // F081 — "_va_expired_" 마커는 이미 지난 기한을 발급(비프로덕션 sandbox 전용): 만료 종료
             // 플로우를 hermetic E2E로 재현하기 위한 시험 seam이다. 실 Toss는 미래 기한만 발급한다.
             dueDate: init.body.includes("_va_expired_")
               ? new Date(Date.now() - 60 * 60 * 1000).toISOString()

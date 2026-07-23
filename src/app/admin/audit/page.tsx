@@ -13,8 +13,8 @@ const ACTION_LABEL: Record<AuditAction, string> = {
   "order.refund": "주문 환불",
   "custom.move": "맞춤 전이",
   "consultation.confirm": "상담 확정",
-  "order.close_unpaid_va": "미입금 종료", // F078 — 기한 만료 가상계좌 종료(승인 토큰 게이트)
-  "order.late_deposit": "뒤늦은 입금 감지", // F078 — 종료 후 입금(웹훅 발신) → RUNBOOK_VA 환불 절차
+  "order.close_unpaid_va": "미입금 종료", // F081 — 기한 만료 가상계좌 종료(승인 토큰 게이트)
+  "order.late_deposit": "뒤늦은 입금 감지", // F081 — 종료 후 입금(웹훅 발신) → RUNBOOK_VA 환불 절차
 };
 
 export default async function AdminAuditPage() {

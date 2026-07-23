@@ -4,7 +4,7 @@ import { closeUnpaidVaOrder, type AdminActionState } from "../_lib/actions";
 import styles from "../../admin.module.css";
 
 /**
- * F078 — 미입금(가상계좌) 종료 패널. UI는 게이트가 아니다: 서버 액션이 기한 만료(depositDueDate<now)
+ * F081 — 미입금(가상계좌) 종료 패널. UI는 게이트가 아니다: 서버 액션이 기한 만료(depositDueDate<now)
  * + 승인 토큰(order.close_unpaid_va — 이 주문·10분 바인딩) + 조건부 전이를 전부 재검증한다. 기한 전에는
  * 종료 불가 안내가 보이고 제출해도 서버가 정직하게 거부한다(은행 비동기 입금과의 경합 봉쇄 — 레드팀 교정).
  */

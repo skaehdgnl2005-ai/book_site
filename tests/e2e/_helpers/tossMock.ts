@@ -2,7 +2,7 @@ import { type Page, expect } from "@playwright/test";
 
 // F070 — "deposit": a 가상계좌 payment. Redirects to successUrl like "success" but with a "_va_"
 // paymentKey so the sandbox confirm returns WAITING_FOR_DEPOSIT + an issued account.
-// F078 — "deposit-expired": same, but the "_va_expired_" marker makes the sandbox issue an
+// F081 — "deposit-expired": same, but the "_va_expired_" marker makes the sandbox issue an
 // ALREADY-PAST due date, so the admin 미입금 종료 flow is exercisable hermetically.
 export type TossOutcome = "success" | "fail" | "cancel" | "abandon" | "deposit" | "deposit-expired";
 
@@ -178,7 +178,7 @@ export async function completePaidTwoBookOrder(page: Page, opts: { qrOn?: boolea
 }
 
 /** F070 — pay via 가상계좌; lands on /orders/[id] as WAITING_FOR_DEPOSIT. Returns the orderId.
- *  F078 — `expired: true` issues an already-past due date (만료 종료 운영 플로우의 hermetic 재현). */
+ *  F081 — `expired: true` issues an already-past due date (만료 종료 운영 플로우의 hermetic 재현). */
 export async function completeVirtualAccountOrder(
   page: Page,
   opts: { email?: string; expired?: boolean } = {},

@@ -50,7 +50,7 @@ export function canTransition(from: OrderStatus, to: OrderStatus): boolean {
 }
 
 /**
- * F078 — 미입금 종료(WAITING_FOR_DEPOSIT→CANCELLED)의 순수 만료 게이트. 종료는 기한이 실제로
+ * F081 — 미입금 종료(WAITING_FOR_DEPOSIT→CANCELLED)의 순수 만료 게이트. 종료는 기한이 실제로
  * 지난 주문에만 허용된다(엄격 미만): 기한 전 무게이트 취소는 은행의 비동기 입금과 경합해 터미널
  * CANCELLED(REFUNDED 엣지 없음)로 실입금을 앱 내 환불 경로 0에 가둔다. 기한 데이터가 없거나
  * 깨져 있으면 fail-closed(false) — 앱 내 종료 불가, docs/RUNBOOK_VA.md의 Toss 대시보드 경로만.

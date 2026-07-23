@@ -10,7 +10,7 @@ import {
 import { auditStore } from "../../src/app/admin/_lib/auditLog";
 import type { PaymentLookupResult } from "../../src/lib/payments";
 
-// F078 — 입금대기(가상계좌) 운영. 핵심 불변식(레드팀 치명 교정):
+// F081 — 입금대기(가상계좌) 운영. 핵심 불변식(레드팀 치명 교정):
 //   ① 미입금 종료는 기한 만료분(depositDueDate < now)만 — vaDepositExpired가 그 순수 게이트다
 //     (기한 데이터가 없거나 깨져 있으면 fail-closed: 앱 내 종료 불가, 런북의 Toss 대시보드 경로만).
 //   ② 종료(터미널 CANCELLED)는 은행 비동기 입금과 경합한다 — 종료 후 도착한 뒤늦은 입금 웹훅은
@@ -75,7 +75,7 @@ async function wfdOrder() {
 }
 
 // ── ① 만료 게이트: depositDueDate < now 만 종료 가능, 데이터 부재/오염은 fail-closed ──
-describe("vaDepositExpired (F078 — 미입금 종료의 순수 게이트)", () => {
+describe("vaDepositExpired (F081 — 미입금 종료의 순수 게이트)", () => {
   const NOW = Date.parse("2026-07-23T12:00:00.000Z");
 
   it("기한이 지난 주문만 만료다", () => {
@@ -101,7 +101,7 @@ describe("vaDepositExpired (F078 — 미입금 종료의 순수 게이트)", () 
 });
 
 // ── ② 종료 후 뒤늦은 입금: 재정산 0 + LATE_DEPOSIT 감지 + system 감사 기록 ──
-describe("processWebhook 뒤늦은 입금 감지 (F078)", () => {
+describe("processWebhook 뒤늦은 입금 감지 (F081)", () => {
   it("CANCELLED 주문에 도착한 권위적 PAID 웹훅은 정산하지 않고 LATE_DEPOSIT을 보고한다", async () => {
     const { repo, order } = await wfdOrder();
     await repo.transition(order.id, ["WAITING_FOR_DEPOSIT"], "CANCELLED"); // 만료 종료(관리자/EXPIRED 웹훅)

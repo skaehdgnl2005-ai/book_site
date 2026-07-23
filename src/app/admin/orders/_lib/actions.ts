@@ -101,7 +101,7 @@ export async function advanceOrder(_prev: AdminActionState, formData: FormData):
 }
 
 /**
- * F078 — 기한 만료 가상계좌 미입금 종료(WAITING_FOR_DEPOSIT→CANCELLED). CANCELLED은 터미널이고
+ * F081 — 기한 만료 가상계좌 미입금 종료(WAITING_FOR_DEPOSIT→CANCELLED). CANCELLED은 터미널이고
  * REFUNDED 엣지가 없어, 은행의 비동기 입금과 경합하는 무게이트 취소는 실입금을 앱 내 환불 경로 0으로
  * 가둔다(레드팀 치명 교정). 그래서 3중 게이트: ① requireAdmin(신원) ② depositDueDate < now — 기한이
  * 실제로 지난 주문만(vaDepositExpired; 기한 데이터 부재/오염은 fail-closed) ③ requireApproval

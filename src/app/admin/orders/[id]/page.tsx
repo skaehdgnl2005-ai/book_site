@@ -24,7 +24,7 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
   const { id } = await params;
   const order = await orderRepo().get(id);
   if (!order) notFound();
-  // F078 — 만료 여부는 렌더 시점 참고 표시일 뿐, 게이트는 서버 액션이 자체 시각으로 재검증한다.
+  // F081 — 만료 여부는 렌더 시점 참고 표시일 뿐, 게이트는 서버 액션이 자체 시각으로 재검증한다.
   const vaExpired = vaDepositExpired(order.depositDueDate, Date.now());
 
   return (

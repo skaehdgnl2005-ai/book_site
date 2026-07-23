@@ -15,13 +15,13 @@ export type AuditAction =
   | "order.refund"
   | "custom.move"
   | "consultation.confirm"
-  // F078 — 입금대기(가상계좌) 운영: 관리자 미입금 종료 + 종료 후 뒤늦은 입금 감지(웹훅 발신, actor "system").
+  // F081 — 입금대기(가상계좌) 운영: 관리자 미입금 종료 + 종료 후 뒤늦은 입금 감지(웹훅 발신, actor "system").
   | "order.close_unpaid_va"
   | "order.late_deposit";
 
 /**
  * 호출부가 넘기는 감사 항목. before/after는 상태 문자열(없으면 생략) — PII는 절대 담지 않는다.
- * actorUserId는 관리자 변이면 내부 User.id, 시스템 발신 감지(웹훅 등)면 리터럴 "system"(F078).
+ * actorUserId는 관리자 변이면 내부 User.id, 시스템 발신 감지(웹훅 등)면 리터럴 "system"(F081).
  */
 export type AuditEntry = {
   actorUserId: string;
