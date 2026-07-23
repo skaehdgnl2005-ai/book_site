@@ -34,6 +34,14 @@ export function isPaidFamily(status: OrderStatus): boolean {
   return PAID_FAMILY.includes(status);
 }
 
+/**
+ * F062/F082 — 취소요청이 접수·처리될 수 있는 상태(배송 전 결제 완료 구간). requestCancel의
+ * 전제조건이자 취소요청 큐(처리 대기 = cancelRequestedAt ≠ null && status ∈ 이 집합)의 어휘,
+ * 그리고 RefundPanel이 렌더되는 환불 가능 집합(전이표의 →REFUNDED 엣지)과 동일한 단일 상수.
+ * 환불(REFUNDED)·배송(SHIPPED) 전이는 이 집합을 벗어나므로 큐에서 자연히 빠진다.
+ */
+export const CANCELLABLE_STATUSES: readonly OrderStatus[] = ["PAID", "IN_PRODUCTION"];
+
 const ALLOWED: Record<OrderStatus, readonly OrderStatus[]> = {
   CREATED: ["CANCELLED"], // abandoned/unpaid checkout can be closed; payment itself = markPaid
   WAITING_FOR_DEPOSIT: ["CANCELLED"], // 미입금/기한만료 가상계좌 종료; 입금 확정(→PAID)은 웹훅 전용

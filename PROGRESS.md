@@ -3,6 +3,25 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **(2026-07-23): 트랙 O #2 — F082 취소요청 큐 DONE (메인 직진 — 착수 시점 메인 한가·worktree 없음·포트 3000 무점유 실측).**
+  **큐 의미론(확정·E2E 고정)**: 처리 대기 = `cancelRequestedAt ≠ null && status ∈ CANCELLABLE_STATUSES`(PAID/IN_PRODUCTION —
+  신규 단일 상수, requestCancel 전제조건·RefundPanel 렌더 집합·전이표 →REFUNDED 엣지와 동일). 환불(REFUNDED)·배송(SHIPPED)
+  전이 시 큐 자연 이탈, cancelRequestedAt은 이력으로 잔존, 처리 완료 건 조회는 REFUNDED 상태 필터. **구현**: orderRepo
+  `listRecent({cancelRequested})` 필터 + **`count(opts)`**(take 없는 전량 — 배지가 50건 컷을 전체인 양 보이지 않게; status 카운트
+  겸용이라 **트랙 O #3 대시보드가 이 경로 재사용 예정**) — 양 백엔드 동형 술어(in-memory `matchesListFilter` ↔ Prisma
+  `buildListWhere`; 합성 시 status ∩ CANCELLABLE 교집합으로 발산 봉쇄), /admin/orders `?queue=cancel-requested` 필터 +
+  배지 + 50건 초과 컷 고지(신규 CSS 0). **worker≠checker(독립 checker, refute-by-default): CONFIRMED 4 전부 처리** —
+  major: E2E의 배지 정확 델타(n1-1)는 fullyParallel에서 타 스펙 구매자측 큐 변이와 교차해 구조적 flake → E2E는 멤버십·형식
+  단언으로, 정확 ±1 증감은 유닛으로 이동; minor: 스텝3(take-50) 유닛 귀속 evidence 명시·'반드시 보이고' 과약속 → 컷 고지
+  UI+description 정밀화·이질 잔여 파일은 관례대로 미스테이징; nit: Prisma 큐 경로 통합 실행 0 정직 고지(fake delegate 형태
+  고정뿐 — orders-prisma.test 선례 수준). REFUTED 7. **실측**: 신규 E2E는 단독 ~29s로 기본 30s 예산 부족(병렬 1회 타임아웃)
+  → perf.spec 선례 `test.setTimeout(90s)`. 검증: check green(유닛 387/10skip·R 0위반) + admin-cancel-queue 1/1 + 인접 계약
+  배치(admin-orders·cancel-request·refund·admin-va) 10/10 + 전체 E2E 184 중 183(유일 실패 perf category-anniversary 격리
+  3/3 green 977·993ms — 동시부하 아티팩트 5번째 기록) + eval 11/11. 마이그레이션 0.
+  `Next:` **트랙 O #3 관리자 대시보드**(/admin 리다이렉트→카운트 오버뷰: 오늘주문·입금대기·취소요청·제작중·배송중·신규맞춤 —
+  F082 `count(opts)`가 status/큐 카운트를 이미 제공, '오늘주문'만 createdAt 범위 확장 필요) → #4 리뷰 모더레이션(hiddenAt
+  마이그레이션은 미배포 큐 20260717130000·20260717140000·20260720100000 **뒤** 타임스탬프 + R10 RLS) → #5 문의 인박스 →
+  #6 매출 요약(gross=PAID_FAMILY+REFUNDED 이중차감 방지·환불 인식일 명시·월경계 E2E). 배포 HITL 누적 변동 없음(신규 마이그레이션 0).
 - **(2026-07-23): F080 미리보기 실제 내지 이미지 DONE — `/change` 접수(F077 후속 3). 커밋 완료.**
   선행 조건(실물 에셋 부재로 1차 중단)을 사용자 지시("네가 충족시키고 진행해")로 직접 충족: birth 4장
   1200×840(10:7) webp를 레포 Playwright Chromium CDP 캡처로 생성(장당 17~20KB — 문장·페이지번호 01~08·

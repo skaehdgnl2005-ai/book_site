@@ -20,7 +20,7 @@
  */
 import { randomUUID } from "node:crypto";
 import type { Db } from "../../../../lib/db";
-import { toOrderStatus } from "./status";
+import { CANCELLABLE_STATUSES, toOrderStatus } from "./status";
 
 export type CoverType = "SOFT" | "HARD";
 export type Gender = "MALE" | "FEMALE";
@@ -126,8 +126,19 @@ export interface OrderRepo {
   claimByEmail(email: string, userId: string): Promise<{ count: number }>;
   /** F057 — the member's orders, newest first. */
   listByUser(userId: string): Promise<StoredOrder[]>;
-  /** F059 — admin listing: newest first, optional status filter, bounded take (default 50). */
-  listRecent(opts?: { status?: OrderStatus; take?: number }): Promise<StoredOrder[]>;
+  /**
+   * F059 — admin listing: newest first, optional status filter, bounded take (default 50).
+   * F082 — `cancelRequested: true` narrows to the 취소요청 처리 대기 큐: cancelRequestedAt set
+   * AND status still in CANCELLABLE_STATUSES (환불/배송 전이로 처리 경로가 닫힌 건은 제외 —
+   * 처리 완료 이력은 REFUNDED 상태 필터로 조회). Filters compose (intersection).
+   */
+  listRecent(opts?: { status?: OrderStatus; take?: number; cancelRequested?: boolean }): Promise<StoredOrder[]>;
+  /**
+   * F082 — honest full count over the SAME filter vocabulary as listRecent, with NO take cut:
+   * the queue badge must never present a 50-row slice as the total. Also the counting path
+   * the 트랙 O #3 dashboard reuses (per-status counts).
+   */
+  count(opts?: { status?: OrderStatus; cancelRequested?: boolean }): Promise<number>;
   /** F060 — record the shipment (carrier + tracking number) ahead of the SHIPPED transition. */
   setTracking(id: string, carrier: string, trackingNumber: string): Promise<StoredOrder | undefined>;
   /**
@@ -143,6 +154,14 @@ export interface WebhookLedger {
 }
 
 // ── In-memory backend (hermetic; used when no DATABASE_URL) ────────────────────
+
+/** F082 — the ONE list/count predicate (composed filters; mirrors the Prisma where builder). */
+function matchesListFilter(o: StoredOrder, opts: { status?: OrderStatus; cancelRequested?: boolean }): boolean {
+  if (opts.status && o.status !== opts.status) return false;
+  if (opts.cancelRequested && !(o.cancelRequestedAt != null && CANCELLABLE_STATUSES.includes(o.status))) return false;
+  return true;
+}
+
 export function createOrderRepo(): OrderRepo {
   const map = new Map<string, StoredOrder>();
   let seq = 0;
@@ -208,9 +227,13 @@ export function createOrderRepo(): OrderRepo {
     async listRecent(opts = {}) {
       const take = opts.take ?? 50;
       return [...map.values()]
-        .filter((o) => (opts.status ? o.status === opts.status : true))
+        .filter((o) => matchesListFilter(o, opts))
         .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
         .slice(0, take);
+    },
+    async count(opts = {}) {
+      // Full scan, NO take — the badge total is honest even when the list is cut at 50.
+      return [...map.values()].filter((o) => matchesListFilter(o, opts)).length;
     },
     async setTracking(id, carrier, trackingNumber) {
       const order = map.get(id);
@@ -221,7 +244,7 @@ export function createOrderRepo(): OrderRepo {
     },
     async requestCancel(id, reason, now = Date.now()) {
       const order = map.get(id);
-      if (!order || order.cancelRequestedAt || !["PAID", "IN_PRODUCTION"].includes(order.status)) {
+      if (!order || order.cancelRequestedAt || !CANCELLABLE_STATUSES.includes(order.status)) {
         return { ok: false };
       }
       order.cancelRequestedAt = new Date(now).toISOString();
@@ -461,15 +484,22 @@ export function mapOrderRow(row: OrderRow): StoredOrder {
 type TemplateDelegate = {
   findMany(args: { where: { key: { in: string[] } }; select: { id: true; key: true } }): Promise<Array<{ id: string; key: string }>>;
 };
+/** F082 — the admin list/count where shape (status filter and/or the cancel-request queue). */
+type OrderListWhere = {
+  status?: OrderStatus | { in: OrderStatus[] };
+  cancelRequestedAt?: { not: null };
+};
+
 type OrderDelegate = {
   create(args: { data: OrderCreateData; include: unknown }): Promise<OrderRow>;
   findUnique(args: { where: { id: string }; include: unknown }): Promise<OrderRow | null>;
   findMany(args: {
-    where: { userId: string } | { status?: OrderStatus };
+    where: { userId: string } | OrderListWhere;
     orderBy: { createdAt: "desc" };
     take?: number;
     include: unknown;
   }): Promise<OrderRow[]>;
+  count(args: { where: OrderListWhere }): Promise<number>;
   updateMany(args: {
     where:
       | { id: string; status?: OrderStatus | { in: OrderStatus[] }; cancelRequestedAt?: null }
@@ -492,6 +522,23 @@ type ProcessedWebhookDelegate = {
   findUnique(args: { where: { id: string } }): Promise<{ id: string } | null>;
   create(args: { data: { id: string } }): Promise<{ id: string }>;
 };
+
+/** F082 — build the Prisma where for list/count (mirror of `matchesListFilter`, composed). */
+function buildListWhere(opts: { status?: OrderStatus; cancelRequested?: boolean }): OrderListWhere {
+  const where: OrderListWhere = {};
+  if (opts.status) where.status = opts.status;
+  if (opts.cancelRequested) {
+    where.cancelRequestedAt = { not: null };
+    // Queue semantics: only orders still refundable count as 처리 대기. An explicit status
+    // filter INTERSECTS with the cancellable set (matching matchesListFilter's conjunction) —
+    // outside it (e.g. REFUNDED + cancelRequested) the result is honestly empty, not the
+    // raw request-history set.
+    where.status = opts.status
+      ? { in: CANCELLABLE_STATUSES.includes(opts.status) ? [opts.status] : [] }
+      : { in: [...CANCELLABLE_STATUSES] };
+  }
+  return where;
+}
 
 const ORDER_INCLUDE = {
   items: { orderBy: { position: "asc" }, include: { template: true, personalization: { include: { photoAsset: true } } } },
@@ -574,12 +621,17 @@ export function createPrismaOrderRepo(getDb: () => Promise<Db>): OrderRepo {
     async listRecent(opts = {}) {
       const db = await getDb();
       const rows = await (db.order as OrderDelegate).findMany({
-        where: opts.status ? { status: opts.status } : {},
+        where: buildListWhere(opts),
         orderBy: { createdAt: "desc" },
         take: opts.take ?? 50,
         include: ORDER_INCLUDE,
       });
       return rows.map(mapOrderRow);
+    },
+    async count(opts = {}) {
+      const db = await getDb();
+      // Same where vocabulary, NO take — the honest total behind the queue badge (F082).
+      return (db.order as OrderDelegate).count({ where: buildListWhere(opts) });
     },
     async setTracking(id, carrier, trackingNumber) {
       const db = await getDb();
@@ -594,7 +646,7 @@ export function createPrismaOrderRepo(getDb: () => Promise<Db>): OrderRepo {
       const db = await getDb();
       // ONE conditional write: cancellable status + no prior request (duplicate = honest no-op).
       const res = await (db.order as OrderDelegate).updateMany({
-        where: { id, status: { in: ["PAID", "IN_PRODUCTION"] }, cancelRequestedAt: null },
+        where: { id, status: { in: [...CANCELLABLE_STATUSES] }, cancelRequestedAt: null },
         data: { cancelRequestedAt: new Date(now), cancelReason: reason },
       });
       return { ok: res.count === 1 };

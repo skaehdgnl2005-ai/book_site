@@ -9,16 +9,24 @@ import styles from "../admin.module.css";
 /**
  * F059 — 관리자 주문 목록: 최신순 50건, 상태 필터. PII(구매자명)는 화면 렌더만 — 어떤 admin
  * 코드 경로도 로그/트레이스에 남기지 않는다(E3). 게이트는 admin/layout.tsx(+상세/액션 재검증).
+ * F082 — 취소요청 큐 필터(?queue=cancel-requested): 처리 대기(요청 접수 + 아직 환불 가능) 건만.
+ * 배지 숫자는 take 50 컷과 분리된 repo.count 전량 — 오래된 요청이 목록에서 밀려나도 정직하다.
  */
 export default async function AdminOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; queue?: string }>;
 }) {
   await requireAdmin(); // F075 — own gate, not just the layout (defense in depth)
-  const { status } = await searchParams;
-  const filter = ORDER_STATUSES.includes(status as OrderStatus) ? (status as OrderStatus) : undefined;
-  const orders = await orderRepo().listRecent({ status: filter, take: 50 });
+  const { status, queue } = await searchParams;
+  const cancelQueue = queue === "cancel-requested";
+  const filter =
+    !cancelQueue && ORDER_STATUSES.includes(status as OrderStatus) ? (status as OrderStatus) : undefined;
+  const repo = orderRepo();
+  const [orders, cancelQueueCount] = await Promise.all([
+    repo.listRecent(cancelQueue ? { cancelRequested: true, take: 50 } : { status: filter, take: 50 }),
+    repo.count({ cancelRequested: true }),
+  ]);
 
   return (
     <>
@@ -33,7 +41,7 @@ export default async function AdminOrdersPage({
             <li>
               <Link
                 href="/admin/orders"
-                className={`${styles.filterLink} ${!filter ? styles.filterActive : ""}`}
+                className={`${styles.filterLink} ${!filter && !cancelQueue ? styles.filterActive : ""}`}
               >
                 전체
               </Link>
@@ -49,9 +57,26 @@ export default async function AdminOrdersPage({
                 </Link>
               </li>
             ))}
+            <li>
+              <Link
+                href="/admin/orders?queue=cancel-requested"
+                className={`${styles.filterLink} ${cancelQueue ? styles.filterActive : ""}`}
+                data-testid="admin-filter-cancel-requested"
+              >
+                취소요청 (<span data-testid="admin-cancel-queue-count">{cancelQueueCount}</span>)
+              </Link>
+            </li>
           </ul>
+          {cancelQueue && cancelQueueCount > orders.length ? (
+            // 50건 초과 시 목록도 최신순 컷을 받는다 — 배지(전량)와의 괴리를 숨기지 않는다.
+            <p className={styles.note} data-testid="admin-queue-cut-note">
+              처리 대기 {cancelQueueCount}건 중 최신 {orders.length}건을 표시합니다.
+            </p>
+          ) : null}
           {orders.length === 0 ? (
-            <p className={styles.empty} data-testid="admin-orders-empty">해당 상태의 주문이 없습니다.</p>
+            <p className={styles.empty} data-testid="admin-orders-empty">
+              {cancelQueue ? "처리 대기 중인 취소요청이 없습니다." : "해당 상태의 주문이 없습니다."}
+            </p>
           ) : (
             <ul className={styles.list} role="list" data-testid="admin-orders">
               {orders.map((order) => (
