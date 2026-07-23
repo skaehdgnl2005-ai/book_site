@@ -8,7 +8,7 @@ import { emailAdapter } from "@/lib/email";
 import { redact } from "@/lib/env";
 import { customTossProvider } from "@/lib/customRequest";
 import { orderRepo, type OrderStatus } from "@/app/api/payments/_lib/orders";
-import { canTransition } from "@/app/api/payments/_lib/status";
+import { canTransition, vaDepositExpired } from "@/app/api/payments/_lib/status";
 import { trackingUrl, carrierDisplayName } from "@/app/api/payments/_lib/tracking";
 import { checkoutProvider } from "@/app/api/payments/_lib/checkout";
 import { requireAdmin } from "../../_lib/adminAuth";
@@ -94,6 +94,54 @@ export async function advanceOrder(_prev: AdminActionState, formData: FormData):
       }
     });
   }
+
+  revalidatePath(`/admin/orders/${orderId}`);
+  revalidatePath("/admin/orders");
+  return {};
+}
+
+/**
+ * F078 — 기한 만료 가상계좌 미입금 종료(WAITING_FOR_DEPOSIT→CANCELLED). CANCELLED은 터미널이고
+ * REFUNDED 엣지가 없어, 은행의 비동기 입금과 경합하는 무게이트 취소는 실입금을 앱 내 환불 경로 0으로
+ * 가둔다(레드팀 치명 교정). 그래서 3중 게이트: ① requireAdmin(신원) ② depositDueDate < now — 기한이
+ * 실제로 지난 주문만(vaDepositExpired; 기한 데이터 부재/오염은 fail-closed) ③ requireApproval
+ * ("order.close_unpaid_va", 대상·10분 바인딩 HITL 토큰). 적용은 조건부 전이라 입금 웹훅이 먼저
+ * 정산했으면 정직하게 실패한다(경합의 원자적 해소). 종료 뒤 도착한 뒤늦은 입금은 웹훅이 LATE_DEPOSIT
+ * 으로 감지·감사 기록하고, 환불은 운영자가 docs/RUNBOOK_VA.md대로 Toss 대시보드에서 집행한다.
+ */
+export async function closeUnpaidVaOrder(_prev: AdminActionState, formData: FormData): Promise<AdminActionState> {
+  const admin = await requireAdmin();
+  const orderId = String(untrusted(formData.get("orderId")).value ?? "").trim();
+  const token = String(untrusted(formData.get("approvalToken")).value ?? "").trim();
+
+  const repo = orderRepo();
+  const order = await repo.get(orderId);
+  if (!order) return { error: "주문을 찾을 수 없습니다." };
+  if (order.status !== "WAITING_FOR_DEPOSIT") return { error: "입금 대기 주문이 아닙니다. 새로고침해 주세요." };
+  if (!vaDepositExpired(order.depositDueDate, Date.now())) {
+    return { error: "입금 기한이 지나기 전에는 종료할 수 없습니다. 기한 내 입금은 은행에서 비동기로 도착할 수 있어요." };
+  }
+
+  try {
+    requireApproval("order.close_unpaid_va", orderId, token); // F076 — 이 주문·10분 바인딩
+  } catch {
+    return { error: `승인 토큰이 필요합니다. \`pnpm approve order.close_unpaid_va ${orderId}\`로 발급한 토큰(이 주문·10분 한정)을 입력해 주세요.` };
+  }
+
+  const fromStatus = order.status; // snapshot before transition (in-memory repo mutates in place)
+  // 조건부 전이 = 경합의 원자적 해소: 입금 웹훅이 그 사이 정산(WFD→PAID)했으면 여기서 실패한다.
+  const res = await repo.transition(orderId, ["WAITING_FOR_DEPOSIT"], "CANCELLED");
+  if (!res.ok) return { error: "이미 처리되었거나 상태가 바뀌었습니다(입금이 확인되었을 수 있어요). 새로고침해 주세요." };
+
+  // F073 — 전이 승자만 감사 기록(actor·전후 상태; PII 없음). best-effort.
+  await recordAuditSafe({
+    actorUserId: admin.id,
+    action: "order.close_unpaid_va",
+    targetType: "order",
+    targetId: orderId,
+    before: fromStatus,
+    after: "CANCELLED",
+  });
 
   revalidatePath(`/admin/orders/${orderId}`);
   revalidatePath("/admin/orders");

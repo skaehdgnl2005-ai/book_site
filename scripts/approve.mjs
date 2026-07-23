@@ -23,6 +23,7 @@ const IRREVERSIBLE = [
   "toss.charge.live",
   "toss.refund.live",
   "order.confirm",
+  "order.close_unpaid_va",
   "consultation.book",
   "fulfillment.trigger",
   "inventory.write.production",

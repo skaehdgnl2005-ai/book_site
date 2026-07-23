@@ -26,6 +26,7 @@ import type {
   ExtraVarValue,
 } from "./orders";
 import { isPaidFamily } from "./status";
+import { recordAuditSafe } from "../../../admin/_lib/auditLog";
 
 /**
  * F055 — called EXACTLY ONCE per order, on the markPaid call whose atomic conditional write
@@ -290,6 +291,26 @@ export async function processWebhook(
 
   const order = await repo.get(authoritative.orderId); // authoritative id, never the body's
   if (!order) return { status: 200, body: { status: "UNKNOWN_ORDER" } };
+
+  // F078 — 뒤늦은 입금 감지: 만료 종료된(터미널 CANCELLED) 가상계좌 주문에 은행 입금이 도착한 케이스.
+  // CANCELLED은 markPaid 대상이 아니라(F070) 재정산은 구조적으로 0이지만, 실제 돈은 Toss에 들어와
+  // 있다 — 조용히 삼키면 운영자가 모른 채 남의 돈을 쥔다. system 감사 기록 + LATE_DEPOSIT 응답으로
+  // 가시화하고, 환불은 앱 밖(운영자, docs/RUNBOOK_VA.md의 Toss 대시보드 절차)에서 집행한다.
+  // 금액 검증보다 먼저: 금액이 어긋나도 입금 사실 자체를 운영자가 알아야 한다(감지가 우선).
+  if (order.status === "CANCELLED") {
+    await ledger.record(dedupeKey); // 재전달은 dedupe — 감사 기록도 정확히 1회
+    await recordAuditSafe({
+      actorUserId: "system",
+      action: "order.late_deposit",
+      targetType: "order",
+      targetId: order.id,
+      before: order.status,
+      after: order.status, // 상태는 움직이지 않는다 — 감지 이벤트 기록
+    });
+    console.warn(`late deposit after cancellation: order=${order.id} (refund via Toss dashboard — RUNBOOK_VA)`);
+    return { status: 200, body: { status: "LATE_DEPOSIT", orderId: order.id } };
+  }
+
   if (authoritative.amount !== order.amountWon) {
     return { status: 200, body: { status: "AMOUNT_MISMATCH" } }; // suspicious — never settle
   }
@@ -300,6 +321,23 @@ export async function processWebhook(
   await ledger.record(dedupeKey);
   const paid = await repo.markPaid(order.id, paymentKey);
   if (paid.transitioned && paid.order) notify?.(paid.order); // F055: only if the confirm didn't win first
+
+  // F078 — 경합 창 재확인: 위의 order 읽기는 WFD였지만 markPaid 전에 관리자 종료(WFD→CANCELLED)가
+  // 커밋되면 markPaid는 no-op이고, 사전 read의 CANCELLED 분기는 이미 지나쳤다. 여기서 재확인하지
+  // 않으면 이 밀리초 창의 뒤늦은 입금은 영구 미감지(200 응답 — Toss 재시도 없음)가 된다.
+  if (!paid.transitioned && paid.order?.status === "CANCELLED") {
+    await recordAuditSafe({
+      actorUserId: "system",
+      action: "order.late_deposit",
+      targetType: "order",
+      targetId: order.id,
+      before: "CANCELLED",
+      after: "CANCELLED",
+    });
+    console.warn(`late deposit after cancellation: order=${order.id} (refund via Toss dashboard — RUNBOOK_VA)`);
+    return { status: 200, body: { status: "LATE_DEPOSIT", orderId: order.id } };
+  }
+
   return { status: 200, body: { status: "PAID", orderId: order.id } };
 }
 
@@ -324,7 +362,11 @@ export function checkoutProvider(env: Record<string, string | undefined> = proce
           virtualAccount: {
             bankCode: "20", // 우리은행
             accountNumber: "56001234567890",
-            dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+            // F078 — "_va_expired_" 마커는 이미 지난 기한을 발급(비프로덕션 sandbox 전용): 만료 종료
+            // 플로우를 hermetic E2E로 재현하기 위한 시험 seam이다. 실 Toss는 미래 기한만 발급한다.
+            dueDate: init.body.includes("_va_expired_")
+              ? new Date(Date.now() - 60 * 60 * 1000).toISOString()
+              : new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
           },
         };
       }

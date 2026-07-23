@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Nav } from "../../../_components/Nav";
-import { formatWon, COVER_LABEL } from "../../../_components/order/format";
+import { formatWon, formatKstDateTime, COVER_LABEL } from "../../../_components/order/format";
 import { orderRepo } from "../../../api/payments/_lib/orders";
-import { ORDER_STATUS_LABEL, canTransition } from "../../../api/payments/_lib/status";
+import { ORDER_STATUS_LABEL, canTransition, vaDepositExpired } from "../../../api/payments/_lib/status";
 import { TransitionPanel } from "./TransitionPanel";
 import { RefundPanel } from "./RefundPanel";
+import { VaClosePanel } from "./VaClosePanel";
 import { TrackingLink } from "../../../_components/order/TrackingLink";
 import { requireAdmin } from "../../_lib/adminAuth";
 import styles from "../../admin.module.css";
@@ -23,6 +24,8 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
   const { id } = await params;
   const order = await orderRepo().get(id);
   if (!order) notFound();
+  // F078 — 만료 여부는 렌더 시점 참고 표시일 뿐, 게이트는 서버 액션이 자체 시각으로 재검증한다.
+  const vaExpired = vaDepositExpired(order.depositDueDate, Date.now());
 
   return (
     <>
@@ -88,6 +91,23 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
                 <dd className={styles.dd}>QR 영상 추가</dd>
               </div>
             ) : null}
+            {order.depositBank || order.depositAccount ? (
+              <div className={styles.row}>
+                <dt className={styles.dt}>가상계좌</dt>
+                <dd className={styles.dd} data-testid="admin-va-account">
+                  {order.depositBank} {order.depositAccount}
+                </dd>
+              </div>
+            ) : null}
+            {order.depositDueDate ? (
+              <div className={styles.row}>
+                <dt className={styles.dt}>입금 기한</dt>
+                <dd className={styles.dd} data-testid="admin-va-due">
+                  {formatKstDateTime(order.depositDueDate)}
+                  {order.status === "WAITING_FOR_DEPOSIT" ? (vaExpired ? " · 기한 만료" : " · 기한 전") : ""}
+                </dd>
+              </div>
+            ) : null}
             {order.trackingNumber ? (
               <div className={styles.row}>
                 <dt className={styles.dt}>운송장</dt>
@@ -106,6 +126,9 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
             ) : null}
           </dl>
           <TransitionPanel orderId={order.id} status={order.status} />
+          {order.status === "WAITING_FOR_DEPOSIT" ? (
+            <VaClosePanel orderId={order.id} expired={vaExpired} />
+          ) : null}
           {canTransition(order.status, "REFUNDED") && order.tossPaymentKey ? (
             <RefundPanel orderId={order.id} cancelRequested={order.cancelRequestedAt != null} />
           ) : null}

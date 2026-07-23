@@ -2,7 +2,9 @@ import { type Page, expect } from "@playwright/test";
 
 // F070 — "deposit": a 가상계좌 payment. Redirects to successUrl like "success" but with a "_va_"
 // paymentKey so the sandbox confirm returns WAITING_FOR_DEPOSIT + an issued account.
-export type TossOutcome = "success" | "fail" | "cancel" | "abandon" | "deposit";
+// F078 — "deposit-expired": same, but the "_va_expired_" marker makes the sandbox issue an
+// ALREADY-PAST due date, so the admin 미입금 종료 flow is exercisable hermetically.
+export type TossOutcome = "success" | "fail" | "cancel" | "abandon" | "deposit" | "deposit-expired";
 
 /**
  * Plant a hermetic stand-in for the TossPayments browser SDK BEFORE any page script runs.
@@ -24,8 +26,13 @@ export async function installTossMock(page: Page, outcome: TossOutcome): Promise
       amountValue: number,
     ) => {
       w.__TOSS_LAST_ORDER_ID__ = req.orderId;
-      if (o === "success" || o === "deposit") {
-        const pk = o === "deposit" ? `test_pk_va_${req.orderId}` : `test_pk_${req.orderId}`;
+      if (o === "success" || o === "deposit" || o === "deposit-expired") {
+        const pk =
+          o === "deposit-expired"
+            ? `test_pk_va_expired_${req.orderId}`
+            : o === "deposit"
+              ? `test_pk_va_${req.orderId}`
+              : `test_pk_${req.orderId}`;
         location.assign(`${req.successUrl}?paymentKey=${pk}&orderId=${req.orderId}&amount=${amountValue}&paymentType=NORMAL`);
       } else if (o === "fail")
         location.assign(`${req.failUrl}?code=PAY_PROCESS_ABORTED&message=${encodeURIComponent("결제에 실패했습니다")}&orderId=${req.orderId}`);
@@ -170,9 +177,13 @@ export async function completePaidTwoBookOrder(page: Page, opts: { qrOn?: boolea
   return new URL(page.url()).pathname.split("/").pop() as string;
 }
 
-/** F070 — pay via 가상계좌; lands on /orders/[id] as WAITING_FOR_DEPOSIT. Returns the orderId. */
-export async function completeVirtualAccountOrder(page: Page, opts: { email?: string } = {}): Promise<string> {
-  await installTossMock(page, "deposit");
+/** F070 — pay via 가상계좌; lands on /orders/[id] as WAITING_FOR_DEPOSIT. Returns the orderId.
+ *  F078 — `expired: true` issues an already-past due date (만료 종료 운영 플로우의 hermetic 재현). */
+export async function completeVirtualAccountOrder(
+  page: Page,
+  opts: { email?: string; expired?: boolean } = {},
+): Promise<string> {
+  await installTossMock(page, opts.expired ? "deposit-expired" : "deposit");
   await addBirthToCart(page);
   await checkoutFromCart(page, { email: opts.email });
   await page.waitForURL(/\/orders\/ord_/);
