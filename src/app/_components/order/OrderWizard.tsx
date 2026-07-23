@@ -1,8 +1,9 @@
 "use client";
-import { useReducer } from "react";
+import { useReducer, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { CatalogTemplate } from "../catalog/templates";
 import { Nav } from "../Nav";
+import { BookPreviewViewer } from "../preview/BookPreviewViewer";
 import { loadCart, saveCart, addLine, setQrAddon, type CartLine, type CoverType, type Gender } from "@/lib/cart";
 import { toExtraVarValue } from "./personalization";
 import { InfoStep } from "./steps/InfoStep";
@@ -49,6 +50,9 @@ function reducer(state: State, action: Action): State {
 export function OrderWizard({ template }: { template: CatalogTemplate }) {
   const router = useRouter();
   const [state, dispatch] = useReducer(reducer, { stepIndex: 0, draft: initialDraft });
+  // F077 — 책 미리보기 오버레이. Focus returns to the entry link on close (a11y).
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const previewLinkRef = useRef<HTMLButtonElement>(null);
   const step = STEPS[state.stepIndex];
   const patch = (p: Partial<Draft>) => dispatch({ type: "PATCH", patch: p });
   const next = () => dispatch({ type: "NEXT" });
@@ -95,6 +99,28 @@ export function OrderWizard({ template }: { template: CatalogTemplate }) {
           <p className={styles.included} data-testid="order-included">
             자석 외함 · 축하 카드 기본 포함 — 주문 후 일주일 이내 제작해 보내 드립니다
           </p>
+          {/* F077 — non-primary action = text link (DESIGN.md #4); opens the flip viewer. */}
+          <button
+            ref={previewLinkRef}
+            type="button"
+            className={styles.previewLink}
+            onClick={() => setPreviewOpen(true)}
+            data-testid="preview-open"
+          >
+            이 책 미리 읽기
+            <span className={styles.previewArrow} aria-hidden="true">
+              →
+            </span>
+          </button>
+          {previewOpen ? (
+            <BookPreviewViewer
+              template={template}
+              onClose={() => {
+                setPreviewOpen(false);
+                previewLinkRef.current?.focus();
+              }}
+            />
+          ) : null}
         </section>
         {/* F050 — desktop ≥1024px: 7/5 split (DESIGN.md asymmetric rhythm) — the form
             column left, the sticky book/summary rail right. Single column below. */}

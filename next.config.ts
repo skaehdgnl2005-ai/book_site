@@ -15,6 +15,11 @@ const SECURITY_HEADERS = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // F077 — hermetic E2E runs against `pnpm dev`; the floating dev-tools badge sits at the
+  // viewport's bottom-left and intercepts clicks on controls there (e.g. the preview
+  // viewer's 이전 장 button). Hidden only under the Playwright webServer env flag —
+  // normal dev sessions keep the indicator.
+  devIndicators: process.env.NEXT_E2E === "1" ? false : undefined,
   experimental: {
     // Child-photo uploads flow through server actions; the default 1MB cap rejects real photos.
     // QR video is collected backstage (option B), not uploaded — so this need only fit photos.

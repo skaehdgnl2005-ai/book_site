@@ -3,6 +3,34 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **(2026-07-23): F078 카테고리 카드 미리보기 진입 DONE — `/change` 접수(F077 후속).**
+  /anniversary·/first-moments TemplateCard 안 '미리 읽기' 텍스트 액션(DESIGN.md #4 — 배지/아이콘 없음, 카드당 1개,
+  위저드 previewLink 동일 문법)으로 주문 페이지 이동 없이 F077 뷰어를 카테고리에서 바로 오픈. 카드 전체가 /order/<key>
+  Link인 **중첩 인터랙션**: 버튼 클릭은 preventDefault(네이티브 앵커)+stopPropagation(Next Link 핸들러)으로 차단, 버튼 외
+  영역은 여전히 주문 퍼널(category-*.spec href 계약 무회귀). 뷰어는 Link의 **형제**로 렌더(내부면 다이얼로그 클릭이 앵커로
+  버블) + BookPreviewViewer에 선택적 **onCta prop**(기본 onClose = F077 위저드 '닫기=복귀' 무변경; 카드 컨텍스트는
+  router.push(/order/<key>)). TemplateCard "use client" 전환(카테고리 페이지는 서버 유지 — 클라이언트 경계는 카드부터),
+  formatWon은 클라이언트 안전 쌍둥이 order/format.ts로(templates.ts의 @/lib/db 동적 임포트 번들 유입 차단). a11y: 별개
+  포커스 스톱·닫힘 시 그 버튼으로 복귀. 검증: check green(유닛 364/10skip·R 0위반) + book-preview 5/5(TDD red→green 신규 2)
+  + category-* 4/4 + 전체 E2E 176 중 173 — 실패 3건 전부 격리 green 환경성 판정(perf 3경로 동시부하: 무접촉 home까지
+  2089ms→격리 767·774·776ms, 카테고리↔home 델타 ~10ms=F078 회귀 0 / mypage-finish 직전 런 서버 경합→5/5) + eval 11/11.
+  **함정(세션)**: 포트 3000에 타 프로젝트(c:\dev\gpcs-F078) 잔류 dev 서버 → reuseExistingServer가 재사용해 전 케이스 오염
+  실패(kill 후 정상 — '병렬 웨이브 지뢰' 메모리와 동일 패턴, E2E 전 포트 3000 점유 확인 권장). 마이그레이션 0.
+  `Next:` 트랙 O(사용자 우선순위 지정 대기) 또는 커밋. **미커밋**: F077+F078 전부 로컬(사용자 커밋 요청 대기).
+- **(2026-07-23): F077 동화책 미리보기(펼침면 플립 뷰어) DONE — `/change` 접수(사용자: 모바일 친화 책넘김 미리보기).**
+  **결정(사용자 대화)**: 넘김 단위=**펼침면(10:7 스프레드)** — 가로 풀블리드 장면을 모바일에서 반쪽으로 안 자름; 플립 감성 필수;
+  플레이스홀더 선행(F025 패턴 — 실제 내지 에셋은 백스테이지 대기); 진입점=주문 퍼널 헤더 텍스트 링크 '이 책 미리 읽기 →';
+  줌(핀치/더블탭)은 후속 비목표. 데스크톱(≥768px) CSS 반분할 좌/우 5:7 페이지·책등 중앙 접힘 / 모바일 세로 낱장 통째
+  (flip minWidth 280+스테이지 540px 캡=StPageFlip portrait 결정론)+회전 힌트. `page-flip@2.0.7` 바닐라 직접 래핑(무타입
+  →`src/types/page-flip.d.ts`; 뷰어 오픈 시에만 dynamic import; 그림자 0.1), reduced-motion/로드 실패 시 크로스페이드 폴백,
+  페이지 DOM은 명령형 생성(StPageFlip 재부모화 vs React 소유권 충돌 회피). **함정 2(프로브 실측)**: ① lib autoSize가 마운트에
+  인라인 `width:100%`(UI.ts:60) → `.book`(사이즈)/`.bookMount`(엔진) 분리 + min() 중첩 calc 미니파이 재직렬화 드롭 → 2항 calc
+  max-width 재서식화; ② Next dev-tools 배지(좌하단 `nextjs-portal`)가 '이전 장' 클릭 가로챔 → **E2E webServer 한정
+  `NEXT_E2E=1`로 `devIndicators` off**(일반 dev 세션은 유지). 검증: check green(유닛 364/10skip·R 0위반) + book-preview 3/3 +
+  **전체 E2E 174/174 무회귀** + eval 1.0. 실 에셋 도착 시: `public/previews/<key>/spread-NN.webp`(10:7, 워터마크 파이프라인
+  굽기)로 previewSpreads 분기 소작업. 설계 `docs/superpowers/specs/2026-07-23-book-preview-viewer-design.md`. 마이그레이션 0.
+  `Next:` 트랙 O(사용자 우선순위 지정 대기) 또는 커밋. **미커밋**: F077 전부 로컬(사용자 커밋 요청 대기). 참고: 트리에 F077과
+  무관한 `.gitignore`(+`.env*` 행)·`app.json`(Expo EAS projectId — 이 레포에 이질적, 타 도구 유입 추정) 변경이 남아 있음.
 - **(2026-07-20): 보안 관리자 페이지 하드닝 — 트랙 S 완주 (#1~#5, F072·F073·F074·F075·F076 전부 DONE).**
   사용자 요청('보안이 철저한 관리자 페이지')을 `/change`로 접수. **주의: /admin은 이미 존재**(F059~F063 — 주문 목록·상세·전이·환불·맞춤 관리, requireAdmin+ADMIN_EMAILS, 404 존재은닉). 요청은 사실상 '기존 /admin 하드닝'. 11에이전트 실측(admin 표면·auth·세이프티레일·위협·하네스) + 3 레드팀 검증으로 플랜 확정.
   **결정(사용자)**: ADR-0024 D1 '별도 관리자 인증 없음' 보존 — **현 구조 하드닝만**(2FA/TOTP/RBAC/스텝업 재인증·디바이스별 폐기·상세페이지 필드 마스킹은 비목표; ADR 재검토 필요). **착수 순서: 트랙 S(보안)부터**. 각 피처 worker≠checker 적대 리뷰 통과, 매 피처 마이그레이션은 미배포 큐(F070/F071) 뒤 순서.

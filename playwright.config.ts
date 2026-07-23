@@ -42,6 +42,9 @@ export default defineConfig({
       // F074 — the hermetic buyer/admin login helpers rely on the deterministic OTP 424242 + the
       // DEV_ADMIN_RE / kakao-sandbox shortcuts, which are now fail-closed behind this opt-in.
       ALLOW_DEV_AUTH: "true",
+      // F077 — hide the Next dev-tools badge (bottom-left) during E2E: it floats above the
+      // page and intercepts clicks on bottom-left controls (preview viewer's 이전 장).
+      NEXT_E2E: "1",
     },
   },
 });

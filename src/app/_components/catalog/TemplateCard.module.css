@@ -122,3 +122,42 @@
   border-radius: 50%;
   background: var(--accent);
 }
+
+/* F078 — '미리 읽기': the card's ONE quiet text action (DESIGN.md #4 — non-primary
+   actions are text links; no badge, no icon). Same syntax as the wizard's funnel-header
+   entry (order.module.css .previewLink). A separate focus stop from the card link —
+   the click handler blocks the surrounding <Link> navigation. */
+.previewLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start; /* text-sized hit area — not a full-width card strip */
+  margin-top: var(--space-sm);
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font-family: var(--font-grotesk);
+  font-weight: 500;
+  font-size: 0.82rem;
+  letter-spacing: 0; /* 한글 — 양수 자간 금지 */
+  color: var(--ink);
+}
+.previewLink:hover {
+  color: var(--accent);
+}
+.previewLink:hover .previewArrow {
+  transform: translateX(5px);
+}
+.previewLink:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.previewArrow {
+  transition: transform 200ms var(--ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .previewArrow {
+    transition: none;
+  }
+}

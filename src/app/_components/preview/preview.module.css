@@ -1,0 +1,324 @@
+/* F077 — 책 미리보기 뷰어 (Atelier Sans). Tokens only (R6: no box-shadow; R7: no pure
+   white/black). Radius 0; depth = tone steps + 1px --line hairlines; serif ONLY for the
+   책 제목 in the top bar. The stage is a --panel mat: the spread sits on it like a book
+   on a table, so mobile letterboxing reads as intent, not as wasted space. */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60; /* above the nav drawer (40/50) */
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* ── Top bar: PREVIEW kicker + 책 제목(명조 — the only serif) + close. */
+.topBar {
+  position: relative;
+  z-index: 10; /* stays above any mid-flip page z-index from the engine */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+}
+.titleGroup {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  min-width: 0;
+}
+.kicker {
+  font-family: var(--font-grotesk);
+  font-weight: 600;
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.bookTitle {
+  margin: 0;
+  font-family: var(--font-serif-ko);
+  font-weight: 400;
+  font-size: 1.1rem;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.closeBtn {
+  flex: none;
+  border: 0;
+  background: none;
+  padding: var(--space-xs) 0;
+  cursor: pointer;
+  font-family: var(--font-grotesk);
+  font-weight: 500;
+  font-size: 0.82rem;
+  letter-spacing: 0; /* 한글 라벨 — 양수 자간 금지 */
+  color: var(--grey);
+}
+.closeBtn:hover {
+  color: var(--accent);
+}
+
+/* ── Stage: --panel mat, the book centered on it. */
+.stage {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--panel);
+}
+/* Leaf (mobile) stage cap 540px: with minWidth 280 in the flip settings this keeps
+   blockWidth < 2*minWidth, so StPageFlip deterministically stays single-leaf portrait
+   (Render.calculateBoundsRect) — a whole 10:7 spread per leaf, never half a scene.
+   The max-width is the HEIGHT cap: (100dvh - 170px chrome) * 10/7 book ratio — kept as
+   a flat two-term calc; a nested min(…, calc(a*b/c)) got re-serialized by the CSS
+   minifier into a product expression Chromium refused, silently dropping the width. */
+.book {
+  width: min(92vw, 540px);
+  max-width: calc(142.85dvh - 242.85px);
+}
+.overlay[data-mode="book"] .book {
+  width: min(84vw, 960px);
+}
+/* The engine mount is a SEPARATE inner div: StPageFlip (autoSize) writes inline
+   width:100%/display:block on its inBlock (UI.ts:60) which would override any class
+   width — so the lib gets this mount to own, and .book above stays ours to size. */
+.bookMount {
+  width: 100%;
+}
+/* Fade fallback (prefers-reduced-motion / lib load failure): we size the host ourselves
+   and stack full-spread pages; no flip engine involved. */
+.bookFade {
+  position: relative;
+  aspect-ratio: 10 / 7;
+}
+.fadePage {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  visibility: hidden; /* keeps hidden CTA/button copies out of the tab order */
+  transition: opacity 240ms cubic-bezier(0.22, 1, 0.36, 1), visibility 240ms;
+}
+.fadePageActive {
+  opacity: 1;
+  visibility: visible;
+}
+@media (prefers-reduced-motion: reduce) {
+  .fadePage {
+    transition: none;
+  }
+}
+
+/* ── Pages. StPageFlip overwrites inline styles (cssText), classes persist. */
+.page {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+/* The full 10:7 spread composition. In leaf/fade pages it fills the page; in desktop
+   book pages it renders at 200% width inside a clipped half (.halfInner), so one asset
+   of markup serves both modes — the future image spreads slice the same way. */
+.canvas {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: var(--surface);
+}
+.split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+.split > .cellText {
+  border-right: 1px solid var(--line); /* the gutter as a hairline */
+}
+.cellText {
+  display: grid;
+  place-items: center;
+  padding: 8%;
+  min-width: 0;
+}
+.cellArt {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  padding: 8%;
+  background: var(--panel);
+}
+.bleed {
+  display: grid;
+  place-items: center;
+  padding: 6% 12%;
+  background: var(--panel); /* tone step hints a full-bleed 장면 across the gutter */
+}
+.storyText {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: clamp(0.85rem, 1.9vw, 1.2rem);
+  line-height: 1.75;
+  letter-spacing: 0; /* 한글 본문 — 양수 자간 금지 */
+  word-break: keep-all;
+  color: var(--ink);
+  max-width: 20em;
+}
+.bleed .storyText {
+  text-align: center;
+  max-width: 26em;
+}
+.artLabel {
+  font-family: var(--font-grotesk);
+  font-weight: 600;
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.artNote {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  letter-spacing: 0;
+  color: var(--grey);
+  text-align: center;
+  word-break: keep-all;
+}
+.pageNo {
+  position: absolute;
+  bottom: 4%;
+  font-family: var(--font-grotesk);
+  font-weight: 500;
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+}
+.pageNoLeft {
+  left: 5%;
+}
+.pageNoRight {
+  right: 5%;
+}
+
+/* CTA spread: quiet ending line left, THE navy pill right (the overlay is its own
+   screen — its single primary action, DESIGN.md ctaPrimary). */
+.ctaCell {
+  display: grid;
+  place-items: center;
+  padding: 8%;
+}
+.ctaLine {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: clamp(0.85rem, 1.9vw, 1.2rem);
+  line-height: 1.75;
+  letter-spacing: 0;
+  word-break: keep-all;
+  color: var(--ink);
+  max-width: 18em;
+}
+
+/* ── Desktop halves: clip the 200%-wide canvas to a 5:7 page. */
+.half {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+.halfInner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 200%;
+  height: 100%;
+}
+.halfRight .halfInner {
+  left: -100%;
+}
+
+/* ── Bottom bar: prev | indicator(+hint) | next over a hairline. */
+.bottomBar {
+  position: relative;
+  z-index: 10; /* stays above any mid-flip page z-index from the engine */
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  padding-bottom: calc(var(--space-sm) + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+}
+.navBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  background: none;
+  padding: var(--space-xs) 0;
+  cursor: pointer;
+  font-family: var(--font-grotesk);
+  font-weight: 500;
+  font-size: 0.82rem;
+  letter-spacing: 0; /* 한글 라벨 */
+  color: var(--grey);
+}
+.navBtnNext {
+  justify-self: end;
+}
+.navBtnPrev {
+  justify-self: start;
+}
+.navBtn:hover:enabled {
+  color: var(--accent);
+}
+.navBtn:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+.navArrow {
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.navBtnNext:hover:enabled .navArrow {
+  transform: translateX(5px);
+}
+.navBtnPrev:hover:enabled .navArrow {
+  transform: translateX(-5px);
+}
+@media (prefers-reduced-motion: reduce) {
+  .navArrow {
+    transition: none;
+  }
+}
+.center {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+}
+.indicator {
+  font-family: var(--font-grotesk);
+  font-weight: 600;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em; /* Latin digits — tracking allowed */
+  color: var(--ink);
+}
+.rotateHint {
+  display: none;
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0;
+  color: var(--muted);
+  word-break: keep-all;
+}
+@media (max-width: 767px) and (orientation: portrait) {
+  .rotateHint {
+    display: block;
+  }
+}

@@ -1087,6 +1087,42 @@
       "state": "passing",
       "passes": true,
       "evidence": "2026-07-20 pnpm check green (unit 353 passed/10 skipped — F076 신규 approval-token.test.ts 12: HMAC mint→verify roundtrip·대상/액션/만료/변조 거부·구 리터럴 무효·dev토큰 게이트·도메인 분리(cap-style 거부)·approve.mjs 패리티 3; constraints 0 violations, R12 devApprovalToken 마커 통과); pnpm test:e2e refund 2/2 + admin-custom 3/3 + contact 3/3(ContactForm 클라이언트 번들 무손상 — node:crypto 미유입 확인). 구현: 정적 'APPROVED:<action>'(소스 공개·전 주문 무한 재사용) → 서버 전용 src/lib/approval.ts의 target+TTL HMAC 토큰(wire `${exp}.${hmac}`, hmac=HMAC-SHA256(MYPAGE_ACCESS_SECRET, 'approval.v1|action|targetId|exp'), 10분 TTL). guardrails.ts는 클라이언트(ContactForm)가 쓰는 untrusted 유지 위해 node:crypto 미포함(approval.ts로 분리). 호출부: refundOrder(orderId 바인딩)·confirmConsultationAction(id 바인딩), approvalToken untrusted() 래핑. approve.mjs가 <targetId> 인자로 HMAC 발급(비-prod dev는 DEV 토큰). 신규 R12 마커 devApprovalToken. SAFETY.md §1/§5 갱신. hermetic E2E는 devAuthEnabled(F074) 게이트 DEV:action:targetId 토큰(프로덕션 거부). worker≠checker(3렌즈 워크플로, refute-by-default): critic1·critic2 공통 지적 — approval 메시지가 mypage cap `${orderId}.${exp}`·세션·OTP와 같은 시크릿+와이어포맷이라 충돌 방지가 id-format 우연에만 의존 → 'approval.v1|'+파이프 구분자 도메인 태깅으로 구성적 충돌 불가 교정(델리미터 모호성도 해소, cap-style 토큰 거부 유닛); critic3 CONFIRMED — approve.mjs가 prod HMAC 민팅을 중복 구현하나 패리티 테스트 부재(TTL·메시지포맷·IRREVERSIBLE 리스트 드리프트 시 prod 토큰 조용히 거부) → approve.mjs 소스 대조 + 재현 토큰 requireApproval 수용 유닛 3건 추가. replay(10분 TTL 재사용)는 게이트 액션 멱등/터미널(환불 REFUNDED+Idempotency-Key·상담 조건부쓰기)이라 무해 — 주석 명문화(비멱등 액션 추가 시 one-shot jti 필요). untrusted 래핑은 코스메틱이나 관례 준수. 마이그레이션 0. 배포 HITL: 프로덕션 운영자는 pnpm approve <action> <targetId>로 토큰 발급(로컬 MYPAGE_ACCESS_SECRET 필요)."
+    },
+    {
+      "id": "F077",
+      "category": "functional",
+      "track": "product",
+      "priority": 2,
+      "description": "동화책 미리보기(펼침면 플립 뷰어) — 주문 위저드 퍼널 헤더의 '이 책 미리 읽기 →' 텍스트 링크로 풀스크린 오버레이 뷰어 오픈. 넘김 단위는 펼침면(10:7 스프레드): 데스크톱(≥768px)은 스프레드를 좌/우 반 갈라 책등 중앙 접힘 두쪽 플립, 모바일 세로는 스프레드 통째 낱장 플립(fit-width panel 매트 + 회전 힌트 microLabel; 핀치/더블탭 줌은 후속 비목표). page-flip(StPageFlip) 바닐라 패키지를 클라이언트 컴포넌트로 직접 래핑(React 19 peer 이슈 있는 react-pageflip 미사용; 뷰어 오픈 시에만 dynamic import로 카탈로그/주문 번들 무영향; maxShadowOpacity≤0.1 — DESIGN.md 그림자 금지 정신), prefers-reduced-motion 또는 라이브러리 로드 실패 시 같은 마크업의 크로스페이드 폴백. 콘텐츠는 템플릿별 타이포그래픽 플레이스홀더 스프레드 4장(이야기 도입부 문장 — 갤러리 F025와 같은 정직한 선행) + 마지막 CTA 장('이야기의 끝은 아이의 이름으로 완성됩니다' + '이 책 만들기'→오버레이 닫고 위저드 복귀) — 실제 내지 에셋(public/previews/<key>/spread-NN.webp, 10:7, 워터마크는 파이프라인에서 굽기)은 후속 교체. 접근성: role=dialog·aria-modal·Esc 닫기·←/→ 내비·닫기 시 진입 링크로 포커스 복귀. 설계: docs/superpowers/specs/2026-07-23-book-preview-viewer-design.md",
+      "steps": [
+        "주문 페이지(/order/<key>) 퍼널 헤더에서 '이 책 미리 읽기'를 누르면 풀스크린 미리보기 다이얼로그가 열린다",
+        "다음/이전(버튼·키보드)으로 스프레드가 넘어가고 인디케이터(n / N)가 진행을 반영한다",
+        "마지막 장은 CTA 장이며 '이 책 만들기'가 다이얼로그를 닫아 주문 위저드로 복귀한다",
+        "모바일 세로 뷰포트(390×844)에서는 낱장 모드로 렌더되고 회전 힌트가 보인다",
+        "Esc 또는 닫기 버튼으로 닫히고 포커스가 진입 링크로 복귀한다"
+      ],
+      "verification": "pnpm test:e2e -- book-preview.spec.ts",
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-23 pnpm check green (unit 364 passed/10 skipped — F077 신규 preview-spreads.test.ts 10: 카탈로그 8템플릿 전부 스프레드≥4+마지막 CTA 장·id 유일·전용 문장(폴백 데크 미사용 가드)·미지 키 폴백; constraints 0 violations). pnpm test:e2e book-preview 3/3 (데스크톱 두쪽 플립: 열기→1..5 순차 넘김→CTA 장으로 닫기→진입 링크 포커스 복귀 + 이전 장·Esc / 모바일 390×844: data-mode=leaf 낱장+회전 힌트+넘김·닫기) + 전체 E2E 174/174 무회귀 + eval 1.0(11/11). 구현: 넘김 단위=펼침면(10:7) — 데스크톱은 CSS 반분할(.half>.halfInner 200%)로 좌/우 5:7 페이지·책등 중앙 접힘, 모바일 세로는 스프레드 통째 낱장(fit-width panel 매트; flip 설정 minWidth 280 + 스테이지 540px 캡 → blockWidth<2*minWidth로 StPageFlip portrait 결정론 고정). page-flip@2.0.7 바닐라 직접 래핑(패키지 무타입 → src/types/page-flip.d.ts 앰비언트; 뷰어 오픈 시에만 dynamic import; maxShadowOpacity 0.1·flippingTime 600ms), prefers-reduced-motion/로드 실패 시 같은 마크업 크로스페이드 폴백(visibility로 탭 순서 정직). 페이지 DOM은 이펙트에서 명령형 생성(StPageFlip 재부모화 vs React 소유권 충돌 회피), CTA 버튼은 보이는 반쪽 사본에만 생성(클립된 사본 포커스 불가). 접근성: role=dialog·aria-modal·Esc·←/→·Tab 트랩(가시 컨트롤만)·aria-live 인디케이터·body 스크롤 락. 디버깅 2건(E2E 히트테스트 프로브로 실측): ① lib autoSize가 마운트에 인라인 width:100% 강제(page-flip UI.ts:60) → 사이즈 박스(.book)/엔진 마운트(.bookMount) 분리 + min() 내 중첩 calc가 미니파이어 재직렬화(0.142857*(…))로 브라우저에서 드롭되던 width를 2항 calc(142.85dvh-242.85px) max-width로 재서식화; ② Next dev-tools 배지(nextjs-portal, 좌하단 플로팅)가 '이전 장' 클릭 가로챔 → playwright webServer 한정 NEXT_E2E=1로 devIndicators off(일반 dev 세션 유지). 플레이스홀더 선행(F025 갤러리 패턴): 템플릿별 이야기 도입부 4문장(split/bleed 두 구성 교차)+CTA 장('이야기의 끝은 아이의 이름으로 완성됩니다'+화면 유일 네이비 필). 실제 내지 에셋(public/previews/<key>/spread-NN.webp, 10:7, 워터마크는 백스테이지 파이프라인에서 굽기) 도착 시 previewSpreads 분기 소작업으로 교체. 설계 docs/superpowers/specs/2026-07-23-book-preview-viewer-design.md. 마이그레이션 0."
+    },
+    {
+      "id": "F078",
+      "category": "functional",
+      "track": "product",
+      "priority": 2,
+      "description": "카테고리 카드에서 미리보기 진입(F077 후속) — /anniversary·/first-moments의 TemplateCard 안 '미리 읽기' 텍스트 액션(DESIGN.md #4 텍스트 링크 문법 — 배지/아이콘 없음, 카드당 1개)으로 주문 페이지 이동 없이 BookPreviewViewer를 카테고리 페이지에서 바로 오픈. 카드 전체가 /order/<key> Link인 중첩 인터랙션이므로 버튼 클릭은 preventDefault+stopPropagation으로 링크 내비게이션을 차단(버튼 외 카드 영역 클릭은 여전히 /order/<key> — 기존 category-*.spec 계약 무회귀). 뷰어 CTA '이 책 만들기'는 이 컨텍스트에선 해당 템플릿의 /order/<key>로 라우팅 — BookPreviewViewer에 선택적 onCta prop 추가(미지정 시 기존 onClose 동작 = 위저드 복귀, F077 무변경). 클라이언트 경계는 카드에서 시작(TemplateCard \"use client\" 전환; formatWon은 클라이언트 안전 쌍둥이 _components/order/format.ts 사용 — templates.ts의 @/lib/db 동적 임포트를 클라이언트 번들에 유입시키지 않음). a11y: 버튼은 카드 링크와 별개 포커스 스톱, 뷰어 닫힘 시 그 버튼으로 포커스 복귀. 주문 퍼널 헤더의 기존 진입 링크(F077)는 유지.",
+      "steps": [
+        "/anniversary 카드의 '미리 읽기'를 누르면 주문 페이지로 이동하지 않고(URL 카테고리 잔류) 미리보기 다이얼로그가 열린다",
+        "뷰어 마지막 장 CTA '이 책 만들기'가 해당 템플릿의 /order/<key>로 이동한다",
+        "닫기(Esc·닫기 버튼) 시 카테고리 페이지에 남고 포커스가 그 카드의 '미리 읽기' 버튼으로 복귀한다",
+        "'미리 읽기' 버튼 외 카드 영역 클릭은 여전히 /order/<key>로 이동한다(기존 카테고리 E2E 무회귀)",
+        "/first-moments 카드에서도 동일하게 동작한다"
+      ],
+      "verification": "pnpm test:e2e -- book-preview.spec.ts category-anniversary.spec.ts category-first-moments.spec.ts",
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-23 pnpm check green (unit 364 passed/10 skipped, constraints 0 violations). pnpm test:e2e book-preview 5/5 — F077 기존 3 무회귀 + F078 신규 2(TDD red→green): ① /anniversary 카드 '미리 읽기'→다이얼로그 오픈·URL 카테고리 잔류(중첩 Link 내비 차단)·aria-label 『탄생』·5장까지 넘김 후 CTA '이 책 만들기'→/order/birth 라우팅+order-wizard 렌더 ② /first-moments Esc 닫기→카테고리 잔류·진입 버튼 포커스 복귀·버튼 외 카드 영역(제목) 클릭→/order/first_steps. category-anniversary 2/2 + category-first-moments 2/2 무회귀(template-card href 계약 유지). 전체 E2E 176 중 173 + 실패 3건 전부 격리 재실행 green으로 환경성 판정: perf 3경로는 동시부하 스파이크(무접촉 대조군 home까지 p95 2089ms → 격리 767·774·776ms로 F068 기록 대역 복귀, 카테고리↔home 델타 ~10ms = F078 경로 특이 회귀 0), mypage-finish는 직전 런 웹서버 경합 후 5/5. eval 11/11 pass. 구현: TemplateCard \"use client\" 전환(카테고리 페이지는 서버 컴포넌트 유지 — 클라이언트 경계는 카드에서 시작), 카드 안 '미리 읽기' 텍스트 액션(DESIGN.md #4 문법: 배지/아이콘 없음·카드당 1개·한글 자간 0·hover 화살표 5px·reduced-motion 가드·focus-visible 네이비 링, 위저드 previewLink와 동일 문법)이 preventDefault(네이티브 앵커)+stopPropagation(Next Link onClick)으로 링크 내비게이션을 차단하고 BookPreviewViewer 오픈. 뷰어는 Link의 형제로 렌더(Link 내부에 두면 다이얼로그 클릭이 앵커로 버블). BookPreviewViewer 선택적 onCta prop — 기본값 onClose(F077 위저드 컨텍스트 '닫기=복귀' 무변경), 카드 컨텍스트는 router.push(/order/<key>). formatWon은 클라이언트 안전 쌍둥이 _components/order/format.ts 사용(templates.ts의 @/lib/db 동적 임포트 클라이언트 번들 유입 차단 — CartView 등 기존 선례). 닫힘 시 그 카드의 진입 버튼으로 포커스 복귀(위저드 패리티). 마이그레이션 0."
     }
   ]
 }

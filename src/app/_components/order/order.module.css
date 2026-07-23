@@ -76,6 +76,19 @@
 }
 .hint { margin: 0; max-width: 52ch; font-size: 0.85rem; line-height: 1.7; color: var(--grey); }
 
+/* F077 — 미리보기 진입: quiet text action (DESIGN.md #4 — non-primary actions are text
+   links; hover slides the arrow 5px and turns navy). 한글 라벨 — 자간 0. */
+.previewLink {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: var(--space-sm); padding: 0; border: 0; background: none; cursor: pointer;
+  font-family: var(--font-grotesk); font-weight: 500; font-size: 0.82rem;
+  letter-spacing: 0; color: var(--ink);
+}
+.previewLink:hover { color: var(--accent); }
+.previewLink:hover .previewArrow { transform: translateX(5px); }
+.previewArrow { transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1); }
+@media (prefers-reduced-motion: reduce) { .previewArrow { transition: none; } }
+
 /* WP2 — chip row (the chips themselves live in form/ChoiceChip). */
 .choices { display: flex; flex-wrap: wrap; gap: var(--space-sm); }
 
