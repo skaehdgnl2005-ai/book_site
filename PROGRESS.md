@@ -3,6 +3,22 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **(2026-07-24): F087 전체 CSP script-src (Report-Only) DONE — `/change` 접수(보안 감사 #4·트랙 S).**
+  8-에이전트 CSP 설계 워크플로우 + 3렌즈 파훼 크리틱(전원 **report-only-first**) 기반. next.config는 frame-ancestors만
+  실어 스크립트 주입 심층방어가 비어 있었다. **신규 `src/middleware.ts`**: 요청별 nonce + 앱 전역 CSP. 프로덕션 script-src=
+  `'self' 'nonce-<n>' 'strict-dynamic' https://js.tosspayments.com`(**unsafe-inline 절대 없음**), dev=HMR용 unsafe-inline/
+  eval/ws. Next 15.5가 요청 CSP 헤더의 nonce를 자기 인라인 스크립트에 자동 스탬프(앱 커스텀 인라인 script 0이라 무배선).
+  폰트(googleapis/gstatic/jsdelivr)·Toss(js·*.tosspayments.com)·worker self+blob·**form-action 생략**(카드사/PG 리다이렉트
+  무차단). **Report-Only 출시(무차단)** — hermetic E2E는 tossMock이 Toss SDK stub + js.tosspayments.com abort라 실
+  allowlist 증명 불가(enforce를 초록 CI로 증명 못 함) → 실 결제 안 깨는 정직한 1단계. 위반 싱크 `/api/csp-report`
+  (report-uri/report-to·redact·204·F085 레이트리밋). `src/lib/csp.ts` buildCsp 순수 분리(유닛). 검증: **check green(유닛
+  441/10skip·신규 csp.test.ts 6·constraints 0위반)** + **csp-header E2E 3/3**(report-only 헤더·enforcing frame-ancestors
+  단일 유지·리포트 204) + **전체 189 중 185**(실패 4 전부 perf 동시부하 → 격리 perf 3/3 green 871·854·833ms=CSP 전
+  베이스라인과 무변동, 미들웨어 perf-neutral) + **eval 11/11**. **프로덕션 주의**: 요청별 nonce가 static/ISR 캐싱 비활성
+  (동적 렌더) — enforce 전 프리뷰 p95 측정 필요. track harness·마이그레이션 0·PII/CSS 0.
+  `Next:` **보안감사 완료(#1~#4)**. 배포 시: ①Vercel WAF per-IP 룰(F085 분산 계층) ②프로덕션 env `ALLOW_DEV_AUTH`
+  제거 확인(F086) ③실 Toss/웹훅/세션 시크릿+APP_ENV=production provisioning(F084) ④**CSP enforce 전환**은 실 Toss
+  sandbox 실브라우저 3결제면 검증 + 프리뷰 p95 후 `REPORT_ONLY=false` + next.config frame-ancestors 제거(DEPLOY.md F087 5단계).
 - **(2026-07-24): F086 dev-auth 배포위생 하드닝 DONE — `/change` 접수(보안 감사 #3).**
   적대감사 completeness-critic NEEDS-CONFIG 교정: `devAuthEnabled`가 `!isProductionRuntime()`만 봐서, 비-Vercel
   박스에서 `APP_ENV` 누락 + `ALLOW_DEV_AUTH=true`면 dev-auth 지름길(결정적 OTP 424242·DEV_ADMIN 폴백·카카오
