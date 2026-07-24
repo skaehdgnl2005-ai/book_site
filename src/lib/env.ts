@@ -10,13 +10,20 @@ import { z } from "zod";
  *   (scripts/approve.mjs + src/lib/guardrails.requireApproval). TossPayments keys are
  *   `test_sk_…`/`test_ck_…` (test) vs `live_sk_…`/`live_ck_…` (live).
  */
+// F084 — treat an empty-string env var as "unset". The app's convention: a FALSY DATABASE_URL means
+// "no DB, use in-memory" (orders.ts), and hermetic E2E/dev blank DATABASE_URL/DIRECT_URL/SUPABASE_URL
+// to "" to force that path. Plain z.string().url() rejects "", so once parseEnv actually runs at boot
+// (instrumentation.ts) it would crash a correctly-configured hermetic/dev server — this coercion keeps
+// "" as absent while a NON-empty malformed url is still rejected.
+const optionalUrl = z.preprocess((v) => (v === "" ? undefined : v), z.string().url().optional());
+
 const schema = z.object({
   APP_ENV: z.enum(["development", "test", "production"]).default("development"),
-  DATABASE_URL: z.string().url().optional(),
+  DATABASE_URL: optionalUrl,
   // Direct/session connection for Prisma migrations (pooled DATABASE_URL can't run DDL).
-  DIRECT_URL: z.string().url().optional(),
+  DIRECT_URL: optionalUrl,
   // Supabase Storage for durable upload bytes (server-only; service_role bypasses RLS — never NEXT_PUBLIC).
-  SUPABASE_URL: z.string().url().optional(),
+  SUPABASE_URL: optionalUrl,
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
   SUPABASE_STORAGE_BUCKET: z.string().optional(),
   TOSS_SECRET_KEY: z.string().optional(),
@@ -26,7 +33,7 @@ const schema = z.object({
   // 배타적(SDK가 키 타입을 강제: widgets()는 ck 거부, payment()는 gck 거부)이라 별도 변수. publishable.
   NEXT_PUBLIC_TOSS_WIDGET_CLIENT_KEY: z.string().optional(),
   TOSS_WEBHOOK_SECRET: z.string().optional(),
-  BASE_URL: z.string().url().default("http://localhost:3000"),
+  BASE_URL: z.preprocess((v) => (v === "" ? undefined : v), z.string().url().default("http://localhost:3000")),
   // HMAC key for the mypage OTP-hash + capability cookie (F046). Required in production (boot check below);
   // non-prod uses access.ts's deterministic dev fallback.
   MYPAGE_ACCESS_SECRET: z.string().optional(),
@@ -68,6 +75,11 @@ export function isProductionRuntime(raw: Record<string, string | undefined> = pr
  */
 export function devAuthEnabled(raw: Record<string, string | undefined> = process.env): boolean {
   if (isProductionRuntime(raw)) return false;
+  // F086 — APP_ENV-independent tripwire. A real production server (`next start`, incl. a self-hosted /
+  // non-Vercel box) sets NODE_ENV=production even when the operator forgot APP_ENV=production. The dev-auth
+  // shortcuts (deterministic OTP, admin allowlist fallback, Kakao sandbox identity) must NEVER activate
+  // there, whatever ALLOW_DEV_AUTH says. `next dev` (local + hermetic E2E) and vitest are NOT production.
+  if (raw.NODE_ENV === "production") return false;
   return raw.ALLOW_DEV_AUTH === "true" || raw.ALLOW_DEV_AUTH === "1";
 }
 
@@ -111,6 +123,20 @@ export function parseEnv(raw: Record<string, string | undefined> = process.env):
   if (isProductionRuntime(raw) && !env.MYPAGE_ACCESS_SECRET) {
     throw new Error(
       "Refusing to boot: MYPAGE_ACCESS_SECRET is required in production (mypage buyer auth).",
+    );
+  }
+  // F086 — the dev-auth opt-in must NEVER coincide with a production runtime. isProductionRuntime covers
+  // Vercel/APP_ENV; NODE_ENV=production additionally catches a self-hosted `next start` that forgot
+  // APP_ENV=production. Fail-fast (loud) so a mis-flagged public box can't silently serve the
+  // deterministic OTP / admin-allowlist fallback / Kakao-sandbox identity — defense-in-depth with the
+  // devAuthEnabled() runtime gate above.
+  const devAuthOptIn = raw.ALLOW_DEV_AUTH === "true" || raw.ALLOW_DEV_AUTH === "1";
+  if (devAuthOptIn && (isProductionRuntime(raw) || raw.NODE_ENV === "production")) {
+    throw new Error(
+      "Refusing to boot: ALLOW_DEV_AUTH is enabled on a production runtime " +
+        "(APP_ENV/VERCEL_ENV=production, or NODE_ENV=production). The dev-auth shortcuts " +
+        "(deterministic OTP, admin allowlist fallback, Kakao sandbox identity) must never run in " +
+        "production — unset ALLOW_DEV_AUTH.",
     );
   }
   return env;

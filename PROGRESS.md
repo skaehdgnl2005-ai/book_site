@@ -3,6 +3,54 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **(2026-07-24): F086 dev-auth 배포위생 하드닝 DONE — `/change` 접수(보안 감사 #3).**
+  적대감사 completeness-critic NEEDS-CONFIG 교정: `devAuthEnabled`가 `!isProductionRuntime()`만 봐서, 비-Vercel
+  박스에서 `APP_ENV` 누락 + `ALLOW_DEV_AUTH=true`면 dev-auth 지름길(결정적 OTP 424242·DEV_ADMIN 폴백·카카오
+  샌드박스 임의 신원)이 켜져 **미인증 관리자+전 구매자 PII 탈취** 가능. **APP_ENV 독립 tripwire = `NODE_ENV==='production'`**
+  (실 프로덕션 `next start`만 production; hermetic E2E·로컬 `next dev`=development, vitest=test)로 봉쇄. env.ts 2계층:
+  ①`devAuthEnabled`가 NODE_ENV=production이면 ALLOW_DEV_AUTH 무관 false(런타임 심층방어) ②`parseEnv`(F084로 부팅
+  실행됨)가 `ALLOW_DEV_AUTH 옵트인 && (isProductionRuntime || NODE_ENV=production)`이면 **부팅 fail-fast(loud)**.
+  TDD red 3(정확히 새 tripwire)→green. 검증: **check green(유닛 435/10skip·신규 dev-auth-prod-signal.test.ts 6·
+  기존 dev-auth-gate 6 무회귀·constraints 0위반)** + **dev-auth E2E 16/16**(account-login·kakao·admin-orders·custom —
+  next dev=development라 dev-auth 유지·'Refusing to boot' 미발생). eval 미재실행(env 게이트 전용·부팅 경로는 dev-auth
+  E2E가 검증). track harness·마이그레이션 0·PII/CSS 0. **커밋 대기(사용자 요청 시)** — F084·F085와 함께 미커밋.
+  `Next:` **보안감사 #4 전체 CSP script-src**(트랙 S — nonce 기반, 인라인 스타일·하이드레이션 충돌 주의) + 배포 시
+  **Vercel WAF per-IP 룰**(F085 분산 계층) + 프로덕션 env에서 **ALLOW_DEV_AUTH 제거 확인**(이제 남으면 부팅 거부).
+- **(2026-07-24): F085 공개 POST 레이트리밋 + 업로드 캡 DONE — `/change` 접수(보안 감사 #2).**
+  8차원 적대적 보안감사 CONFIRMED 3건(공개 POST 무제한 행생성·로그인 OTP 발송 무IP캡·미인증 25MB 업로드 DoS) 교정.
+  **결정(사용자 승인)**: 앱 계층 best-effort per-IP 리미터 + 업로드 사이즈 상한, 프로덕션은 Vercel WAF를 위에 얹음(DEPLOY.md).
+  신규 `src/lib/rateLimit.ts`: 순수 고정창 `rateLimit`(globalThis·now 주입) + `enforceRateLimit`(**프로덕션 한정 집행** —
+  비프로덕션 dev-auth 옵트인 시 바이패스해 hermetic 단일-IP E2E 오탐 429 방지; 프로덕션은 devAuthEnabled 강제 false라
+  stray ALLOW_DEV_AUTH도 집행) + `clientIp`(x-forwarded-for/x-real-ip). 배선(per-IP): payments/create·custom/written·
+  custom/phone→429(Retry-After) + requestLoginCode(**서로 다른 주소 메일폭탄 완화** — 히트 시 발송 없이 균일 노트=무오라클) +
+  uploadChildPhoto(버퍼링 전 조기 거부+per-IP). 업로드 캡: `assets.ts` MAX_UPLOAD_BYTES(10MiB) — storeAsset 바이트
+  백스톱 + photo-action/mypage file.size 조기 거부. **서버리스 주의**: 인메모리=인스턴스별 best-effort(문서화), 진짜 분산은
+  Vercel WAF(DEPLOY.md Edge/WAF 행 ◑PARTIAL로 갱신). 검증: **check green(유닛 429/10skip·신규 rate-limit.test.ts 11·
+  constraints 0위반)** + **E2E 서브셋 27/27**(무회귀) + **전체 186 중 185**(유일 perf category-first-moments 2023ms=동시부하
+  아티팩트→격리 3/3 green 881·840·892ms) + **eval 11/11**. 부팅 [WebServer] TypeError 1회는 dev 초기 컴파일 transient(재실행
+  미재현). track harness·마이그레이션 0·PII/CSS 0. **커밋 대기(사용자 요청 시)** — F084와 함께 미커밋.
+  `Next:` **보안감사 #3 dev-auth 배포위생 하드닝**(ALLOW_DEV_AUTH 세팅 + 실 DB/키·NODE_ENV=production 감지 시 부팅 거부 —
+  APP_ENV 독립 tripwire) → **#4 전체 CSP script-src**(트랙 S) + 배포 시 **Vercel WAF per-IP 룰** 설정(분산 계층).
+- **(2026-07-24): F084 결제 프로덕션 게이트 통일 + parseEnv 부팅 배선 DONE — `/change` 접수(보안 감사 #1).**
+  본 세션 8차원 적대적 보안감사 워크플로우(39 에이전트)의 최상위 발견 교정. **문제**: checkoutProvider/
+  webhookSecret/checkoutClientKey(checkout.ts)+customTossProvider(customRequest.ts)가 프로덕션 판정을
+  `env.APP_ENV==='production'` **단독**으로 해, Vercel prod(VERCEL_ENV=production 자동주입)에서 운영자가
+  APP_ENV 누락 시 결제 provider가 **샌드박스로 폴백→/confirm 0원 PAID('공짜 책')**. 이를 막을 parseEnv
+  부팅 가드는 런타임 미호출(**죽은 코드** — instrumentation.ts 없음). **교정**: ①4개 게이트를 권위 술어
+  `isProductionRuntime`(APP_ENV OR VERCEL_ENV)로 통일(누락 시 tossFromEnv 키부재 throw=**fail-closed**;
+  webhookSecret 공개상수 미강등·checkoutClientKey 테스트키 폴백 제거) ②`src/instrumentation.ts` register()
+  →`parseEnv()` 배선(노드 런타임 한정·edge 번들 격리) ③parseEnv 부팅 실행이 드러낸 잠복 버그: `env.ts`
+  optionalUrl(z.preprocess)로 **빈 문자열 URL=미설정**(orders.ts falsy-DATABASE_URL 관례·hermetic E2E ''
+  블랭크 정합; 비어있지 않은 잘못된 URL은 여전히 거부) — 없으면 부팅 크래시. TDD red 4(정확히 VERCEL_ENV=
+  production 갭)→green. 검증: **check green(유닛 418/10skip·신규 checkout-provider-env.test.ts 22·constraints
+  0위반·R9 append/R4 정합/R8 무관 harness)** + **checkout-success E2E 2/2(23.8s — 부팅 정상 기동 확인)** +
+  **eval 11/11**. track harness·마이그레이션 0·PII/CSS 0. **배포 영향(의도)**: Vercel prod는 이제 실 Toss 키+
+  TOSS_WEBHOOK_SECRET+MYPAGE_ACCESS_SECRET 없으면 부팅 fail-fast(샌드박스 무성 폴백 제거) — DEPLOY.md 환경
+  체크리스트 준수 필요. **커밋 대기(사용자 요청 시)**.
+  `Next:` **보안감사 #2 레이트리밋**(공개 POST: custom/phone 상담큐·custom/written·payments/create·로그인
+  OTP 발송·미인증 25MB 사진 업로드 — Vercel WAF/Edge 또는 경량 per-IP + 업로드 사이즈 상한) → **#3 dev-auth
+  배포위생 하드닝**(ALLOW_DEV_AUTH 세팅 + 실 DB/키 감지 시 부팅 거부) → **#4 전체 CSP script-src**(트랙 S).
+  트랙 O #4 리뷰 모더레이션은 별개 스트림(우선순위 사용자 지정 대기).
 - **(2026-07-23): 트랙 O #3 — F083 관리자 대시보드 DONE (F082와 같은 세션 연속 — count 경로 컨텍스트 재사용).**
   /admin 리다이렉트(F059)→**6타일 카운트 오버뷰**(기존 bare-/admin 의존 스펙 없음 grep 실측; 익명·회원 404 존재 은닉 E2E 유지).
   타일: **오늘 주문**(= `todayOrdersFilter` — createdAt ≥ KST 오늘 00:00 && status ∈ PAID_FAMILY∪입금대기; **admin/_lib/dashboard.ts에

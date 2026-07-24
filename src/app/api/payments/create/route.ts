@@ -1,11 +1,20 @@
 import { NextResponse } from "next/server";
 import { untrusted } from "@/lib/guardrails";
+import { clientIp, enforceRateLimit, RL_INTAKE } from "@/lib/rateLimit";
 import { getTemplateByKey } from "@/app/_components/catalog/templates";
 import { getSessionUser } from "@/app/account/_lib/sessionUser";
 import { buildOrderDraft, checkoutProvider } from "../_lib/checkout";
 import { orderRepo } from "../_lib/orders";
 
 export const dynamic = "force-dynamic";
+
+/** F085 — 429 response for a rate-limited public POST (per-IP, best-effort; Vercel WAF is the real tier). */
+function tooMany(retryAfterMs: number): Response {
+  return NextResponse.json(
+    { errors: ["요청이 너무 잦습니다. 잠시 후 다시 시도해 주세요."] },
+    { status: 429, headers: { "Retry-After": String(Math.ceil(retryAfterMs / 1000)) } },
+  );
+}
 
 /**
  * F012/F044/F069 — create a TossPayments payment from the cart. The body is untrusted() at the
@@ -16,6 +25,9 @@ export const dynamic = "force-dynamic";
  * buyer's chosen method drives requestPayment — so the response no longer needs to carry a clientKey.
  */
 export async function POST(req: Request): Promise<Response> {
+  const gate = enforceRateLimit(`create:${clientIp(req.headers)}`, RL_INTAKE);
+  if (!gate.ok) return tooMany(gate.retryAfterMs);
+
   let body: unknown;
   try {
     body = await req.json();

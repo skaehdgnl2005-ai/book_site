@@ -26,6 +26,14 @@ import { untrusted, type Tagged } from "./guardrails";
 export type AssetKind = "CHILD_PHOTO" | "QR_VIDEO" | "OTHER";
 
 /**
+ * F085 — hard ceiling on a single stored asset. Fits real child photos (phones produce a few MB) while
+ * bounding the memory + storage-cost DoS surface (next.config serverActions.bodySizeLimit is 25mb; the
+ * upload actions reject file.size over this BEFORE buffering, and storeAsset re-checks the bytes as a
+ * boundary backstop so no caller can persist an oversized object).
+ */
+export const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 MiB
+
+/**
  * A raw inbound upload. `filename` and `bytes` are PII-bearing and MUST NOT be
  * persisted, logged, traced, or echoed in errors — only `contentType`/size escape.
  */
@@ -110,6 +118,10 @@ export function storeAsset(kind: AssetKind, upload: Tagged<UploadInput>): Stored
   }
   if (bytes.length === 0) {
     throw new Error(`Refusing to store an empty ${kind} asset.`);
+  }
+  // F085 — boundary backstop: refuse an oversized object even if a caller skipped the early file.size gate.
+  if (bytes.length > MAX_UPLOAD_BYTES) {
+    throw new Error(`Refusing to store an oversized ${kind} asset (${bytes.length} > ${MAX_UPLOAD_BYTES} bytes).`);
   }
 
   return {

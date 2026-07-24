@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { untrusted } from "@/lib/guardrails";
+import { clientIp, enforceRateLimit, RL_INTAKE } from "@/lib/rateLimit";
 import {
   validateWrittenInput,
   buildWrittenIntake,
@@ -19,6 +20,14 @@ import { orderRepo } from "../../payments/_lib/orders";
  * `untrusted()` at the boundary (E4) and never logged.
  */
 export async function POST(req: Request): Promise<Response> {
+  const gate = enforceRateLimit(`written:${clientIp(req.headers)}`, RL_INTAKE);
+  if (!gate.ok) {
+    return NextResponse.json(
+      { errors: ["요청이 너무 잦습니다. 잠시 후 다시 시도해 주세요."] },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(gate.retryAfterMs / 1000)) } },
+    );
+  }
+
   let body: unknown;
   try {
     body = await req.json();

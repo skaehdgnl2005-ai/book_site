@@ -1,8 +1,10 @@
 "use server";
 
 import { after } from "next/server";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { untrusted } from "@/lib/guardrails";
+import { clientIp, enforceRateLimit, RL_LOGIN_SEND } from "@/lib/rateLimit";
 import { emailAdapter } from "@/lib/email";
 import { redact } from "@/lib/env";
 import { generateCode, hashCode, verifyAndConsume } from "../../mypage/_lib/otp";
@@ -31,6 +33,12 @@ export async function requestLoginCode(_prev: LoginState, formData: FormData): P
   const email = normalizeEmail(untrusted(String(formData.get("email") ?? "")).value);
   if (!EMAIL_RE.test(email) || email.length > 254) {
     return { stage: "request", error: "올바른 이메일을 입력해 주세요." };
+  }
+  // F085 — per-IP cap on OTP sends. The per-subject cap (loginOtp) bounds a single victim address; this
+  // bounds the distinct-ADDRESS mail-bomb / Resend-cost amplification (one send per new email). On a hit,
+  // return the SAME uniform note as the throttled path — no send, no existence/rate oracle.
+  if (!enforceRateLimit(`login-send:${clientIp(await headers())}`, RL_LOGIN_SEND).ok) {
+    return { stage: "verify", email, note: LOGIN_NOTE };
   }
   const subject = loginSubject(email);
   const code = generateCode();

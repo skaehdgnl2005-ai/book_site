@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { untrusted } from "@/lib/guardrails";
-import { receiveUpload, storeAsset, type AssetKind } from "@/lib/assets";
+import { receiveUpload, storeAsset, MAX_UPLOAD_BYTES, type AssetKind } from "@/lib/assets";
 import { putObject } from "@/lib/storage";
 import { orderRepo } from "@/app/api/payments/_lib/orders";
 import { isPaidFamily } from "@/app/api/payments/_lib/status";
@@ -112,6 +112,10 @@ async function storeUpload(
 ): Promise<{ ok: true; descriptor: { storageKey: string; contentType: string; byteSize: number } } | { ok: false; error: string }> {
   if (!(file instanceof File) || file.size === 0) {
     return { ok: false, error: "파일을 선택해 주세요." };
+  }
+  // F085 — reject oversized before buffering (assets.storeAsset re-checks bytes as the boundary backstop).
+  if (file.size > MAX_UPLOAD_BYTES) {
+    return { ok: false, error: "파일이 너무 큽니다. 10MB 이하로 올려 주세요." };
   }
   const bytes = new Uint8Array(await file.arrayBuffer());
   // Trust boundary (E4): wrap before storeAsset; filename is consumed here and never persisted/echoed.

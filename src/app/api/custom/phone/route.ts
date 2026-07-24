@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { untrusted } from "@/lib/guardrails";
+import { clientIp, enforceRateLimit, RL_INTAKE } from "@/lib/rateLimit";
 import { validatePhoneInput, buildPhoneIntake, customRequestStore } from "@/lib/customRequest";
 
 /**
@@ -11,6 +12,14 @@ import { validatePhoneInput, buildPhoneIntake, customRequestStore } from "@/lib/
  * request for a slot. A REQUESTED booking is a wish pending confirmation (D3 in the design spec).
  */
 export async function POST(req: Request): Promise<Response> {
+  const gate = enforceRateLimit(`phone:${clientIp(req.headers)}`, RL_INTAKE);
+  if (!gate.ok) {
+    return NextResponse.json(
+      { errors: ["요청이 너무 잦습니다. 잠시 후 다시 시도해 주세요."] },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(gate.retryAfterMs / 1000)) } },
+    );
+  }
+
   let body: unknown;
   try {
     body = await req.json();

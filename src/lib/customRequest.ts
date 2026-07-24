@@ -21,6 +21,7 @@ import {
   type PaymentProvider,
   type TossTransport,
 } from "./payments";
+import { isProductionRuntime } from "./env";
 import type { Db } from "./db";
 
 /** 맞춤 제작 price — 119,000 KRW won (integer, no minor unit). */
@@ -573,12 +574,13 @@ export const customRequestStore = {
  * production (dev / Playwright / `pnpm check`), a sandbox transport stands in so the flow is
  * hermetic — confirm() resolves a test paymentKey to a PAID settlement without touching the network
  * (ADR-0010 made the transport injectable for exactly this; the build is test/sandbox-only per
- * ADR-0004). The stub is impossible when APP_ENV === "production".
+ * ADR-0004). The stub is impossible in production — gated by isProductionRuntime (APP_ENV OR
+ * VERCEL_ENV), so a Vercel prod box missing APP_ENV still gets the real provider, not a 0원 sandbox (F084).
  */
 export function customTossProvider(
   env: Record<string, string | undefined> = process.env,
 ): PaymentProvider {
-  if (env.APP_ENV === "production") return tossFromEnv(env);
+  if (isProductionRuntime(env)) return tossFromEnv(env);
   const sandboxTransport: TossTransport = async (url) => ({
     ok: true,
     status: 200,

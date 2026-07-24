@@ -17,6 +17,7 @@ import {
   type TossTransport,
 } from "../../../../lib/payments";
 import { QR_ADDON_WON } from "../../../../lib/cart";
+import { isProductionRuntime } from "../../../../lib/env";
 import type {
   OrderDraft,
   OrderItemDraft,
@@ -342,8 +343,11 @@ export async function processWebhook(
 }
 
 // ── provider + secret wiring (sandbox outside production; impossible to stub in prod) ──
+// Prod gate = isProductionRuntime (APP_ENV OR VERCEL_ENV), NOT APP_ENV alone: on Vercel the runtime
+// auto-injects VERCEL_ENV=production, so an operator who forgets APP_ENV=production must still get the
+// REAL provider (fail-closed if keys are absent), never the sandbox that settles /confirm for 0원 (F084).
 export function checkoutProvider(env: Record<string, string | undefined> = process.env): PaymentProvider {
-  if (env.APP_ENV === "production") return tossFromEnv(env);
+  if (isProductionRuntime(env)) return tossFromEnv(env);
   const sandboxTransport: TossTransport = async (url, init) => ({
     ok: true,
     status: 200,
@@ -380,9 +384,11 @@ export function checkoutProvider(env: Record<string, string | undefined> = proce
   });
 }
 
-/** Webhook secret: env in prod (required → caller 401s if absent); test fallback otherwise. */
+/** Webhook secret: env in prod (required → caller 401s if absent); test fallback otherwise. The prod
+ * marker is isProductionRuntime (APP_ENV OR VERCEL_ENV) so the shared public constant test_whsec_sandbox
+ * can NEVER authenticate webhooks on a Vercel prod box that only set VERCEL_ENV (F084). */
 export function webhookSecret(env: Record<string, string | undefined> = process.env): string | undefined {
-  return env.TOSS_WEBHOOK_SECRET ?? (env.APP_ENV !== "production" ? "test_whsec_sandbox" : undefined);
+  return env.TOSS_WEBHOOK_SECRET ?? (isProductionRuntime(env) ? undefined : "test_whsec_sandbox");
 }
 
 /**
@@ -398,6 +404,6 @@ export function webhookSecret(env: Record<string, string | undefined> = process.
  */
 const TOSS_WIDGET_TEST_KEY = "test_gck_docs_Ovk5rk1EwkEbP0W43n07xlzm"; // Toss 공개 위젯 테스트 키
 export function checkoutClientKey(env: Record<string, string | undefined> = process.env): string {
-  if (env.APP_ENV === "production") return env.NEXT_PUBLIC_TOSS_WIDGET_CLIENT_KEY ?? "";
+  if (isProductionRuntime(env)) return env.NEXT_PUBLIC_TOSS_WIDGET_CLIENT_KEY ?? ""; // F084: no test-key fallback in prod
   return env.NEXT_PUBLIC_TOSS_WIDGET_CLIENT_KEY ?? TOSS_WIDGET_TEST_KEY;
 }
