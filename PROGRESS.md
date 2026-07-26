@@ -3,6 +3,27 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **(2026-07-26): F089 관리자 주문 기간 필터 + 합계줄 DONE (플랜 Task 6–10).**
+  KST 프리셋(오늘/7일/30일/이번달) 링크 + `from`·`to` 직접 지정 GET 폼(종료일 **포함** = 익일 00:00
+  배타 상한) + 목록 상단 **'총 N건 · 합계원'**. 합계는 `count`/`sumAmount` **전량**(no-take)이라
+  50행 슬라이스의 합을 총액처럼 보여주지 않는다(F082 정직성 원칙). 기간 해석은 순수
+  `resolvePeriod`(`admin/orders/_lib/period.ts`) 하나가 유닛으로 고정 — 조각이 아니라 페이지가
+  소비하는 **조합 자체**를 고정(F083 `todayOrdersFilter` 패턴). `range`·`from/to` 동시 존재 시 range
+  우선, 불량 입력(형식 불일치·역전)은 무시. repo: `OrderListFilter.createdTo`(배타 상한) +
+  `sumAmount`(count와 동일 어휘) 양 백엔드 동형, `parseCreatedFrom`→`parseInstant` 일반화(동형
+  fail-loud), Prisma는 `createdAt {gte?, lt?}`로 합치되 **단독 gte 형태 보존**(dashboard-counts의
+  toEqual wire 고정과 무회귀). 검증: **check green**(유닛 458/10skip — 신규 admin-period 8 + format +2·
+  constraints 0위반) + **자체 E2E 1/1** + **전체 E2E 192 중 187 green**, 실패 5는 전부 동시부하
+  아티팩트로 **격리 재판정 전원 green**(refund 2/2·custom-phone 3/3 — 실패 지점이 `page.goto`
+  내비게이션 타임아웃이지 단언 실패가 아니었다 / perf 3/3 p95 **904·921·936ms** = F087 베이스라인
+  871·854·833ms와 무변동 → sumAmount 1쿼리 추가는 perf-neutral).
+  **기존 E2E 최소 단언 수정 1건(사용자 승인)**: `admin-dashboard.spec.ts`의 '오늘 주문' 타일
+  클릭스루가 특정 건의 **1페이지 위치**를 단언했는데, 이 타일은 F083 계약상 집계 전용이라 **필터
+  없는 전체 목록**으로 간다 — F088 페이지네이션 후 전체 목록은 스위트 전역 최신순 50건 컷을
+  받으므로 fullyParallel에서 위치가 비결정. 단언을 계약 수준(전체 목록 도달 + 테이블 렌더)으로
+  좁히고 사유를 spec 주석에 명시. 나머지 4개 **필터** 타일의 멤버십 단언은 유지(커버리지 무손실),
+  제품 코드 변경 0. 교훈: **필터 없는 목록 위의 멤버십 단언은 페이지네이션 도입과 함께 깨진다.**
+  `Next:` 플랜 Task 11부터 **F090 검색**(q — id 정확 OR 이름/이메일 부분 일치).
 - **(2026-07-26): F088 관리자 주문 목록 테이블 + 페이지네이션 DONE (플랜 Task 1–5).**
   일렬 `ul` 리스트를 컬럼 테이블(주문일 KST·주문·상태·금액)로 개편하고, 최신 50건 컷을 **오프셋
   페이지네이션**(`?page=N`)으로 교체. `totalPages`는 take 없는 `count` **전량** 기반이라 전 주문이

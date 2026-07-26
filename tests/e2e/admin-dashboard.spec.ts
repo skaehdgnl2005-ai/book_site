@@ -108,11 +108,15 @@ test.describe("admin dashboard (F083)", () => {
     await page.waitForURL("**/admin/orders?status=SHIPPED");
     await expect(page.getByTestId("admin-order-row").filter({ hasText: prodOrder })).toBeVisible();
 
-    // 오늘 주문 타일은 집계 전용 — 전체 주문 목록으로 진입한다(화면 문구와 동일 계약)
+    // 오늘 주문 타일은 집계 전용 — 전체 주문 목록으로 진입한다(화면 문구와 동일 계약).
+    // F088 페이지네이션 도입으로 행 위치는 비결정 — F083 계약은 '전체 목록 도달'이다.
+    // 전체 목록은 필터가 없어 스위트 전역의 최신순 50건 컷을 받으므로, "특정 건이 1페이지에
+    // 있다"는 위치 단언은 fullyParallel 하에서 성립하지 않는다(전량·위치는 유닛 소관 —
+    // F082/F083 패턴). 기여 건 멤버십은 위 4개 필터 타일이 계속 지킨다.
     await page.goto("/admin");
     await page.getByTestId("admin-dash-today").getByRole("link").click();
     await page.waitForURL("**/admin/orders");
-    await expect(page.getByTestId("admin-order-row").filter({ hasText: prodOrder })).toBeVisible();
+    await expect(page.getByTestId("admin-orders")).toBeVisible();
   });
 
   test("비관리자·비로그인 /admin은 여전히 404 — 리다이렉트→렌더 교체 후에도 존재 은닉 유지", async ({ page }) => {
