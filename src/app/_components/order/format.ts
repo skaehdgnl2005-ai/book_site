@@ -48,3 +48,16 @@ export function formatKstDateTime(iso: string): string {
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
   return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")} (KST)`;
 }
+
+/** F088 — an ISO instant's KST calendar date ("YYYY-MM-DD"). The admin table's 주문일 column:
+ *  a naive slice(0,10) shows the UTC date (F070/F083 lesson). en-CA yields YYYY-MM-DD. */
+export function formatKstDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(d);
+}

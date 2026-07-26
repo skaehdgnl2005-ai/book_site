@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatWon as orderFormatWon, formatKstDateTime } from "../../src/app/_components/order/format";
+import { formatWon as orderFormatWon, formatKstDateTime, formatKstDate } from "../../src/app/_components/order/format";
 import { formatWon as catalogFormatWon } from "../../src/app/_components/catalog/templates";
 
 // formatWon is intentionally duplicated across the catalog (server) and order (client-safe)
@@ -38,5 +38,15 @@ describe("formatKstDateTime (F070 — KST deposit deadline)", () => {
 
   it("returns the input unchanged on an unparseable string (never throws)", () => {
     expect(formatKstDateTime("not-a-date")).toBe("not-a-date");
+  });
+});
+
+describe("formatKstDate (F088 — 주문일 KST 달력일)", () => {
+  it("UTC 자정 부근도 KST 달력일 — naive slice(0,10) 회귀 가드", () => {
+    expect(formatKstDate("2026-07-22T16:30:00.000Z")).toBe("2026-07-23"); // KST 01:30
+    expect(formatKstDate("2026-07-23T14:59:00.000Z")).toBe("2026-07-23"); // KST 23:59
+  });
+  it("invalid iso는 입력 그대로 (formatKstDateTime 선례)", () => {
+    expect(formatKstDate("junk")).toBe("junk");
   });
 });
