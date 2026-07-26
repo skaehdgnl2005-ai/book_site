@@ -170,6 +170,9 @@ export type OrderListFilter = {
   createdFrom?: string;
   /** F089 — EXCLUSIVE upper bound on createdAt (ISO instant; 종료일 포함 = 익일 00:00). */
   createdTo?: string;
+  /** F090 — trim 후 빈값 무시. id 정확 일치 OR buyerName/buyerEmail 부분 일치(case-insensitive).
+   *  PII 주의: 검색어·매칭 대상 모두 렌더만 — 로그/트레이스 금지(E3). */
+  search?: string;
 };
 
 // ── In-memory backend (hermetic; used when no DATABASE_URL) ────────────────────
@@ -181,6 +184,17 @@ function matchesListFilter(o: StoredOrder, opts: OrderListFilter): boolean {
   if (opts.cancelRequested && !(o.cancelRequestedAt != null && CANCELLABLE_STATUSES.includes(o.status))) return false;
   if (opts.createdFrom && Date.parse(o.createdAt) < parseInstant(opts.createdFrom, "createdFrom")) return false;
   if (opts.createdTo && Date.parse(o.createdAt) >= parseInstant(opts.createdTo, "createdTo")) return false;
+  if (opts.search !== undefined) {
+    const raw = opts.search.trim();
+    if (raw) {
+      const q = raw.toLowerCase();
+      const hit =
+        o.id === raw ||
+        o.buyerName.toLowerCase().includes(q) ||
+        o.buyerEmail.toLowerCase().includes(q);
+      if (!hit) return false;
+    }
+  }
   return true;
 }
 
@@ -526,6 +540,11 @@ type OrderListWhere = {
   status?: OrderStatus | { in: OrderStatus[] };
   cancelRequestedAt?: { not: null };
   createdAt?: { gte?: Date; lt?: Date };
+  OR?: Array<
+    | { id: string }
+    | { buyerName: { contains: string; mode: "insensitive" } }
+    | { buyerEmail: { contains: string; mode: "insensitive" } }
+  >;
 };
 
 type OrderDelegate = {
@@ -592,6 +611,16 @@ function buildListWhere(opts: OrderListFilter): OrderListWhere {
       ...(opts.createdFrom ? { gte: new Date(parseInstant(opts.createdFrom, "createdFrom")) } : {}),
       ...(opts.createdTo ? { lt: new Date(parseInstant(opts.createdTo, "createdTo")) } : {}),
     };
+  }
+  if (opts.search !== undefined) {
+    const raw = opts.search.trim();
+    if (raw) {
+      where.OR = [
+        { id: raw },
+        { buyerName: { contains: raw, mode: "insensitive" } },
+        { buyerEmail: { contains: raw, mode: "insensitive" } },
+      ];
+    }
   }
   return where;
 }
