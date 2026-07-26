@@ -3,6 +3,18 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **(2026-07-26): 어드민 주문 목록 개선(F088–F090) 설계+구현 플랜 DONE — 구현은 다음 세션.**
+  사용자 요청(목록 일렬 나열 불편·총금액·기간 필터) 브레인스토밍 → 스코프 확정: **F088 테이블+
+  오프셋 페이지네이션**(50건 컷 대체) → **F089 KST 기간 필터(프리셋+from/to)+합계줄**(필터 전량 —
+  no-take) → **F090 검색**(id 정확 OR 이름/이메일 부분·case-insensitive). CSV·컬럼 정렬·매출 분해
+  패널은 비목표. 아키텍처: 서버 렌더 + URL 파라미터 연장(신규 API 라우트 0), `OrderListFilter`
+  createdTo/search + listRecent skip + `sumAmount`(count 동형·전량) 양 백엔드. 스펙
+  `docs/superpowers/specs/2026-07-26-admin-orders-upgrade-design.md`(커밋 1dc88da) + 실행 플랜
+  `docs/superpowers/plans/2026-07-26-admin-orders-upgrade.md`(Task 1–12, TDD·실코드 포함).
+  feature_list는 아직 미등록 — 플랜 Task 1이 3건 append(R9 append-only 합치). 이번 세션 코드 델타 0(문서만).
+  `Next:` 플랜 Task 1부터 순서 실행(superpowers:executing-plans): `pnpm attempt F088` → 테이블+페이저 →
+  F089 → F090. 주의: E2E는 멤버십·형식만(전량 카운트·합계 정확값은 유닛 — F082/F083 패턴), 51건 시드는
+  create API 직접 호출(dev-auth 하 rate limit 전면 바이패스), 기존 admin data-testid 계약 보존.
 - **(2026-07-24): F087 전체 CSP script-src (Report-Only) DONE — `/change` 접수(보안 감사 #4·트랙 S).**
   8-에이전트 CSP 설계 워크플로우 + 3렌즈 파훼 크리틱(전원 **report-only-first**) 기반. next.config는 frame-ancestors만
   실어 스크립트 주입 심층방어가 비어 있었다. **신규 `src/middleware.ts`**: 요청별 nonce + 앱 전역 CSP. 프로덕션 script-src=
