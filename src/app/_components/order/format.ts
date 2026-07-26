@@ -49,6 +49,23 @@ export function formatKstDateTime(iso: string): string {
   return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")} (KST)`;
 }
 
+/** F089 — a KST calendar date ("YYYY-MM-DD") → its KST 00:00 instant. dayOffset shifts calendar
+ *  days (+1 = the EXCLUSIVE upper bound for an inclusive end date). Malformed input → undefined. */
+export function kstDateToIso(date: string, dayOffset = 0): string | undefined {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  if (!m) return undefined;
+  const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+  const utcMs = Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + dayOffset) - KST_OFFSET_MS;
+  return new Date(utcMs).toISOString();
+}
+
+/** F089 — the KST first-of-month 00:00 instant for a given moment ('이번달' preset boundary). */
+export function kstMonthStartIso(nowMs: number): string {
+  const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+  const kst = new Date(nowMs + KST_OFFSET_MS);
+  return new Date(Date.UTC(kst.getUTCFullYear(), kst.getUTCMonth(), 1) - KST_OFFSET_MS).toISOString();
+}
+
 /** F088 — an ISO instant's KST calendar date ("YYYY-MM-DD"). The admin table's 주문일 column:
  *  a naive slice(0,10) shows the UTC date (F070/F083 lesson). en-CA yields YYYY-MM-DD. */
 export function formatKstDate(iso: string): string {

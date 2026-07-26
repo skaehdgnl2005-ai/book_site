@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { formatWon as orderFormatWon, formatKstDateTime, formatKstDate } from "../../src/app/_components/order/format";
+import {
+  formatWon as orderFormatWon,
+  formatKstDateTime,
+  formatKstDate,
+  kstDateToIso,
+  kstMonthStartIso,
+} from "../../src/app/_components/order/format";
 import { formatWon as catalogFormatWon } from "../../src/app/_components/catalog/templates";
 
 // formatWon is intentionally duplicated across the catalog (server) and order (client-safe)
@@ -48,5 +54,20 @@ describe("formatKstDate (F088 — 주문일 KST 달력일)", () => {
   });
   it("invalid iso는 입력 그대로 (formatKstDateTime 선례)", () => {
     expect(formatKstDate("junk")).toBe("junk");
+  });
+});
+
+describe("kstDateToIso / kstMonthStartIso (F089 — 기간 경계)", () => {
+  it("KST 달력일 → 00:00 instant; dayOffset=1은 익일(포함 종료일의 배타 상한)", () => {
+    expect(kstDateToIso("2026-07-23")).toBe("2026-07-22T15:00:00.000Z");
+    expect(kstDateToIso("2026-07-23", 1)).toBe("2026-07-23T15:00:00.000Z");
+    expect(kstDateToIso("2026-7-3")).toBeUndefined(); // 형식 불일치
+    expect(kstDateToIso("junk")).toBeUndefined();
+  });
+  it("kstMonthStartIso: KST 달 1일 00:00 — UTC 말일 저녁은 KST 새달", () => {
+    // 2026-07-31T16:00Z = KST 08-01 01:00 → 8월 시작(= 07-31T15:00Z)
+    expect(kstMonthStartIso(Date.parse("2026-07-31T16:00:00.000Z"))).toBe("2026-07-31T15:00:00.000Z");
+    // 2026-07-15T00:00Z = KST 07-15 09:00 → 7월 시작(= 06-30T15:00Z)
+    expect(kstMonthStartIso(Date.parse("2026-07-15T00:00:00.000Z"))).toBe("2026-06-30T15:00:00.000Z");
   });
 });
