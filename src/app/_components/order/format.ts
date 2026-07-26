@@ -40,7 +40,10 @@ export function formatKstDateTime(iso: string): string {
     day: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-    hour12: false,
+    // hourCycle:"h23" (00–23), NOT hour12:false — the latter is ICU-ambiguous and resolves to h24 on
+    // some Node/ICU versions (e.g. Node 20's en-CA), rendering KST midnight 00:30 as "24:30". h23 is
+    // deterministic across engines. (Caught only in CI: Node 20 there vs Node 24 locally.)
+    hourCycle: "h23",
   }).formatToParts(d);
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
   return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")} (KST)`;
