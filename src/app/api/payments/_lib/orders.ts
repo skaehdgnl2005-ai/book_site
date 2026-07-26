@@ -132,7 +132,7 @@ export interface OrderRepo {
    * AND status still in CANCELLABLE_STATUSES (환불/배송 전이로 처리 경로가 닫힌 건은 제외 —
    * 처리 완료 이력은 REFUNDED 상태 필터로 조회). Filters compose (intersection).
    */
-  listRecent(opts?: OrderListFilter & { take?: number }): Promise<StoredOrder[]>;
+  listRecent(opts?: OrderListFilter & { take?: number; skip?: number }): Promise<StoredOrder[]>;
   /**
    * F082 — honest full count over the SAME filter vocabulary as listRecent, with NO take cut:
    * the queue badge must never present a 50-row slice as the total. F083 — the dashboard's
@@ -251,10 +251,11 @@ export function createOrderRepo(): OrderRepo {
     },
     async listRecent(opts = {}) {
       const take = opts.take ?? 50;
+      const skip = opts.skip ?? 0;
       return [...map.values()]
         .filter((o) => matchesListFilter(o, opts))
         .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
-        .slice(0, take);
+        .slice(skip, skip + take);
     },
     async count(opts = {}) {
       // Full scan, NO take — the badge total is honest even when the list is cut at 50.
@@ -523,6 +524,7 @@ type OrderDelegate = {
     where: { userId: string } | OrderListWhere;
     orderBy: { createdAt: "desc" };
     take?: number;
+    skip?: number;
     include: unknown;
   }): Promise<OrderRow[]>;
   count(args: { where: OrderListWhere }): Promise<number>;
@@ -654,10 +656,12 @@ export function createPrismaOrderRepo(getDb: () => Promise<Db>): OrderRepo {
     },
     async listRecent(opts = {}) {
       const db = await getDb();
+      const skip = opts.skip ?? 0;
       const rows = await (db.order as OrderDelegate).findMany({
         where: buildListWhere(opts),
         orderBy: { createdAt: "desc" },
         take: opts.take ?? 50,
+        ...(skip > 0 ? { skip } : {}), // F088 — 0이면 기존 wire 그대로 (무회귀)
         include: ORDER_INCLUDE,
       });
       return rows.map(mapOrderRow);
