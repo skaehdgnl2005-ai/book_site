@@ -1299,9 +1299,9 @@
         "기존 상태·취소요청 필터/배지 계약 무회귀 (컷 안내문은 페이지네이션으로 대체)"
       ],
       "verification": "pnpm test:e2e -- admin-orders-table.spec.ts",
-      "state": "todo",
-      "passes": false,
-      "evidence": ""
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-26 pnpm check green (lint+typecheck+unit 448 passed/10 skipped — 신규 admin-list-paging.test.ts 4(페이지 서로소·합집합 전량, 필터와 조합된 슬라이스, Prisma skip 미지정 시 wire 부재/skip>0 전달, parsePage·buildQuery 경계) + format.test.ts +2(formatKstDate KST 자정 경계·invalid 통과); constraints 0 violations — R9 append(F088-F090 신규)·R4 정합·R8 자체 E2E 보유). 자체 E2E admin-orders-table.spec.ts 2/2 green: ①테이블 렌더(columnheader 주문일·금액) + 행에 결제 완료·43,000원 + admin-order-link 클릭으로 상세 진입 ②51건 create API 시드 후 status=CREATED 1페이지 정확히 50행 + admin-orders-pager 노출 + admin-page-next로 page=2 이동 시 status=CREATED 보존·indicator 2/N·2페이지 행 존재. 전체 E2E 191/191 green(신규 2 포함, perf p95 home 1503·anniversary 1577·first-moments 1407ms 전부 2000ms 예산 내 — 51건 시드가 perf·타 스펙에 무영향). 기존 admin E2E 6/6 무회귀(admin-orders 3·admin-cancel-queue 1·admin-dashboard 2 — data-testid 계약 9종 보존). 스텝 귀속: 테이블 렌더·상세 진입·페이지 이동·필터 보존 = E2E / 페이지당 50건 컷·totalPages 전량 count 산출·skip 슬라이스 의미론·Prisma wire 무회귀 = 유닛(전역 상태라 E2E 전량 단언 금지 — F082/F083 패턴). 구현: src/app/admin/orders/page.tsx(일렬 ul→컬럼 table, 오프셋 page=N, totalPages=ceil(count/50) — count는 take 없는 전량이라 전 주문이 페이지로 도달 가능하므로 F082 컷 안내문 admin-queue-cut-note 제거) + _lib/query.ts(parsePage·buildQuery 순수 헬퍼 — 페이지/필터 파라미터 단일 직렬화 지점) + orders.ts listRecent skip 양 백엔드 동형(Prisma는 skip>0일 때만 wire=기존 findMany args 무회귀) + format.ts formatKstDate(naive slice(0,10)은 UTC 날짜 — F070/F083 교훈). CSS는 DESIGN.md 토큰만(헤어라인 var(--line)·radius 0·box-shadow 0·순수 흑백 0). PII 0(구매자명은 렌더만, 신규 경로 로그/트레이스 무기록)·마이그레이션 0·신규 API 라우트 0·신규 클라이언트 컴포넌트 0."
     },
     {
       "id": "F089",

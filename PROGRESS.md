@@ -3,6 +3,21 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **(2026-07-26): F088 관리자 주문 목록 테이블 + 페이지네이션 DONE (플랜 Task 1–5).**
+  일렬 `ul` 리스트를 컬럼 테이블(주문일 KST·주문·상태·금액)로 개편하고, 최신 50건 컷을 **오프셋
+  페이지네이션**(`?page=N`)으로 교체. `totalPages`는 take 없는 `count` **전량** 기반이라 전 주문이
+  페이지로 도달 가능 — 그래서 F082의 컷 안내문(`admin-queue-cut-note`)을 제거했다(안내문의 존재
+  이유가 사라진 것이지 감춘 게 아니다). 페이지 링크는 `buildQuery`로 기존 `status`/`queue` 보존.
+  신규: `admin/orders/_lib/query.ts`(`parsePage`·`buildQuery` 순수 헬퍼 — 파라미터 단일 직렬화 지점),
+  `format.ts formatKstDate`(naive `slice(0,10)`은 UTC 날짜 — F070/F083 교훈), `listRecent` **skip**
+  양 백엔드 동형(Prisma는 `skip>0`일 때만 wire에 실어 기존 findMany args 무회귀). 검증: **check green**
+  (유닛 448/10skip — 신규 admin-list-paging 4 + format +2·constraints 0위반) + **자체 E2E 2/2**
+  (테이블 렌더·행→상세 진입 / 51건 create API 시드 후 1페이지 정확히 50행·page=2 이동 시 status 보존)
+  + **전체 E2E 191/191 green**(perf p95 1503·1577·1407ms 전부 예산 내 — 51건 시드가 타 스펙 무영향).
+  기존 admin testid 계약 9종 보존. 마이그레이션 0·신규 API 라우트 0·신규 클라이언트 컴포넌트 0·PII 0.
+  **E2E 함정(기록)**: `waitForURL(/status=CREATED/)`는 1페이지 URL에도 이미 참이라 내비게이션 전에
+  통과한다 — 목적지에서만 참인 패턴(`/[?&]page=2\b/`)을 기다려야 한다.
+  `Next:` 플랜 Task 6부터 **F089 기간 필터+합계줄** → **F090 검색**.
 - **(2026-07-26): 어드민 주문 목록 개선(F088–F090) 설계+구현 플랜 DONE — 구현은 다음 세션.**
   사용자 요청(목록 일렬 나열 불편·총금액·기간 필터) 브레인스토밍 → 스코프 확정: **F088 테이블+
   오프셋 페이지네이션**(50건 컷 대체) → **F089 KST 기간 필터(프리셋+from/to)+합계줄**(필터 전량 —
