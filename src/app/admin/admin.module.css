@@ -79,3 +79,21 @@
 }
 .pager a { color: var(--ink); }
 .pagerMuted { color: var(--muted); }
+
+/* F089 — period toolbar + summary line */
+.toolbar { display: flex; gap: var(--space-sm); align-items: flex-end; flex-wrap: wrap; margin: 0 0 var(--space-sm); }
+.toolLabel {
+  display: flex; flex-direction: column; gap: var(--space-xs);
+  font-family: var(--font-grotesk); font-weight: 600; font-size: 0.78rem; letter-spacing: 0; color: var(--ink);
+}
+.toolButton {
+  font-family: var(--font-grotesk); font-weight: 600; font-size: 0.82rem; letter-spacing: 0;
+  color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 0.55em 1em; cursor: pointer;
+}
+.toolButton:hover { border-color: var(--ink); }
+.toolButton:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.summary {
+  margin: 0 0 var(--space-xs); font-family: var(--font-grotesk); font-weight: 600;
+  font-size: 0.85rem; letter-spacing: 0; color: var(--ink); font-variant-numeric: tabular-nums;
+}

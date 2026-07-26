@@ -5,6 +5,7 @@ import { orderRepo, type OrderStatus } from "../../api/payments/_lib/orders";
 import { ORDER_STATUSES, ORDER_STATUS_LABEL } from "../../api/payments/_lib/status";
 import { requireAdmin } from "../_lib/adminAuth";
 import { buildQuery, parsePage } from "./_lib/query";
+import { resolvePeriod, PERIOD_PRESETS } from "./_lib/period";
 import styles from "../admin.module.css";
 
 const PAGE_SIZE = 50;
@@ -15,11 +16,20 @@ const PAGE_SIZE = 50;
  * F082 — 취소요청 큐 필터(?queue=cancel-requested). 배지 숫자는 take 컷과 분리된 전량 count.
  * F088 — 테이블 렌더 + 오프셋 페이지네이션(page=N): 최신 50건 컷을 페이지로 교체(F082 컷
  * 안내문 대체 — 전량이 페이지로 도달 가능). totalPages는 take 없는 count 전량 기반.
+ * F089 — KST 기간 필터(프리셋 range=/직접 from·to) + 합계줄: 건수·합계는 현재 필터의 전량
+ * (count/sumAmount는 no-take) — 50행 슬라이스의 합을 총액처럼 보이지 않게 한다.
  */
 export default async function AdminOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string; queue?: string; page?: string }>;
+  searchParams: Promise<{
+    status?: string;
+    queue?: string;
+    page?: string;
+    range?: string;
+    from?: string;
+    to?: string;
+  }>;
 }) {
   await requireAdmin(); // F075 — own gate, not just the layout (defense in depth)
   const params = await searchParams;
@@ -29,11 +39,16 @@ export default async function AdminOrdersPage({
       ? (params.status as OrderStatus)
       : undefined;
   const page = parsePage(params.page);
-  const listFilter = cancelQueue ? { cancelRequested: true as const } : { status: filter };
+  const period = resolvePeriod(params, Date.now());
+  const listFilter = {
+    ...(cancelQueue ? { cancelRequested: true as const } : { status: filter }),
+    ...period,
+  };
   const repo = orderRepo();
-  const [orders, total, cancelQueueCount] = await Promise.all([
+  const [orders, total, sum, cancelQueueCount] = await Promise.all([
     repo.listRecent({ ...listFilter, take: PAGE_SIZE, skip: (page - 1) * PAGE_SIZE }),
     repo.count(listFilter),
+    repo.sumAmount(listFilter), // 합계줄 — 필터 전량 (take 컷 아님)
     repo.count({ cancelRequested: true }),
   ]);
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -41,6 +56,9 @@ export default async function AdminOrdersPage({
   const keep: Record<string, string | undefined> = {
     status: filter,
     queue: cancelQueue ? "cancel-requested" : undefined,
+    range: params.range,
+    from: params.from,
+    to: params.to,
   };
 
   return (
@@ -82,6 +100,43 @@ export default async function AdminOrdersPage({
               </Link>
             </li>
           </ul>
+          <ul className={styles.filters} data-testid="admin-period-presets">
+            <li>
+              <Link
+                href={`/admin/orders${buildQuery({ status: filter, queue: keep.queue })}`}
+                className={`${styles.filterLink} ${!params.range && !params.from && !params.to ? styles.filterActive : ""}`}
+              >
+                전체 기간
+              </Link>
+            </li>
+            {PERIOD_PRESETS.map((p) => (
+              <li key={p.key}>
+                <Link
+                  href={`/admin/orders${buildQuery({ status: filter, queue: keep.queue, range: p.key })}`}
+                  className={`${styles.filterLink} ${params.range === p.key ? styles.filterActive : ""}`}
+                  data-testid={`admin-range-${p.key}`}
+                >
+                  {p.label}
+                </Link>
+              </li>
+            ))}
+          </ul>
+          <form method="get" action="/admin/orders" className={styles.toolbar} data-testid="admin-period-form">
+            {filter ? <input type="hidden" name="status" value={filter} /> : null}
+            {cancelQueue ? <input type="hidden" name="queue" value="cancel-requested" /> : null}
+            <label className={styles.toolLabel}>
+              시작일
+              <input type="date" name="from" defaultValue={params.from ?? ""} className={styles.moveInput} />
+            </label>
+            <label className={styles.toolLabel}>
+              종료일
+              <input type="date" name="to" defaultValue={params.to ?? ""} className={styles.moveInput} />
+            </label>
+            <button type="submit" className={styles.toolButton}>적용</button>
+          </form>
+          <p className={styles.summary} data-testid="admin-orders-summary">
+            총 {total}건 · {formatWon(sum)}
+          </p>
           {orders.length === 0 ? (
             <p className={styles.empty} data-testid="admin-orders-empty">
               {cancelQueue ? "처리 대기 중인 취소요청이 없습니다." : "해당 상태의 주문이 없습니다."}
