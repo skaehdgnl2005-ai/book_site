@@ -1286,6 +1286,55 @@
       "state": "passing",
       "passes": true,
       "evidence": "2026-07-24 pnpm check green (lint+typecheck+unit 441 passed/10 skipped — 신규 csp.test.ts 6: buildCsp 프로덕션 4(script-src nonce+strict-dynamic·unsafe-inline/unsafe-eval 부재=주입 방어·js.tosspayments.com CSP2 폴백·frame-ancestors/object-src/base-uri/default-src·폰트/Toss/worker self+blob 채널·report-uri/report-to·form-action 생략) + dev 2(unsafe-inline/unsafe-eval+ws HMR·nonce 없음·upgrade-insecure-requests 없음); constraints 0 violations — R9 append(F087 신규)·R4 정합·R8 무관(track harness)). 자체 E2E csp-header.spec.ts 3/3 green(Content-Security-Policy-Report-Only 헤더 형태·enforcing frame-ancestors 'none' 단일 유지=클릭재킹 무회귀·/api/csp-report POST 204). 전체 E2E 189 중 185 green + 유일 실패군 perf 3라우트(home 2223·anniversary 2256·first-moments 2493ms + 1 재시도 가시성, 전부 perf·2000ms 예산 초과)는 동시부하 아티팩트 — 격리 perf.spec 3/3 green(871·854·833ms, CSP 전 베이스라인 881·840·892ms와 통계적 무변동=미들웨어 per-page perf-neutral)로 확정(F080/F082/F083 누적 패턴). 기능 스펙 무회귀(체크아웃·맞춤·로그인·사진·관리자 등 185 green). eval S1–S11 11/11 (1.0 — report-only 미들웨어가 결제 퍼널 무영향). 구현: src/lib/csp.ts buildCsp(순수·유닛 검증) + src/middleware.ts(요청별 nonce=btoa+getRandomValues, 요청 CSP 헤더로 Next 15.5가 자신의 인라인 하이드레이션 스크립트를 자동 nonce, strict-dynamic이 동적 import된 Toss SDK 로드 인가; 응답은 Content-Security-Policy-Report-Only + Reporting-Endpoints; matcher는 api/_next/static/image/asset/prefetch 제외, 전 페이지 커버) + src/app/api/csp-report/route.ts(위반 리포트 redact 로그·204·F085 레이트리밋). 앱 커스텀 인라인 script/dangerouslySetInnerHTML 0이라 layout/컴포넌트 무변경. **Report-Only 출시(무차단)**: hermetic E2E는 tossMock이 Toss SDK를 stub + js.tosspayments.com abort(CDP addInitScript는 CSP 면제)라 실 *.tosspayments.com allowlist를 증명 불가 — enforce를 초록 CI로 증명할 수 없으므로 실 결제를 깨지 않는 정직한 1단계. next.config.ts frame-ancestors 'none'은 enforcing 유지(헤더명 상이=무충돌·롤아웃 내내 클릭재킹 방어 지속). 프로덕션 주의(dev E2E 측정 불가): 요청별 nonce가 static/ISR 캐싱을 비활성(페이지 동적 렌더) — enforce 전 프리뷰 p95 측정 필요. enforce 전환(REPORT_ONLY=false + next.config frame-ancestors 제거)은 실 Toss TEST/sandbox 실브라우저 3결제면(결제위젯·결제창·≥1 간편결제) 검증 후 배포 게이트(DEPLOY.md F087 행 5단계). 새 사용자 표면 0(리포트 싱크는 브라우저 자동 POST)·CSS 0·PII 0·마이그레이션 0. 출처: 8-에이전트 CSP 설계 워크플로우 + 3렌즈 파훼 크리틱(전원 report-only-first; Next 15.5 nonce 메커니즘을 node_modules에서 검증)."
+    },
+    {
+      "id": "F088",
+      "category": "admin",
+      "track": "product",
+      "priority": 3,
+      "description": "관리자 주문 목록 테이블 + 페이지네이션 — 일렬 리스트를 컬럼 테이블(주문일 KST·주문·상태·금액)로 개편(data-testid 계약 보존), 최신 50건 컷을 오프셋 페이지네이션(page=N, listRecent skip + take 없는 count 전량 기반 totalPages)으로 교체, F082 컷 안내문 대체. 페이지 링크는 기존 status/queue 필터 보존. 주문일은 formatKstDate(F070/F083 naive slice 교훈). 스펙: docs/superpowers/specs/2026-07-26-admin-orders-upgrade-design.md",
+      "steps": [
+        "/admin/orders가 테이블(주문일·주문·상태·금액)로 렌더되고 행 링크로 상세에 진입한다",
+        "51건 이상일 때 페이지 링크로 다음 페이지 주문을 볼 수 있고, 페이지 링크는 기존 필터를 보존한다 (페이지당 50건 컷·전량 페이지 수 산출은 유닛 소관)",
+        "기존 상태·취소요청 필터/배지 계약 무회귀 (컷 안내문은 페이지네이션으로 대체)"
+      ],
+      "verification": "pnpm test:e2e -- admin-orders-table.spec.ts",
+      "state": "todo",
+      "passes": false,
+      "evidence": ""
+    },
+    {
+      "id": "F089",
+      "category": "admin",
+      "track": "product",
+      "priority": 3,
+      "description": "관리자 주문 기간 필터 + 합계줄 — KST 프리셋(오늘/7일/30일/이번달) + from/to 직접 지정(종료일 포함 = 익일 00:00 배타 상한), 목록 상단 '총 N건 · 합계원'(현재 필터 전량 — take 컷 아님). OrderListFilter.createdTo(배타 상한) + OrderRepo.sumAmount(count와 동일 어휘·no-take, Prisma aggregate _sum.amountWon) 양 백엔드 동형. 기간 해석은 순수 resolvePeriod(admin/orders/_lib/period.ts)가 유닛으로 고정. range·from/to 동시 존재 시 range 우선, 불량 입력은 무시.",
+      "steps": [
+        "프리셋(오늘/7일/30일/이번달) 클릭 시 해당 KST 기간의 주문만 보인다 — 경계는 유닛이 고정",
+        "시작일·종료일 직접 지정이 반영된다(종료일 포함)",
+        "합계줄의 건수·총금액은 필터 전량 기준이다(50건 컷 아님 — 전량성은 유닛 소관)",
+        "상태 필터와 기간 필터가 교집합으로 조합된다"
+      ],
+      "verification": "pnpm test:e2e -- admin-orders-period.spec.ts",
+      "state": "todo",
+      "passes": false,
+      "evidence": ""
+    },
+    {
+      "id": "F090",
+      "category": "admin",
+      "track": "product",
+      "priority": 3,
+      "description": "관리자 주문 검색 — q 파라미터(GET, trim·빈값 무시): 주문번호 정확 일치 OR 구매자명/이메일 부분 일치(case-insensitive), 기존 필터와 교집합. OrderListFilter.search 양 백엔드 동형(Prisma OR: id 정확 + contains insensitive). PII 결정(스펙 §PII): q는 URL에 실리므로 앱 로그/트레이스 무기록 유지, 인프라 요청 로그 한계는 수용·문서화.",
+      "steps": [
+        "주문번호 정확 일치 검색이 된다",
+        "구매자명/이메일 부분 일치(case-insensitive) 검색이 된다",
+        "기존 필터와 조합되고, 0건이면 빈 상태 문구가 보인다"
+      ],
+      "verification": "pnpm test:e2e -- admin-orders-search.spec.ts",
+      "state": "todo",
+      "passes": false,
+      "evidence": ""
     }
   ]
 }
