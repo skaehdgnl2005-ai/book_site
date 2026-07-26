@@ -3,6 +3,22 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **(2026-07-26): F090 관리자 주문 검색 DONE (플랜 Task 11–12) — 어드민 주문 목록 개선 F088–F090 완주.**
+  `q` 파라미터: **주문번호 정확 일치 OR 구매자명·이메일 부분 일치(case-insensitive)**, trim 후
+  빈값은 필터 미적용(빈 검색 = 전체), 기존 status/queue/기간과 **교집합**. 주문번호를 부분 일치로
+  열지 않은 이유: 무관한 주문이 섞여 운영자가 오조작할 위험. UI는 F089의 기간 GET 폼에 검색
+  input을 통합(신규 API 라우트 0·신규 클라이언트 컴포넌트 0) — range 활성 중 검색해도 hidden으로
+  range를 보존한다. 검증: **check green**(유닛 460/10skip — 신규 admin-search 2·constraints 0위반)
+  + **자체 E2E 1/1** + **전체 E2E 193 중 189 green**(실패 4는 동시부하 아티팩트 — 격리 재판정
+  perf 3/3 p95 1183·952·989ms·custom-phone 3/3 전원 green) + **eval S1–S11 11/11 (1.0)**.
+  **PII 결정(스펙 §PII)**: `q`는 URL에 실리지만 앱 로그/트레이스에는 무기록 유지(E3) — 인프라
+  (Vercel) 요청 로그에 URL이 남는 한계는 수용·문서화.
+  **알려진 소소한 UX 갭(의도 — 플랜 범위 밖)**: 기간 **프리셋 링크**는 `q`를 보존하지 않아
+  검색 중 프리셋을 누르면 검색어가 초기화된다(폼 제출 경로는 기간·검색을 함께 보존). 필요하면
+  프리셋 링크의 `buildQuery`에 `q` 한 줄 추가로 해결.
+  `Next:` 어드민 주문 목록 3건 완주. 남은 비목표(스펙 §비목표): **CSV 내보내기·컬럼 정렬·매출
+  분해 패널** — 필요해지면 별도 피처로. 배포 관련 대기 항목은 아래 F087 항목의 `Next:` 참조
+  (Vercel WAF per-IP 룰 · 프로덕션 `ALLOW_DEV_AUTH` 제거 확인 · CSP enforce 전환).
 - **(2026-07-26): F089 관리자 주문 기간 필터 + 합계줄 DONE (플랜 Task 6–10).**
   KST 프리셋(오늘/7일/30일/이번달) 링크 + `from`·`to` 직접 지정 GET 폼(종료일 **포함** = 익일 00:00
   배타 상한) + 목록 상단 **'총 N건 · 합계원'**. 합계는 `count`/`sumAmount` **전량**(no-take)이라

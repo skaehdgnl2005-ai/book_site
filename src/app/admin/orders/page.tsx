@@ -18,6 +18,8 @@ const PAGE_SIZE = 50;
  * 안내문 대체 — 전량이 페이지로 도달 가능). totalPages는 take 없는 count 전량 기반.
  * F089 — KST 기간 필터(프리셋 range=/직접 from·to) + 합계줄: 건수·합계는 현재 필터의 전량
  * (count/sumAmount는 no-take) — 50행 슬라이스의 합을 총액처럼 보이지 않게 한다.
+ * F090 — 검색(q): 주문번호 정확 일치 OR 구매자명/이메일 부분 일치, 기존 필터와 교집합.
+ * q는 URL에 실리지만 앱 로그/트레이스에는 남기지 않는다(E3; 인프라 요청 로그 한계는 스펙 §PII).
  */
 export default async function AdminOrdersPage({
   searchParams,
@@ -29,6 +31,7 @@ export default async function AdminOrdersPage({
     range?: string;
     from?: string;
     to?: string;
+    q?: string;
   }>;
 }) {
   await requireAdmin(); // F075 — own gate, not just the layout (defense in depth)
@@ -40,9 +43,11 @@ export default async function AdminOrdersPage({
       : undefined;
   const page = parsePage(params.page);
   const period = resolvePeriod(params, Date.now());
+  const q = params.q?.trim() || undefined;
   const listFilter = {
     ...(cancelQueue ? { cancelRequested: true as const } : { status: filter }),
     ...period,
+    ...(q ? { search: q } : {}),
   };
   const repo = orderRepo();
   const [orders, total, sum, cancelQueueCount] = await Promise.all([
@@ -59,6 +64,7 @@ export default async function AdminOrdersPage({
     range: params.range,
     from: params.from,
     to: params.to,
+    q,
   };
 
   return (
@@ -124,6 +130,8 @@ export default async function AdminOrdersPage({
           <form method="get" action="/admin/orders" className={styles.toolbar} data-testid="admin-period-form">
             {filter ? <input type="hidden" name="status" value={filter} /> : null}
             {cancelQueue ? <input type="hidden" name="queue" value="cancel-requested" /> : null}
+            {/* F090 — 폼이 기간·검색을 함께 제출하므로, range 활성 중 검색해도 range를 잃지 않는다 */}
+            {params.range ? <input type="hidden" name="range" value={params.range} /> : null}
             <label className={styles.toolLabel}>
               시작일
               <input type="date" name="from" defaultValue={params.from ?? ""} className={styles.moveInput} />
@@ -132,7 +140,18 @@ export default async function AdminOrdersPage({
               종료일
               <input type="date" name="to" defaultValue={params.to ?? ""} className={styles.moveInput} />
             </label>
-            <button type="submit" className={styles.toolButton}>적용</button>
+            <label className={styles.toolLabel}>
+              검색
+              <input
+                type="search"
+                name="q"
+                defaultValue={q ?? ""}
+                placeholder="주문번호·구매자명·이메일"
+                className={styles.moveInput}
+                data-testid="admin-search-input"
+              />
+            </label>
+            <button type="submit" className={styles.toolButton} data-testid="admin-search-submit">적용</button>
           </form>
           <p className={styles.summary} data-testid="admin-orders-summary">
             총 {total}건 · {formatWon(sum)}

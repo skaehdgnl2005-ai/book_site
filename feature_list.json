@@ -1332,9 +1332,9 @@
         "기존 필터와 조합되고, 0건이면 빈 상태 문구가 보인다"
       ],
       "verification": "pnpm test:e2e -- admin-orders-search.spec.ts",
-      "state": "todo",
-      "passes": false,
-      "evidence": ""
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-26 pnpm check green (lint+typecheck+unit 460 passed/10 skipped — 신규 admin-search.test.ts 2: in-memory 1(id 정확 일치, trim, 이름 부분 일치, 이메일 대소문자 무시 minjun@→MinJun@Example.com, 공통 도메인 2건, 미스 0건, 빈 문자열·공백뿐이면 필터 미적용=전체, status와 교집합) + Prisma where 계약 1(OR [id 정확, buyerName/buyerEmail contains insensitive]·trim 적용, 공백뿐이면 where에 OR 부재, status와 OR 공존=교집합); constraints 0 violations — R4 정합·R8 자체 E2E 보유). 자체 E2E admin-orders-search.spec.ts 1/1 green: 검색 폼 경로(admin-search-input 입력 → admin-search-submit 클릭 → q= 반영) 후 id는 전역 유일이라 정확히 1행(병렬 스위트에서도 결정론), 이메일 부분+대소문자 무시(q=F090-SEARCH), 구매자명 부분(q=부모 — 공용 시드라 멤버십만), 기존 필터와 교집합(status=CANCELLED&q=<id> → 0행 + 빈 상태 문구), 무매치 0건 빈 상태. 전체 E2E 193개 중 189 green + 실패 4는 전부 동시부하 아티팩트 — 격리 재판정 전원 green: perf 3/3(p95 home 1183·anniversary 952·first-moments 989ms, F087 베이스라인 871·854·833ms 대비 예산 2000ms 내 무변동) + custom-phone 3/3. eval S1–S11 11/11 (task_success_rate 1.0 — 관리자 목록 개선이 구매 퍼널 무영향). 스텝 귀속: 폼 경로·id 정확 1행·부분 일치 멤버십·교집합·빈 상태 = E2E / 술어 정밀 의미론(id는 정확·이름·이메일은 부분, case-insensitive, trim, 빈값 무시, 양 백엔드 동형 where) = 유닛. 구현: orders.ts OrderListFilter.search(matchesListFilter 술어 + buildListWhere OR — 서로의 미러, trim 후 빈값이면 필터 자체를 걸지 않음) + page.tsx q 파라미터·기간 GET 폼에 검색 input 통합(신규 API 라우트 0·신규 클라이언트 컴포넌트 0). 주문번호를 부분 일치로 열지 않은 이유: 무관한 주문이 섞여 운영자가 오조작할 위험. PII 결정(스펙 §PII): q는 URL에 실리지만 앱 로그/트레이스 무기록 유지(E3) — 인프라(Vercel) 요청 로그에 URL이 남는 한계는 수용·문서화. 마이그레이션 0·CSS 0(F089 toolbar 재사용)."
     }
   ]
 }
