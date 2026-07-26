@@ -140,6 +140,8 @@ export interface OrderRepo {
    * '오늘' boundary from kstDayStartIso).
    */
   count(opts?: OrderListFilter): Promise<number>;
+  /** F089 — honest full sum (₩) over the SAME filter vocabulary as count — NO take cut. */
+  sumAmount(opts?: OrderListFilter): Promise<number>;
   /** F060 — record the shipment (carrier + tracking number) ahead of the SHIPPED transition. */
   setTracking(id: string, carrier: string, trackingNumber: string): Promise<StoredOrder | undefined>;
   /**
@@ -166,6 +168,8 @@ export type OrderListFilter = {
   cancelRequested?: boolean;
   /** F083 — inclusive lower bound on createdAt (ISO instant). */
   createdFrom?: string;
+  /** F089 — EXCLUSIVE upper bound on createdAt (ISO instant; 종료일 포함 = 익일 00:00). */
+  createdTo?: string;
 };
 
 // ── In-memory backend (hermetic; used when no DATABASE_URL) ────────────────────
@@ -175,15 +179,16 @@ function matchesListFilter(o: StoredOrder, opts: OrderListFilter): boolean {
   if (opts.status && o.status !== opts.status) return false;
   if (opts.statusIn && !opts.statusIn.includes(o.status)) return false;
   if (opts.cancelRequested && !(o.cancelRequestedAt != null && CANCELLABLE_STATUSES.includes(o.status))) return false;
-  if (opts.createdFrom && Date.parse(o.createdAt) < parseCreatedFrom(opts.createdFrom)) return false;
+  if (opts.createdFrom && Date.parse(o.createdAt) < parseInstant(opts.createdFrom, "createdFrom")) return false;
+  if (opts.createdTo && Date.parse(o.createdAt) >= parseInstant(opts.createdTo, "createdTo")) return false;
   return true;
 }
 
-/** F083 — invalid createdFrom fails LOUD in both backends alike (the Prisma client would throw
+/** F083/F089 — invalid instants fail LOUD in both backends alike (the Prisma client would throw
  *  on an Invalid Date anyway; silently matching everything in-memory would diverge). */
-function parseCreatedFrom(iso: string): number {
+function parseInstant(iso: string, field: "createdFrom" | "createdTo"): number {
   const ms = Date.parse(iso);
-  if (!Number.isFinite(ms)) throw new Error("Invalid createdFrom instant.");
+  if (!Number.isFinite(ms)) throw new Error(`Invalid ${field} instant.`);
   return ms;
 }
 
@@ -260,6 +265,12 @@ export function createOrderRepo(): OrderRepo {
     async count(opts = {}) {
       // Full scan, NO take — the badge total is honest even when the list is cut at 50.
       return [...map.values()].filter((o) => matchesListFilter(o, opts)).length;
+    },
+    async sumAmount(opts = {}) {
+      // count와 동일 술어·전량 — 합계줄이 50행 슬라이스의 합이 되는 일은 없다 (F082 원칙).
+      return [...map.values()]
+        .filter((o) => matchesListFilter(o, opts))
+        .reduce((sum, o) => sum + o.amountWon, 0);
     },
     async setTracking(id, carrier, trackingNumber) {
       const order = map.get(id);
@@ -514,7 +525,7 @@ type TemplateDelegate = {
 type OrderListWhere = {
   status?: OrderStatus | { in: OrderStatus[] };
   cancelRequestedAt?: { not: null };
-  createdAt?: { gte: Date };
+  createdAt?: { gte?: Date; lt?: Date };
 };
 
 type OrderDelegate = {
@@ -528,6 +539,10 @@ type OrderDelegate = {
     include: unknown;
   }): Promise<OrderRow[]>;
   count(args: { where: OrderListWhere }): Promise<number>;
+  aggregate(args: {
+    where: OrderListWhere;
+    _sum: { amountWon: true };
+  }): Promise<{ _sum: { amountWon: number | null } }>;
   updateMany(args: {
     where:
       | { id: string; status?: OrderStatus | { in: OrderStatus[] }; cancelRequestedAt?: null }
@@ -572,7 +587,12 @@ function buildListWhere(opts: OrderListFilter): OrderListWhere {
   } else if (statusSets.length > 0) {
     where.status = { in: statusSets.reduce<OrderStatus[]>((acc, s) => acc.filter((v) => s.includes(v)), [...statusSets[0]]) };
   }
-  if (opts.createdFrom) where.createdAt = { gte: new Date(parseCreatedFrom(opts.createdFrom)) };
+  if (opts.createdFrom || opts.createdTo) {
+    where.createdAt = {
+      ...(opts.createdFrom ? { gte: new Date(parseInstant(opts.createdFrom, "createdFrom")) } : {}),
+      ...(opts.createdTo ? { lt: new Date(parseInstant(opts.createdTo, "createdTo")) } : {}),
+    };
+  }
   return where;
 }
 
@@ -670,6 +690,14 @@ export function createPrismaOrderRepo(getDb: () => Promise<Db>): OrderRepo {
       const db = await getDb();
       // Same where vocabulary, NO take — the honest total behind the queue badge (F082).
       return (db.order as OrderDelegate).count({ where: buildListWhere(opts) });
+    },
+    async sumAmount(opts = {}) {
+      const db = await getDb();
+      const res = await (db.order as OrderDelegate).aggregate({
+        where: buildListWhere(opts),
+        _sum: { amountWon: true },
+      });
+      return res._sum.amountWon ?? 0; // 빈 집합은 null — 0으로 정규화
     },
     async setTracking(id, carrier, trackingNumber) {
       const db = await getDb();
