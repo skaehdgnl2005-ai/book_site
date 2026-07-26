@@ -28,11 +28,8 @@ jobs:
       # Eval harness (reports purchase-flow metrics; does not fail the build yet).
       - run: pnpm eval
 
-      - run: pnpm exec playwright install --with-deps chromium
-
-      - run: pnpm test:e2e
-        env:
-          CI: "true"
-          APP_ENV: test
-          TOSS_SECRET_KEY: test_sk_ci_placeholder
-          NEXT_PUBLIC_TOSS_CLIENT_KEY: test_ck_ci_placeholder
+      # NOTE: the Playwright E2E suite is a LOCAL Definition-of-Done gate (AGENTS.md), not run in CI.
+      # It drives `next dev`, whose on-demand per-route compilation is pathologically slow on a CI
+      # runner (observed 30min+ / effective hang on the first remote run). Run `pnpm test:e2e` locally
+      # per feature. To bring E2E back into CI later, serve a PRODUCTION build (`next build && next
+      # start`) as the Playwright webServer instead of `next dev` (no on-demand compile → fast).
