@@ -1,7 +1,12 @@
 import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
 import { devAuthEnabled, isProductionRuntime } from "@/lib/env";
-import { KAKAO_STATE_COOKIE, kakaoProviderFromEnv, sandboxCode } from "@/app/account/_lib/kakao";
+import {
+  KAKAO_STATE_COOKIE,
+  kakaoProviderFromEnv,
+  kakaoRedirectUri,
+  sandboxCode,
+} from "@/app/account/_lib/kakao";
 
 export const dynamic = "force-dynamic";
 
@@ -15,7 +20,7 @@ export const dynamic = "force-dynamic";
  */
 export async function GET(req: Request): Promise<Response> {
   const url = new URL(req.url);
-  const redirectUri = `${url.origin}/api/auth/kakao/callback`;
+  const redirectUri = kakaoRedirectUri(url.origin); // pinned to BASE_URL when set — KOE006 (kakao.ts)
   const state = randomBytes(16).toString("hex");
 
   let target: string;
@@ -30,7 +35,23 @@ export async function GET(req: Request): Promise<Response> {
   } else {
     // Real Kakao (production, or a non-prod deploy without dev-auth). No key ⇒ fail-closed to /login.
     if (!process.env.KAKAO_REST_API_KEY) {
+      // A MISCONFIGURATION, not an auth outcome — so unlike the callback's uniform failures this one
+      // gets a server-side breadcrumb. Without it the only way to discover Kakao login is dead in
+      // production is to click the button yourself (`pnpm check` stays green, F058 stays passes:true).
+      // No value interpolated: env var NAMES aren't secrets (docs/DEPLOY.md publishes the table),
+      // so there is nothing for redact() to mask. /login also hides the button entirely in this
+      // state (kakaoLoginAvailable) — this log is for the operator, not the buyer.
+      console.warn("kakao login unavailable: KAKAO_REST_API_KEY is not set — see docs/DEPLOY.md");
       return NextResponse.redirect(`${url.origin}/login?error=kakao`); // fail-closed, not a 500
+    }
+    if (!process.env.KAKAO_CLIENT_SECRET) {
+      // Kakao enables Client Secret by DEFAULT on new apps; with it on, a token exchange that omits
+      // the parameter fails KOE010 *after* the buyer already granted consent. Warn rather than gate:
+      // an app with the secret switched off in console is a legitimate configuration.
+      console.warn(
+        "kakao login: KAKAO_CLIENT_SECRET is not set — the token exchange fails (KOE010) if the " +
+          "Kakao app has Client Secret enabled (default). See docs/DEPLOY.md",
+      );
     }
     target = kakaoProviderFromEnv().authorizeUrl(state, redirectUri);
   }
@@ -39,7 +60,9 @@ export async function GET(req: Request): Promise<Response> {
   res.cookies.set(KAKAO_STATE_COOKIE, state, {
     httpOnly: true,
     sameSite: "lax",
-    secure: isProductionRuntime(),
+    // HTTPS previews are production-grade transports even though isProductionRuntime() is false
+    // there; OR-ing the scheme adds Secure on those without ever removing it where it applied.
+    secure: isProductionRuntime() || url.protocol === "https:",
     path: "/api/auth/kakao",
     maxAge: 600, // 10분 — an OAuth round-trip, not a session
   });

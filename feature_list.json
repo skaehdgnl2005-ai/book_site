@@ -785,7 +785,7 @@
       "verification": "pnpm test:e2e -- account-kakao.spec.ts",
       "state": "passing",
       "passes": true,
-      "evidence": "2026-07-07 pnpm check green (lint+typecheck+unit 263 passed/10 skipped+constraints 0 violations); full pnpm test:e2e 126/126 passed incl. account-kakao.spec.ts 4/4(sandbox OAuth 왕복 로그인, state 불일치 균일 거부(CSRF), 검증 이메일 기존 계정 로그인+게스트 주문 연결, 미동의→email 없는 계정+배너→OTP 이메일 attach) + eval S1–S11 pass. 수동 OAuth 3콜(injectable transport — 유닛 account-kakao 10 tests: 토큰 폼·Bearer·비2xx null·valid+verified만 이메일 신뢰·결정표 ①~④·attachEmail 충돌 거부), 비프로덕션 sandbox provider(sbx 코드=프로필, 프로덕션 도달 불가), state 쿠키 constant-time 비교, 미검증 이메일 자동 연결 금지(탈취 벡터). env: KAKAO_REST_API_KEY/KAKAO_CLIENT_SECRET optional(프로덕션 미설정 시 fail-closed 리다이렉트). 실 카카오 왕복은 배포 후 수동 카나리(F044/F045 전례) — 카카오 앱 등록 HITL 대기"
+      "evidence": "2026-07-07 pnpm check green (lint+typecheck+unit 263 passed/10 skipped+constraints 0 violations); full pnpm test:e2e 126/126 passed incl. account-kakao.spec.ts 4/4(sandbox OAuth 왕복 로그인, state 불일치 균일 거부(CSRF), 검증 이메일 기존 계정 로그인+게스트 주문 연결, 미동의→email 없는 계정+배너→OTP 이메일 attach) + eval S1–S11 pass. 수동 OAuth 3콜(injectable transport — 유닛 account-kakao 10 tests: 토큰 폼·Bearer·비2xx null·valid+verified만 이메일 신뢰·결정표 ①~④·attachEmail 충돌 거부), 비프로덕션 sandbox provider(sbx 코드=프로필, 프로덕션 도달 불가), state 쿠키 constant-time 비교, 미검증 이메일 자동 연결 금지(탈취 벡터). env: KAKAO_REST_API_KEY/KAKAO_CLIENT_SECRET optional(프로덕션 미설정 시 fail-closed 리다이렉트). 실 카카오 왕복은 배포 후 수동 카나리(F044/F045 전례) — 카카오 앱 등록 HITL 대기 ── 2026-07-27 정정(F091): ① 이 항목 description의 'KAKAO_REST_API_KEY/KAKAO_CLIENT_SECRET(+redact)'는 부정확 — redact()에 카카오 키 규칙은 없고(키가 접두사 없는 32자 hex라 안전한 정규식 자체가 성립하지 않음) 실제 통제는 '토큰 요청 바디를 절대 로깅하지 않는다'이다(교환 실패는 HTTP status만 기록). description은 R9상 불변이라 정정을 여기에 남긴다. ② steps/evidence의 버튼 문구 '카카오로 시작하기'는 카카오 싱크(별도 제품)의 레이블이라 F091에서 '카카오 로그인'으로 교체됨 — 원문은 당시 기록으로 보존."
     },
     {
       "id": "F059",
@@ -1335,6 +1335,23 @@
       "state": "passing",
       "passes": true,
       "evidence": "2026-07-26 pnpm check green (lint+typecheck+unit 460 passed/10 skipped — 신규 admin-search.test.ts 2: in-memory 1(id 정확 일치, trim, 이름 부분 일치, 이메일 대소문자 무시 minjun@→MinJun@Example.com, 공통 도메인 2건, 미스 0건, 빈 문자열·공백뿐이면 필터 미적용=전체, status와 교집합) + Prisma where 계약 1(OR [id 정확, buyerName/buyerEmail contains insensitive]·trim 적용, 공백뿐이면 where에 OR 부재, status와 OR 공존=교집합); constraints 0 violations — R4 정합·R8 자체 E2E 보유). 자체 E2E admin-orders-search.spec.ts 1/1 green: 검색 폼 경로(admin-search-input 입력 → admin-search-submit 클릭 → q= 반영) 후 id는 전역 유일이라 정확히 1행(병렬 스위트에서도 결정론), 이메일 부분+대소문자 무시(q=F090-SEARCH), 구매자명 부분(q=부모 — 공용 시드라 멤버십만), 기존 필터와 교집합(status=CANCELLED&q=<id> → 0행 + 빈 상태 문구), 무매치 0건 빈 상태. 전체 E2E 193개 중 189 green + 실패 4는 전부 동시부하 아티팩트 — 격리 재판정 전원 green: perf 3/3(p95 home 1183·anniversary 952·first-moments 989ms, F087 베이스라인 871·854·833ms 대비 예산 2000ms 내 무변동) + custom-phone 3/3. eval S1–S11 11/11 (task_success_rate 1.0 — 관리자 목록 개선이 구매 퍼널 무영향). 스텝 귀속: 폼 경로·id 정확 1행·부분 일치 멤버십·교집합·빈 상태 = E2E / 술어 정밀 의미론(id는 정확·이름·이메일은 부분, case-insensitive, trim, 빈값 무시, 양 백엔드 동형 where) = 유닛. 구현: orders.ts OrderListFilter.search(matchesListFilter 술어 + buildListWhere OR — 서로의 미러, trim 후 빈값이면 필터 자체를 걸지 않음) + page.tsx q 파라미터·기간 GET 폼에 검색 input 통합(신규 API 라우트 0·신규 클라이언트 컴포넌트 0). 주문번호를 부분 일치로 열지 않은 이유: 무관한 주문이 섞여 운영자가 오조작할 위험. PII 결정(스펙 §PII): q는 URL에 실리지만 앱 로그/트레이스 무기록 유지(E3) — 인프라(Vercel) 요청 로그에 URL이 남는 한계는 수용·문서화. 마이그레이션 0·CSS 0(F089 toolbar 재사용)."
+    },
+    {
+      "id": "F091",
+      "category": "account",
+      "track": "product",
+      "priority": 2,
+      "description": "카카오 로그인 — 브랜드 가이드 준수 + 실 왕복 경로 하드닝. (1) 디자인: 카카오 로그인 디자인 가이드 규정(컨테이너 #FEE500·심볼 필수·레이블 '카카오 로그인' 완성형·radius 12px)대로 재구현 — 기존 버튼은 사이트 기본 네이비 pill + 심볼 없음 + '카카오로 시작하기'(= 별도 제품 카카오 싱크의 레이블)로 3중 위반. 심볼 SVG는 공식 PNG 자산 행별 실측으로 복원, DESIGN.md에 radius 0·순흑 금지 예외를 명문화하고 R7은 brand-exempt 구역만 스킵. (2) 가용성: 키가 없어 반드시 실패하는 서버에서는 /login이 버튼을 렌더하지 않고(kakaoLoginAvailable) start 라우트가 미설정을 서버 로그로 알린다. (3) 하드닝(실 카카오 경로는 키 부재로 한 번도 실행된 적 없음): exchange의 fetch reject·비JSON 바디를 계약대로 null화, 콜백 try/catch로 500 대신 균일 fail-closed(500 자체가 state 통과를 알려주는 오라클), 동의 취소(access_denied)는 실패가 아니므로 경고 없이 /login, redirect_uri를 BASE_URL로 고정(KOE006), kakaoId Long의 2^53 초과 반올림 차단, createKakaoUser의 unique 경합(P2002) 시 승자 재조회, HTTPS 프리뷰에도 Secure 쿠키.",
+      "steps": [
+        "/login의 카카오 버튼이 가이드대로 렌더된다(노란 컨테이너·심볼·'카카오 로그인'·radius 12px)",
+        "카카오 동의 화면에서 취소하면 오류 경고 없이 /login으로 돌아온다",
+        "네트워크 거부/비JSON 응답에도 500이 아니라 균일 fail-closed로 처리된다",
+        "카카오 로그인이 불가능한 서버(키 미설정)에서는 버튼이 노출되지 않는다"
+      ],
+      "verification": "pnpm test:e2e -- account-kakao.spec.ts",
+      "state": "passing",
+      "passes": true,
+      "evidence": "2026-07-27 pnpm check green (lint+typecheck+유닛 466 passed/10 skipped — account-kakao 신규 5: 2^53 초과 id 반올림 차단·string id 유지, kakaoRedirectUri BASE_URL 우선/트레일링 슬래시 제거/빈값·공백·비URL이면 origin 폴백, kakaoLoginAvailable 5케이스(프로덕션+ALLOW_DEV_AUTH=false로 start 라우트와 동일 게이트), transport reject→null, 비JSON 바디 양쪽 레그→null; constraints 0 위반 — R7 brand-exempt는 해당 구역만 스킵함을 프로브로 확인(구역 밖 #000 주입 시 R7 정상 발화)). 자체 E2E account-kakao.spec.ts 6/6 green(기존 4 + 신규 2: 가이드 렌더 단언(background-color rgb(254,229,0)·border-radius 12px·심볼 svg·aria-hidden·레이블 '카카오 로그인'·href), 동의 취소(access_denied+state echo)는 경고 없이 /login·미로그인 유지). 전체 E2E 195 중 194 green — 실패 1(cancel-request F062)은 4워커 동시부하 아티팩트로 격리 재판정 2/2 green(17.3s < 30s 타임아웃). 브라우저 실측(deviceScaleFactor 2): background rgb(254,229,0)=#FEE500, color rgba(0,0,0,0.85), radius 12px, font system-ui, 심볼/컨테이너 높이비 0.378·좌측 인셋비 0.322 = 카카오 공식 PNG 자산 실측값(0.3778·0.3222)과 일치. 미설정 서버 수동 검증(ALLOW_DEV_AUTH·KAKAO_REST_API_KEY 공란, :3010): /login에 login-kakao 0건(버튼 미렌더) + start 307→/login?error=kakao + 서버 로그 'kakao login unavailable: KAKAO_REST_API_KEY is not set'. 근거: 실패 원인은 코드가 아니라 설정이었음을 실측 확인 — 로컬/Vercel 프로덕션 모두 KAKAO_REST_API_KEY 부재로 start가 fail-closed(curl 307 + vercel env ls production 13개 중 KAKAO_* 없음). 적대적 검수(서브에이전트 4렌즈 → 각 발견을 독립 반박 검증): 12건 중 10건 반박(쿠키 path 스코프·SameSite·timingSafeEqual 길이 가드·scope 누락·CSP는 모두 기존 코드가 이미 옳음, redirect_uri 고정이 host-only state 쿠키를 깨뜨린다는 주장도 반박), 2건 확정 — 둘 다 본 항목 evidence가 'PENDING'인 채 passes:true였던 false completion(본 문자열로 해소). 미검증 렌즈 발견 중 자체 판정: '또는' 라벨 --muted 2.32:1 = AA 미달 → --grey 4.66:1로 수정(실채택), --kakao-h px→rem(텍스트 전용 확대 시 비율 유지, 실채택), '넓은 폭에서 심볼이 레이블과 멀다'는 카카오 공식 600×90 large_wide 자산이 동일 배치라 기각. 남은 HITL(코드로 대체 불가): 카카오 개발자 앱 등록 → 카카오 로그인 활성화 → Redirect URI 등록 → 동의항목(account_email) → REST API 키/Client Secret → Vercel 주입(KAKAO_REST_API_KEY·KAKAO_CLIENT_SECRET·BASE_URL) → 실 브라우저 수동 카나리. 절차는 docs/DEPLOY.md '카카오 로그인 (F058) — 콘솔 설정 러너북'."
     }
   ]
 }

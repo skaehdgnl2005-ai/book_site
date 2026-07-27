@@ -5,6 +5,8 @@ import {
   sandboxCode,
   sandboxKakaoProvider,
   kakaoProviderFromEnv,
+  kakaoLoginAvailable,
+  kakaoRedirectUri,
   type KakaoTransport,
 } from "../../src/app/account/_lib/kakao";
 import { resolveKakaoLogin } from "../../src/app/account/_lib/kakaoLogin";
@@ -34,6 +36,50 @@ describe("parseKakaoProfile — the email trust rule", () => {
   it("no id → null (never a half-profile)", () => {
     expect(parseKakaoProfile({})).toBeNull();
     expect(parseKakaoProfile(undefined)).toBeNull();
+  });
+
+  it("an id past 2^53 → null (Kakao's Long would silently ROUND into another user's id)", () => {
+    // Kakao types `id` as a Long, and this is exactly how it reaches us: JSON.parse collapses
+    // 9007199254740993 to ...992, so accepting it would mint a session for a DIFFERENT Kakao
+    // account than the one that just authenticated. Parsed here rather than written as a literal
+    // because the precision loss is the point (a bare literal trips no-loss-of-precision).
+    const rounded = JSON.parse('{"id":9007199254740993}') as { id: number };
+    expect(Number.isSafeInteger(rounded.id)).toBe(false); // the precision loss, demonstrated
+    expect(parseKakaoProfile(rounded)).toBeNull();
+    expect(parseKakaoProfile({ id: 1.5 })).toBeNull();
+    // A string id is exact by construction, so arbitrarily large ones stay accepted.
+    expect(parseKakaoProfile({ id: "90071992547409931" })?.kakaoId).toBe("90071992547409931");
+  });
+});
+
+describe("kakaoRedirectUri — pinned so Kakao's exact-match check can't drift (KOE006)", () => {
+  it("prefers BASE_URL over the inbound host, and strips a trailing slash", () => {
+    // Vercel serves one deployment under the custom domain, <project>.vercel.app AND a per-deploy
+    // alias; only the registered URI is accepted, so the inbound host must not decide.
+    const env = { BASE_URL: "https://shop.example/" };
+    expect(kakaoRedirectUri("https://storybook-shop-abc123.vercel.app", env)).toBe(
+      "https://shop.example/api/auth/kakao/callback",
+    );
+  });
+
+  it("falls back to the request origin when BASE_URL is unset/blank/garbage", () => {
+    for (const env of [{}, { BASE_URL: "" }, { BASE_URL: "   " }, { BASE_URL: "not-a-url" }]) {
+      expect(kakaoRedirectUri("http://localhost:3000", env)).toBe(
+        "http://localhost:3000/api/auth/kakao/callback",
+      );
+    }
+  });
+});
+
+describe("kakaoLoginAvailable — /login hides the button when it cannot possibly work", () => {
+  it("true under the dev-auth sandbox or with a real key; false when neither is present", () => {
+    expect(kakaoLoginAvailable({ APP_ENV: "development", ALLOW_DEV_AUTH: "true" })).toBe(true);
+    expect(kakaoLoginAvailable({ APP_ENV: "production", KAKAO_REST_API_KEY: "rk" })).toBe(true);
+    expect(kakaoLoginAvailable({ APP_ENV: "development" })).toBe(false); // no opt-in, no key
+    expect(kakaoLoginAvailable({ APP_ENV: "production" })).toBe(false); // prod without the key
+    // The dev-auth flag must NOT resurrect the button on a production runtime — same gate as the
+    // start route, so the two can never disagree about whether the flow can complete.
+    expect(kakaoLoginAvailable({ APP_ENV: "production", ALLOW_DEV_AUTH: "true" })).toBe(false);
   });
 });
 
@@ -68,6 +114,31 @@ describe("realKakaoProvider.exchange (injected transport — hermetic)", () => {
   it("a non-2xx token or user/me response → null (fail-closed, no throw)", async () => {
     const bad: KakaoTransport = async () => ({ ok: false, status: 401, json: async () => ({}) });
     expect(await realKakaoProvider({ restApiKey: "rk", transport: bad }).exchange("c", "r")).toBeNull();
+  });
+
+  // The contract is "null on ANY failure". Before F091 only the !ok branch honored it: a rejecting
+  // fetch (DNS/TLS/timeout) or a non-JSON body (kauth serves HTML on 5xx) propagated out of the
+  // callback as a 500 — which is itself an oracle (it says the CSRF state check passed) and skips
+  // the state-cookie cleanup. These are the paths that had never once executed in production.
+  it("a REJECTING transport → null, not a throw", async () => {
+    const dead: KakaoTransport = async () => {
+      throw new Error("ECONNRESET");
+    };
+    await expect(realKakaoProvider({ restApiKey: "rk", transport: dead }).exchange("c", "r")).resolves.toBeNull();
+  });
+
+  it("a non-JSON body on either leg → null, not a throw", async () => {
+    const html = async () => {
+      throw new SyntaxError("Unexpected token '<'");
+    };
+    const tokenHtml: KakaoTransport = async () => ({ ok: true, status: 200, json: html });
+    await expect(realKakaoProvider({ restApiKey: "rk", transport: tokenHtml }).exchange("c", "r")).resolves.toBeNull();
+
+    const meHtml: KakaoTransport = async (url) =>
+      url.includes("kauth")
+        ? { ok: true, status: 200, json: async () => ({ access_token: "at" }) }
+        : { ok: true, status: 200, json: html };
+    await expect(realKakaoProvider({ restApiKey: "rk", transport: meHtml }).exchange("c", "r")).resolves.toBeNull();
   });
 
   it("authorizeUrl carries client_id / redirect_uri / state", () => {

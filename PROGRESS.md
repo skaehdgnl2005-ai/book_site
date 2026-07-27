@@ -3,6 +3,45 @@
 ## Handoff (resume here)   ← was session-handoff.md; consolidated to cut sync/drift (M4)
 - Resume with: `./init.sh` → read this file + `git log --oneline -20` → pick top `passes:false`
   in `feature_list.json` (WIP=1) → `pnpm attempt <id>` before working it.
+- **(2026-07-27): F091 카카오 로그인 — 브랜드 가이드 준수 + 실 왕복 하드닝 DONE.**
+  사용자 신고 2건: 버튼에 카카오 마크·노란색이 없다 / 카카오 로그인이 아예 안 된다.
+  **원인은 코드가 아니라 설정이었다(실측 확인)**: `KAKAO_REST_API_KEY`가 로컬·Vercel 프로덕션
+  **양쪽 모두 미설정**이라 `/api/auth/kakao/start`가 fail-closed 분기로 307 → `/login?error=kakao`.
+  (curl 307 확인 + `vercel env ls production` 13개 중 `KAKAO_*` 없음. E2E는 `playwright.config.ts`가
+  `ALLOW_DEV_AUTH=true`를 주입해 샌드박스로 통과하므로 **초록불이면서 실기능은 죽어 있었다**.)
+  **디자인**: 기존 버튼은 사이트 기본 네이비 pill + 심볼 없음 + 레이블 '카카오로 시작하기'로
+  가이드 3중 위반 — 그 문구는 **카카오 싱크(별도 제품)** 레이블이라 로그인 버튼엔 쓸 수 없다.
+  `KakaoLoginButton.tsx` 신설(#FEE500·순흑 심볼·'카카오 로그인'·radius 12px·OS 시스템 서체).
+  심볼 SVG는 카카오가 벡터를 배포하지 않아 **공식 PNG를 행별 실측해 타원+꼬리로 복원**(평균
+  0.197px). 브라우저 실측 비율 0.378/0.322 = 공식 자산값과 일치. DESIGN.md에 radius 0·순흑 금지
+  **예외를 명문화**하고, R7은 `brand-exempt:start/end` **구역만** 스킵(구역 밖 `#000` 주입 프로브로
+  정상 발화 확인). R6은 box-shadow를 실제 헤어라인 border로 바꿔 **우회 없이** 해소.
+  **가용성**: 키가 없어 반드시 실패하는 서버에서는 `/login`이 버튼을 **렌더하지 않고**
+  (`kakaoLoginAvailable` — start 라우트와 동일 게이트) start가 서버 로그로 미설정을 알린다.
+  `?error=kakao` 경고도 버튼이 있을 때만 띄운다(다시 시도할 수단이 없으면 말이 안 되므로).
+  **하드닝(실 카카오 경로는 키 부재로 한 번도 실행된 적 없음)**: exchange의 fetch reject·비JSON
+  바디를 계약대로 null화, 콜백 try/catch로 **500 대신 균일 fail-closed**(500 자체가 state 통과를
+  알려주는 오라클이고 쿠키 정리도 건너뛴다), **동의 취소(access_denied)는 실패가 아니므로** 경고
+  없이 `/login`, redirect_uri를 `BASE_URL`로 고정(KOE006 — zod 기본값이 아닌 **raw process.env**를
+  읽는다. 기본값을 타면 프로덕션이 localhost로 고정된다), kakaoId Long의 2^53 초과 반올림 차단,
+  `createKakaoUser` unique 경합(P2002) 시 승자 재조회, HTTPS 프리뷰에도 Secure 쿠키.
+  **로컬**: `.env.development.local`에 `ALLOW_DEV_AUTH=true` — `.env.local`이 아닌 이유는 그 파일이
+  `pnpm start`(NODE_ENV=production)에서도 읽혀 F086 부팅 트립와이어에 걸리기 때문.
+  검증: **check green**(유닛 466/10skip — 신규 5·constraints 0위반) + **자체 E2E 6/6** + 전체 E2E
+  195 중 194(실패 1은 매 실행 **다른 테스트**가 걸리는 4워커 동시부하 아티팩트 — cancel-request·
+  gallery 각각 격리 재판정 green) + 미설정 서버(:3010) 수동 검증(버튼 0건·307·경고 로그).
+  **적대적 검수**(서브에이전트 4렌즈 → 발견별 독립 반박): 12건 중 10건 반박(쿠키 path·SameSite·
+  timingSafeEqual 길이 가드·scope 누락·CSP는 기존 코드가 이미 옳았고, redirect_uri 고정이 host-only
+  state 쿠키를 깨뜨린다는 주장도 반박), **2건 확정 — 둘 다 F091 evidence가 'PENDING'인 채
+  passes:true였던 false completion**(실제 근거로 교체 완료). 미검증 렌즈 발견 중 자체 판정:
+  '또는' 라벨 `--muted` **2.32:1 = AA 미달 → --grey(4.66:1)** 수정, `--kakao-h` px→rem(텍스트 전용
+  확대 시 비율 유지) 수정, '넓은 폭에서 심볼이 멀다'는 **카카오 공식 600×90 자산이 동일 배치**라 기각.
+  `Next:` **남은 건 전부 사람만 할 수 있는 HITL** — 카카오 개발자 앱 등록 → 카카오 로그인 활성화
+  → Redirect URI(`https://<도메인>/api/auth/kakao/callback`) 등록 → 동의항목 `account_email`
+  (이메일 **필수** 동의는 비즈 앱 전환 = 사업자등록번호 선행 — 미완료면 전원 결정표 ④로 정상 동작)
+  → REST API 키·Client Secret 확보 → **Vercel에 `KAKAO_REST_API_KEY`·`KAKAO_CLIENT_SECRET`·
+  `BASE_URL` 주입** → 재배포 → 실 브라우저 수동 카나리. 절차: `docs/DEPLOY.md` '카카오 로그인
+  (F058) — 콘솔 설정 러너북'. 그 전까지 프로덕션 `/login`에 카카오 버튼은 **의도적으로 안 뜬다**.
 - **(2026-07-26): F090 관리자 주문 검색 DONE (플랜 Task 11–12) — 어드민 주문 목록 개선 F088–F090 완주.**
   `q` 파라미터: **주문번호 정확 일치 OR 구매자명·이메일 부분 일치(case-insensitive)**, trim 후
   빈값은 필터 미적용(빈 검색 = 전체), 기존 status/queue/기간과 **교집합**. 주문번호를 부분 일치로
@@ -798,6 +837,23 @@ Harness **INITIALIZED + review-hardened + repurposed to 그림책 제작소**. S
 feature_list/router) now reflects the real product; DESIGN.md (Atelier Sans) wired + enforced. Coding loop next.
 
 ## Session log (newest first)
+### 2026-07-27 — F091: 카카오 로그인 브랜드 가이드 준수 + 실 왕복 경로 하드닝  [master]
+- 신고: 카카오 버튼에 마크·노란색이 없다 / 카카오 로그인이 안 된다. **후자의 원인은 코드가 아니라
+  설정** — `KAKAO_REST_API_KEY`가 로컬·프로덕션 양쪽 미설정이라 start가 fail-closed(실측: curl 307,
+  `vercel env ls production`에 `KAKAO_*` 부재). E2E는 `ALLOW_DEV_AUTH=true` 샌드박스라 초록불이었다.
+- 디자인: `KakaoLoginButton.tsx` 신설 — 가이드 규정값(#FEE500·순흑 심볼·'카카오 로그인'·radius 12px·
+  OS 시스템 서체). 이전 레이블 '카카오로 시작하기'는 **카카오 싱크**(별도 제품) 것이라 위반이었다.
+  심볼은 공식 PNG 행별 실측 → 타원+꼬리 복원(평균 0.197px). DESIGN.md에 예외 명문화, R7은
+  `brand-exempt` 구역만 스킵(구역 밖 프로브로 정상 발화 확인), R6은 border로 우회 없이 해소.
+- 하드닝(한 번도 실행된 적 없는 실 카카오 경로): exchange reject/비JSON → null, 콜백 try/catch로
+  500 대신 균일 fail-closed, 동의 취소는 경고 없이 `/login`, redirect_uri를 raw `BASE_URL`로 고정,
+  kakaoId 2^53 가드, P2002 경합 승자 재조회, HTTPS 프리뷰 Secure 쿠키. 키 없으면 버튼 미렌더.
+- 검증: check green(466/10skip, 0위반) · 자체 E2E 6/6 · 전체 195 중 194(실패 1은 실행마다 다른
+  테스트가 걸리는 동시부하 아티팩트, 격리 재판정 green) · 미설정 서버 수동 검증.
+- 적대적 검수 12건 중 10건 반박 / 2건 확정(evidence 'PENDING' false completion → 해소). 렌즈
+  발견 자체 판정: '또는' 대비 2.32:1 → `--grey` 수정, `--kakao-h` rem화 수정, 심볼 간격은 기각.
+- 남은 것은 전부 HITL(카카오 앱 등록 → Redirect URI → 동의항목 → 키 → Vercel 주입 → 수동 카나리).
+
 ### 2026-06-11 — F047: real Resend transactional-email adapter (mypage OTP send)  [feat/F047]
 - **What:** the paired follow-up to F046 (ADR-0021 D6b) — supplies the real provider behind F046's
   `EmailAdapter` so prod mypage OTP actually sends, closing the "fail-closed-until-provisioned" seam.

@@ -173,8 +173,22 @@ for (const f of await walk(ROOT)) {
       "box-shadow is banned (DESIGN.md): build depth with tone steps + 1px --line hairlines.",
     );
     // R7: no pure white/black — every neutral is warm (DESIGN.md ## Colors).
+    // ONE carve-out (F091): a third-party brand guideline can FIX a colour we would otherwise ban,
+    // and the Kakao Login guide does exactly that (symbol = pure black, recolouring prohibited).
+    // Rather than let that leak into a blanket file exclusion — or, worse, be smuggled past the
+    // regex as `rgb(0 0 0)` — the exemption is an explicit, delimited, greppable REGION:
+    //
+    //   /* brand-exempt:start — <why, + link to the DESIGN.md exception> */  …  /* brand-exempt:end */
+    //
+    // Only regions in BRAND_EXEMPT_FILES are honoured, so a stray marker elsewhere in src/ does
+    // nothing. Everything outside the markers — the rest of the same file included — is still
+    // policed. Adding a file here is a deliberate design decision that belongs in DESIGN.md first.
+    const BRAND_EXEMPT_FILES = new Set(["src/app/globals.css"]);
+    const policed = BRAND_EXEMPT_FILES.has(rel)
+      ? src.replace(/\/\*\s*brand-exempt:start[\s\S]*?brand-exempt:end\s*\*\//g, "")
+      : src;
     add(
-      /#(?:fff(?:fff)?|000(?:000)?)\b/i.test(src),
+      /#(?:fff(?:fff)?|000(?:000)?)\b/i.test(policed),
       rel,
       "R7:no-pure-white-black",
       "Pure #fff/#000 is banned (DESIGN.md): use the warm tokens (--bg, --surface, --ink, ...).",

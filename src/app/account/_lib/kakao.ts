@@ -20,6 +20,39 @@ export interface KakaoProfile {
 /** CSRF state cookie for the OAuth round-trip (start mints, callback consumes). */
 export const KAKAO_STATE_COOKIE = "kakao_oauth_state";
 
+/**
+ * F058 — OAuth redirect_uri, PINNED. Kakao matches this string EXACTLY against the console-
+ * registered value (mismatch ⇒ KOE006 on kauth's own error page, before control ever returns to
+ * us — our fail-closed redirect never gets a say) and requires the authorize and token calls to
+ * agree. Deriving it from the inbound host would vary per hostname: Vercel serves one deployment
+ * under the custom domain, <project>.vercel.app AND a per-deploy alias, so a buyer arriving on the
+ * "wrong" one would break. Pin to BASE_URL when the operator set one; fall back to the request
+ * origin (local dev / previews, where no fixed URL exists to register).
+ *
+ * Reads RAW process.env on purpose: parseEnv() defaults BASE_URL to http://localhost:3000, and
+ * that default flowing in here would pin production's redirect_uri to localhost.
+ */
+export function kakaoRedirectUri(
+  origin: string,
+  env: Record<string, string | undefined> = process.env,
+): string {
+  const base = env.BASE_URL?.trim();
+  const root = base && /^https?:\/\/\S+$/.test(base) ? base.replace(/\/+$/, "") : origin;
+  return `${root}/api/auth/kakao/callback`;
+}
+
+/**
+ * F058 — can Kakao login actually complete on THIS server? /login hides the button when it can't:
+ * a button that is guaranteed to bounce the buyer back to an error is worse than no button, and
+ * the generic failure page gives them nothing to act on. Mirrors the start route's fail-closed
+ * gate so the two can't disagree.
+ */
+export function kakaoLoginAvailable(
+  env: Record<string, string | undefined> = process.env,
+): boolean {
+  return devAuthEnabled(env) || Boolean(env.KAKAO_REST_API_KEY);
+}
+
 export interface KakaoResponseLike {
   ok: boolean;
   status: number;
@@ -50,6 +83,11 @@ export function parseKakaoProfile(me: unknown): KakaoProfile | null {
     kakao_account?: { email?: unknown; is_email_valid?: unknown; is_email_verified?: unknown };
   };
   if (o.id == null || (typeof o.id !== "number" && typeof o.id !== "string")) return null;
+  // Kakao types `id` as a Long. JSON.parse yields a JS number, which silently ROUNDS above 2^53 —
+  // two distinct Kakao users could then collapse onto one kakaoId (account takeover) or a returning
+  // user could miss their own row. Today's ids are ~10 digits, so this only ever fires if Kakao
+  // widens them; fail closed rather than mint a session for the wrong identity.
+  if (typeof o.id === "number" && !Number.isSafeInteger(o.id)) return null;
   const acc = o.kakao_account && typeof o.kakao_account === "object" ? o.kakao_account : {};
   const email =
     typeof acc.email === "string" && acc.is_email_valid === true && acc.is_email_verified === true
@@ -86,21 +124,37 @@ export function realKakaoProvider(config: KakaoConfig): KakaoProvider {
         code,
       });
       if (config.clientSecret) body.set("client_secret", config.clientSecret);
-      const tokenRes = await transport(KAUTH_TOKEN_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded;charset=utf-8" },
-        body: body.toString(),
-      });
-      if (!tokenRes.ok) return null;
-      const token = (await tokenRes.json()) as { access_token?: unknown };
-      if (typeof token.access_token !== "string" || !token.access_token) return null;
+      // The whole exchange is wrapped: the contract above promises "null on ANY failure", but
+      // fetch REJECTS on DNS/TLS/timeout and .json() THROWS on a non-JSON body (kauth serves HTML
+      // on 5xx/maintenance). Un-caught, those surface as a 500 from the callback — which is itself
+      // an oracle (a 500 tells an attacker the state check passed) and skips the cookie cleanup.
+      try {
+        const tokenRes = await transport(KAUTH_TOKEN_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded;charset=utf-8" },
+          body: body.toString(),
+        });
+        if (!tokenRes.ok) {
+          // STATUS ONLY — the request body carries client_secret and must never reach a log.
+          // 401 here is almost always KOE010 (Client Secret enabled in console but not configured).
+          console.warn("kakao token exchange rejected:", tokenRes.status);
+          return null;
+        }
+        const token = (await tokenRes.json()) as { access_token?: unknown };
+        if (typeof token.access_token !== "string" || !token.access_token) return null;
 
-      const meRes = await transport(KAPI_ME_URL, {
-        method: "GET",
-        headers: { Authorization: `Bearer ${token.access_token}` },
-      });
-      if (!meRes.ok) return null;
-      return parseKakaoProfile(await meRes.json());
+        const meRes = await transport(KAPI_ME_URL, {
+          method: "GET",
+          headers: { Authorization: `Bearer ${token.access_token}` },
+        });
+        if (!meRes.ok) {
+          console.warn("kakao profile fetch rejected:", meRes.status); // status only — bearer token in headers
+          return null;
+        }
+        return parseKakaoProfile(await meRes.json());
+      } catch {
+        return null; // network reject / malformed body — honor the documented contract
+      }
     },
   };
 }

@@ -197,14 +197,24 @@ export function createPrismaUserRepo(getDb: () => Promise<Db>): UserRepo {
     },
     async createKakaoUser(input, now = Date.now()) {
       const db = await getDb();
-      const row = await (db.user as UserDelegate).create({
-        data: {
-          kakaoId: input.kakaoId,
-          email: input.email ? normalizeEmail(input.email) : null,
-          emailVerifiedAt: input.email ? new Date(now) : null,
-        },
-      });
-      return mapUserRow(row);
+      const email = input.email ? normalizeEmail(input.email) : null;
+      try {
+        const row = await (db.user as UserDelegate).create({
+          data: { kakaoId: input.kakaoId, email, emailVerifiedAt: email ? new Date(now) : null },
+        });
+        return mapUserRow(row);
+      } catch (e) {
+        // unique(kakaoId) / unique(email) race — a double-clicked or prefetched OAuth callback runs
+        // this twice for the SAME new identity, and the loser used to throw P2002 all the way out
+        // as a 500 on the buyer's very first login. Re-read the winner instead: both requests then
+        // resolve to the same account, which is exactly the intended outcome. Anything that is not
+        // a lost race still throws (the callback's catch turns it into the uniform fail-closed).
+        const row =
+          (await (db.user as UserDelegate).findUnique({ where: { kakaoId: input.kakaoId } })) ??
+          (email ? await (db.user as UserDelegate).findUnique({ where: { email } }) : null);
+        if (!row) throw e;
+        return mapUserRow(row);
+      }
     },
     async attachEmail(id, email, now = Date.now()) {
       const db = await getDb();

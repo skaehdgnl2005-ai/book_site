@@ -78,7 +78,9 @@ Source of truth is the zod schema in `src/lib/env.ts:13-35`; `parseEnv()` throws
 | **TOSS_SECRET_KEY** | TossPayments server secret (Basic-auth on confirm). | **Yes in prod** — `tossFromEnv(env)` **throws** `"TossPayments is not configured…"` if missing (`toss.ts:138-142`). Non-prod falls back to `test_sk_checkoutsandbox`. | **SECRET** | No | `env.ts:22,39`; `toss.ts:136`; `checkout.ts:194` |
 | **NEXT_PUBLIC_TOSS_CLIENT_KEY** | TossPayments publishable client key (browser SDK). | **Yes in prod** — same `tossFromEnv` throw if missing. Non-prod falls back to `test_ck_checkoutsandbox`. | Public (publishable by design) | **Yes** | `env.ts:23,40`; `toss.ts:137`; `checkout.ts:195` |
 | **TOSS_WEBHOOK_SECRET** | Verifies inbound Toss webhooks. | **Yes in prod** — missing → webhook route **401s**, no async PAID settlement (`checkout.ts:200-203`). Fail-closed, no throw. | **SECRET** | No | `env.ts:24`; `checkout.ts:201-202` |
-| **BASE_URL** | App base URL. zod default `"http://localhost:3000"` (`env.ts:25`). | **Not required** (has default). Only runtime consumer is `playwright.config.ts:14` (E2E); no `src/` code reads `env.BASE_URL` (the create route derives origin from `req.url`). Set in prod for correct E2E/links; nothing throws if absent. | Public | No | `env.ts:25`; `playwright.config.ts:14` |
+| **BASE_URL** | App base URL. zod default `"http://localhost:3000"` (`env.ts:25`). | **Strongly recommended in prod (F091).** `kakaoRedirectUri()` reads **raw `process.env.BASE_URL`** (deliberately bypassing the zod default, which would otherwise pin prod's OAuth redirect to localhost) to keep the Kakao `redirect_uri` identical across the custom domain, `<project>.vercel.app`, and per-deploy aliases. Unset ⇒ falls back to the inbound origin ⇒ **KOE006** for any buyer arriving on a hostname you didn't register. Nothing throws if absent. | Public | No | `env.ts:25`; `kakao.ts` (`kakaoRedirectUri`); `playwright.config.ts:14` |
+| **KAKAO_REST_API_KEY** | Kakao Developers REST API key — `client_id` on both the authorize redirect and the token exchange (F058). | **Yes for Kakao login.** Missing ⇒ `/login` **hides the Kakao button entirely** (`kakaoLoginAvailable`) and `/api/auth/kakao/start` fail-closes to `/login?error=kakao` with a `console.warn`. Not a boot refusal (F046/F047 pattern). `.optional()` (`env.ts:49`). | **SECRET** | **NEVER** | `env.ts:49`; `kakao.ts` (`kakaoProviderFromEnv`); `start/route.ts` |
+| **KAKAO_CLIENT_SECRET** | Kakao app Client Secret — sent with the token exchange when present. | **Yes if the Kakao app has Client Secret enabled (it is ON by default).** Missing then ⇒ the buyer completes consent and *only then* the token exchange fails **KOE010**. Not gated (an app with the secret switched off is valid) — the start route `console.warn`s instead. `.optional()` (`env.ts:50`). | **SECRET** | **NEVER** | `env.ts:50`; `kakao.ts` (`realKakaoProvider`) |
 | **MYPAGE_ACCESS_SECRET** | HMAC-SHA256 signing key for the mypage access cookie. | **Yes in prod** for mypage access. **Read ad-hoc via `process.env`, NOT in the zod schema** (`access.ts:25`). Missing → mypage **fail-closed**; **boot validation will not warn.** Must be set manually in Vercel. | **SECRET** | No (must never be) | `access.ts:25,38,52`; `actions.ts:48-52` |
 | **RESEND_API_KEY** | Resend API key (`re_…`) — Bearer auth for the transactional OTP email (F047). | **Not a boot requirement** (a prod build boots without it). But **mypage OTP is fail-closed** until set: the email `send()` **throws**, so no code is delivered ⇒ buyers cannot reach mypage. Set it **together with `EMAIL_FROM`** to go live. `.optional()` (`env.ts:32`). | **SECRET** (`redact()`-masked → `re_***`) | **NEVER** | `env.ts:32`; `email.ts` (`resendEmailAdapter`/`emailAdapter`) |
 | **EMAIL_FROM** | Verified sender address for the OTP mail (Resend `from`; requires a Resend-verified domain). | **Not a boot requirement.** Same gate as above — mypage OTP stays fail-closed until set (with `RESEND_API_KEY`). `.optional()` (`env.ts:34`). | Public (address) | No | `env.ts:34`; `email.ts` (`resendEmailAdapter`/`emailAdapter`) |
@@ -91,6 +93,37 @@ On every `parseEnv()`, `live = TOSS_SECRET_KEY.startsWith("live_sk_") OR NEXT_PU
 
 ### Redaction (`redact()`, `env.ts:93-107`)
 `emit()` runs every string-valued trace attr through `redact()` (`observability.ts:18-28`). Masks: Toss keys (`test_/live_ + sk_/ck_`), legacy Stripe shapes (defense-in-depth, "should never appear post-F003"), **Resend keys** (`re_…` → `re_***`, word-boundary anchored so it can't match mid-word; F047), Supabase `sb_secret_/sb_publishable_`, legacy service_role JWTs (`eyJ….eyJ….sig`), and emails (`***@***`). **Not** pattern-matched: raw `DATABASE_URL`/`DIRECT_URL` passwords, `TOSS_WEBHOOK_SECRET`, `MYPAGE_ACCESS_SECRET` — these rely on never being placed into trace attrs (constraint **R2** also blocks `console.*(process.env …)`).
+
+### 카카오 로그인 (F058) — 콘솔 설정 러너북 (HITL, 사람만 할 수 있음)
+
+코드는 준비돼 있고 **키만 없다.** 아래는 에이전트가 대신할 수 없는 절차 — 카카오 계정과
+프로덕션 시크릿이 필요하다. 다 끝나기 전까지 프로덕션 `/login`에는 카카오 버튼이 **뜨지 않는다**
+(눌러도 반드시 실패하는 버튼을 노출하지 않기 위한 의도된 동작 — `kakaoLoginAvailable`).
+
+1. **앱 생성** — developers.kakao.com → 내 애플리케이션 → 애플리케이션 추가.
+2. **카카오 로그인 활성화** — [제품 설정] → [카카오 로그인] → **활성화 ON**. (기본 OFF다.)
+3. **Redirect URI 등록** — 같은 화면에서 정확히:
+   `https://<프로덕션 도메인>/api/auth/kakao/callback`
+   문자열이 **완전히 일치**해야 한다. 불일치 시 카카오 자체 에러 페이지에 **KOE006**이 뜨고 우리
+   앱으로 제어가 돌아오지 않는다(우리 fail-closed 로직이 개입할 여지조차 없음).
+   → 그래서 **`BASE_URL`을 프로덕션 도메인으로 반드시 설정**할 것. 안 하면 buyer가 어느 호스트로
+   들어왔느냐에 따라 redirect_uri가 달라져 일부 경로에서만 KOE006이 난다.
+4. **동의 항목** — [카카오 로그인] → [동의항목] → **카카오계정(이메일)**. 이게 꺼져 있으면
+   `parseKakaoProfile`이 항상 `email: null`을 받아 **모든** 카카오 사용자가 결정표 ④(이메일 없는
+   계정 + OTP 연결 배너)로 떨어진다. 기능은 "동작"하지만 이메일 자동 연결(②③)은 영영 안 탄다.
+   ⚠️ 이메일 **필수 동의**는 일반적으로 **비즈 앱 전환 → 사업자등록번호**가 선행 조건이다. 사업자
+   등록 전에는 선택 동의까지만 가능하고, 그 경우 미동의 사용자는 정상적으로 ④로 처리된다.
+5. **키 확보** — [앱 키]의 **REST API 키** → `KAKAO_REST_API_KEY`. [보안]의 **Client Secret**
+   (신규 앱 기본 '사용함') → `KAKAO_CLIENT_SECRET`.
+6. **Vercel 주입** — `npx vercel env add KAKAO_REST_API_KEY production` (그리고
+   `KAKAO_CLIENT_SECRET`, `BASE_URL`). 재배포해야 반영된다.
+7. **수동 카나리** — F044/F045 전례대로 실 브라우저로 1회 왕복. 자동 테스트는 kauth에 닿을 수
+   없으므로 이 단계는 대체 불가. 실패 시 Vercel 런타임 로그의 `kakao …` 경고를 먼저 볼 것
+   (`token exchange rejected: 401` ⇒ KOE010 = Client Secret 누락/불일치).
+
+로컬 개발은 키가 필요 없다 — `.env.development.local`의 `ALLOW_DEV_AUTH=true`가 샌드박스
+왕복(네트워크 0회)을 켠다. `.env.local`이 아니라 `.env.development.local`인 이유는 그 파일이
+`pnpm start`(NODE_ENV=production)에서도 읽혀 F086 부팅 트립와이어에 걸리기 때문이다.
 
 > ⚠️ **Pre-deploy hygiene gaps to fix (verified):** `.env.example` documents `APP_ENV`, `BASE_URL`, `DATABASE_URL`, the three Toss keys, and (F047) `RESEND_API_KEY` / `EMAIL_FROM` — it still **omits `DIRECT_URL`, all `SUPABASE_*`, and `MYPAGE_ACCESS_SECRET`**. Add them. Separately, `.env.local` contains **real-looking secrets** (a live Supabase DB password and a real service_role JWT); if that file is ever tracked/committed it is a credential-leak incident — **rotate the Supabase DB password and service_role key before go-live** and confirm `.env.local` is gitignored.
 
