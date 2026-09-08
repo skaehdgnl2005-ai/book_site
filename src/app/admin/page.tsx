@@ -57,7 +57,8 @@ export default async function AdminIndexPage() {
           </ul>
           <p className={styles.note}>
             숫자는 전량 집계입니다. 상태·큐 타일은 해당 필터가 적용된 목록으로, 오늘 주문(집계 전용)은
-            전체 주문 목록으로 이동합니다. · <Link href="/admin/audit">감사 로그</Link>
+            전체 주문 목록으로 이동합니다. · <Link href="/admin/audit">감사 로그</Link> ·{" "}
+            <Link href="/admin/analytics" data-testid="admin-link-analytics">전환 지표</Link>
           </p>
         </section>
       </main>

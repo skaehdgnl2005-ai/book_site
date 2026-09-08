@@ -32,7 +32,7 @@ export function ReviewStep({
         <BackAction data-testid="order-back" onClick={onBack} />
         <div className={styles.navGroup}>
           <p className={styles.navPrice} data-testid="order-line-price">{formatWon(unitPriceWon)}</p>
-          <CtaPrimary data-testid="order-add-to-cart" onClick={onAddToCart}>장바구니에 담기</CtaPrimary>
+          <CtaPrimary data-testid="order-add-to-cart" data-analytics="order_add_to_cart" onClick={onAddToCart}>장바구니에 담기</CtaPrimary>
         </div>
       </div>
     </div>

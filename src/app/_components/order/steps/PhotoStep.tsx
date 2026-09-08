@@ -74,7 +74,7 @@ export function PhotoStep({
         <div className={styles.navGroup}>
           <TextAction data-testid="order-photo-skip"
             onClick={() => { onPatch({ photo: null }); onNext(); }}>건너뛰기</TextAction>
-          <CtaPrimary data-testid="order-next" onClick={onNext}>다음</CtaPrimary>
+          <CtaPrimary data-testid="order-next" data-analytics="order_next" onClick={onNext}>다음</CtaPrimary>
         </div>
       </div>
     </div>

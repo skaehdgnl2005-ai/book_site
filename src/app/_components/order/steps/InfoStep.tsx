@@ -82,7 +82,7 @@ export function InfoStep({
           right-aligned; ≤480px the .nav .cta flex:1 rule makes it full-width. */}
       <div className={styles.nav}>
         <div className={styles.navGroup}>
-          <CtaPrimary data-testid="order-next" onClick={submit}>다음</CtaPrimary>
+          <CtaPrimary data-testid="order-next" data-analytics="order_next" onClick={submit}>다음</CtaPrimary>
         </div>
       </div>
     </div>

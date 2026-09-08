@@ -2,9 +2,17 @@ import Link from "next/link";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 
 // The single accent 'pill' CTA (DESIGN.md ctaPrimary). One per screen.
-export function CtaLink({ href, children }: { href: string; children: ReactNode }) {
+export function CtaLink({
+  href,
+  children,
+  ...rest
+}: {
+  href: string;
+  children: ReactNode;
+  "data-analytics"?: string; // F092 — 전환 지표 CTA 식별자(닫힌 어휘, eventVocab.CTA_NAMES)
+}) {
   return (
-    <Link href={href} className="cta">
+    <Link href={href} className="cta" {...rest}>
       {children}
     </Link>
   );
@@ -22,9 +30,10 @@ type LinkActionProps = {
   href: string;
   children: ReactNode;
   "data-testid"?: string;
+  "data-analytics"?: string; // F092 — 전환 지표 CTA 식별자
   "aria-label"?: string;
 };
-type ButtonActionProps = { href?: undefined; children: ReactNode } & Omit<
+type ButtonActionProps = { href?: undefined; children: ReactNode; "data-analytics"?: string } & Omit<
   ButtonHTMLAttributes<HTMLButtonElement>,
   "children" | "className"
 >;

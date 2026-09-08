@@ -84,7 +84,7 @@ export function CartView() {
                   <span className={styles.payBarTotal} data-testid="cart-paybar-total">
                     {formatWon(grandTotalWon(cart))}
                   </span>
-                  <CtaPrimary href="/checkout" data-testid="cart-checkout">결제하기</CtaPrimary>
+                  <CtaPrimary href="/checkout" data-testid="cart-checkout" data-analytics="cart_checkout">결제하기</CtaPrimary>
                 </div>
               </>
             ))}

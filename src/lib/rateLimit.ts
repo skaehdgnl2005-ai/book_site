@@ -95,3 +95,10 @@ export const RL_INTAKE: RateLimitOptions = { limit: 20, windowMs: 60_000 };
 export const RL_LOGIN_SEND: RateLimitOptions = { limit: 15, windowMs: 60 * 60_000 };
 /** Child-photo uploads — bounds unauthenticated large-body flooding of the upload path. */
 export const RL_UPLOAD: RateLimitOptions = { limit: 30, windowMs: 60_000 };
+/**
+ * F092 전환 지표 비컨 — RL_INTAKE(20/분)와 달리 정상 탐색이 분당 수십 이벤트를 낸다(페이지뷰
+ * + 스크롤 임계 4 + CTA; 빠른 퍼널 완주 ≈ 30+/분, NAT 뒤 다중 사용자는 배수). 20이면 하단
+ * 퍼널 이벤트가 조용히 유실돼 지표 자체가 계통 왜곡된다(적대적 검수 확정 #2). 120/분은 실사용
+ * 버스트를 수용하면서 남용은 계속 유한하게 막는다.
+ */
+export const RL_EVENTS: RateLimitOptions = { limit: 120, windowMs: 60_000 };

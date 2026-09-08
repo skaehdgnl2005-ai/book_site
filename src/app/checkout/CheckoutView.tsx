@@ -331,6 +331,7 @@ export function CheckoutView({
                     type="submit"
                     form="checkout-form"
                     data-testid="checkout-pay"
+                    data-analytics="checkout_pay"
                     disabled={submitting || !widgetReady}
                   >
                     {submitting

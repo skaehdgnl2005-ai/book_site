@@ -1352,6 +1352,24 @@
       "state": "passing",
       "passes": true,
       "evidence": "2026-07-27 pnpm check green (lint+typecheck+유닛 466 passed/10 skipped — account-kakao 신규 5: 2^53 초과 id 반올림 차단·string id 유지, kakaoRedirectUri BASE_URL 우선/트레일링 슬래시 제거/빈값·공백·비URL이면 origin 폴백, kakaoLoginAvailable 5케이스(프로덕션+ALLOW_DEV_AUTH=false로 start 라우트와 동일 게이트), transport reject→null, 비JSON 바디 양쪽 레그→null; constraints 0 위반 — R7 brand-exempt는 해당 구역만 스킵함을 프로브로 확인(구역 밖 #000 주입 시 R7 정상 발화)). 자체 E2E account-kakao.spec.ts 6/6 green(기존 4 + 신규 2: 가이드 렌더 단언(background-color rgb(254,229,0)·border-radius 12px·심볼 svg·aria-hidden·레이블 '카카오 로그인'·href), 동의 취소(access_denied+state echo)는 경고 없이 /login·미로그인 유지). 전체 E2E 195 중 194 green — 실패 1(cancel-request F062)은 4워커 동시부하 아티팩트로 격리 재판정 2/2 green(17.3s < 30s 타임아웃). 브라우저 실측(deviceScaleFactor 2): background rgb(254,229,0)=#FEE500, color rgba(0,0,0,0.85), radius 12px, font system-ui, 심볼/컨테이너 높이비 0.378·좌측 인셋비 0.322 = 카카오 공식 PNG 자산 실측값(0.3778·0.3222)과 일치. 미설정 서버 수동 검증(ALLOW_DEV_AUTH·KAKAO_REST_API_KEY 공란, :3010): /login에 login-kakao 0건(버튼 미렌더) + start 307→/login?error=kakao + 서버 로그 'kakao login unavailable: KAKAO_REST_API_KEY is not set'. 근거: 실패 원인은 코드가 아니라 설정이었음을 실측 확인 — 로컬/Vercel 프로덕션 모두 KAKAO_REST_API_KEY 부재로 start가 fail-closed(curl 307 + vercel env ls production 13개 중 KAKAO_* 없음). 적대적 검수(서브에이전트 4렌즈 → 각 발견을 독립 반박 검증): 12건 중 10건 반박(쿠키 path 스코프·SameSite·timingSafeEqual 길이 가드·scope 누락·CSP는 모두 기존 코드가 이미 옳음, redirect_uri 고정이 host-only state 쿠키를 깨뜨린다는 주장도 반박), 2건 확정 — 둘 다 본 항목 evidence가 'PENDING'인 채 passes:true였던 false completion(본 문자열로 해소). 미검증 렌즈 발견 중 자체 판정: '또는' 라벨 --muted 2.32:1 = AA 미달 → --grey 4.66:1로 수정(실채택), --kakao-h px→rem(텍스트 전용 확대 시 비율 유지, 실채택), '넓은 폭에서 심볼이 레이블과 멀다'는 카카오 공식 600×90 large_wide 자산이 동일 배치라 기각. 남은 HITL(코드로 대체 불가): 카카오 개발자 앱 등록 → 카카오 로그인 활성화 → Redirect URI 등록 → 동의항목(account_email) → REST API 키/Client Secret → Vercel 주입(KAKAO_REST_API_KEY·KAKAO_CLIENT_SECRET·BASE_URL) → 실 브라우저 수동 카나리. 절차는 docs/DEPLOY.md '카카오 로그인 (F058) — 콘솔 설정 러너북'."
+    },
+    {
+      "id": "F092",
+      "category": "admin",
+      "track": "product",
+      "priority": 3,
+      "description": "전환 지표(퍼스트파티) — 구매 퍼널 계측 + 관리자 대시보드. 전역 클라이언트 트래커가 page_view(라우트 변경)·scroll(25/50/75/100 임계, 경로당 1회)·cta_click(닫힌 어휘: home_hero/template_card/order_next/order_add_to_cart/cart_checkout/checkout_pay)을 navigator.sendBeacon으로 POST /api/events에 전송 — 익명 sessionStorage 세션 ID(쿠키·PII 0), 트래커 실패는 페이지에 무영향. 서버는 rate-limit → untrusted() → 닫힌 어휘 검증 + 경로 정규화(쿼리 폐기·/admin 등 미추적 경로 드롭·/orders/<id>는 [id]로 일반화) 후 이중 백엔드 저장소(in-memory/Prisma AnalyticsEvent, DATABASE_URL 선택 — orders.ts 동형 술어)에 적재. /admin/analytics(requireAdmin, R13)가 기간 필터(F089 resolvePeriod 재사용)로 퍼널(단계별 고유 세션 수 + 전환율 — 전량 기준, F082 정직성)·CTA별 클릭 수·페이지별 스크롤 도달 표를 렌더.",
+      "steps": [
+        "구매 퍼널 페이지를 걸으면 page_view·cta_click·scroll 이벤트가 적재된다",
+        "/admin/analytics에 단계별 고유 세션 수와 전환율 퍼널 표가 보인다",
+        "CTA별 클릭 수와 페이지별 스크롤 도달이 보인다",
+        "비로그인·비관리자는 /admin/analytics에서 404(존재 은닉)를 받는다",
+        "닫힌 어휘 밖 입력·미추적 경로·PII성 페이로드는 저장 전에 폐기된다"
+      ],
+      "verification": "pnpm test:e2e -- analytics.spec.ts",
+      "state": "not_started",
+      "passes": false,
+      "evidence": ""
     }
   ]
 }

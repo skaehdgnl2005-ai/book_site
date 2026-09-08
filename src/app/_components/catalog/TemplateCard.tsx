@@ -57,7 +57,7 @@ export function TemplateCard({
   const orderHref = `/order/${encodeURIComponent(key)}`;
   return (
     <>
-      <Link href={orderHref} className={styles.card} data-testid="template-card">
+      <Link href={orderHref} className={styles.card} data-testid="template-card" data-analytics="template_card">
         <span className={styles.top}>
           <span className={styles.edition}>{editionNo(index)}</span>
           <span className={styles.tag}>{kicker}</span>

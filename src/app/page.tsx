@@ -49,7 +49,7 @@ export default function HomePage() {
             한 아이의 이름으로 시작되는, 단 하나의 이야기. 동화책 번역가가 한 권 한 권
             큐레이션합니다.
           </p>
-          <CtaLink href="/anniversary">내 아이의 책 만들기</CtaLink>
+          <CtaLink href="/anniversary" data-analytics="home_hero">내 아이의 책 만들기</CtaLink>
         </div>
       </section>
 

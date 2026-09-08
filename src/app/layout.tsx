@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { AnalyticsTracker } from "./_components/AnalyticsTracker";
 import { Footer } from "./_components/Footer";
 import "./globals.css";
 
@@ -45,6 +46,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       <body>
         {children}
         <Footer />
+        {/* F092 — 전환 지표 트래커(렌더 없음). 실패해도 페이지에 무영향인 best-effort 리프. */}
+        <AnalyticsTracker />
       </body>
     </html>
   );

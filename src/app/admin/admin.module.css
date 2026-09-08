@@ -97,3 +97,10 @@
   margin: 0 0 var(--space-xs); font-family: var(--font-grotesk); font-weight: 600;
   font-size: 0.85rem; letter-spacing: 0; color: var(--ink); font-variant-numeric: tabular-nums;
 }
+
+/* F092 — 전환 지표 섹션 제목: 표 위 구획 라벨(.th와 같은 그로테스크 라벨 계열).
+   목록행 제목(.rowTitle)은 리스트 그리드 전용이라 h2에 오용하지 않는다. */
+.sectionTitle {
+  margin: var(--space-lg) 0 var(--space-xs); font-family: var(--font-grotesk); font-weight: 600;
+  font-size: 0.78rem; letter-spacing: 0.02em; color: var(--muted);
+}

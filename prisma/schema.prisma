@@ -260,6 +260,25 @@ model AdminAuditLog {
   @@index([createdAt])
 }
 
+// F092 — 전환 지표(퍼스트파티) 이벤트. 닫힌 어휘만 적재(서버 validateEvent가 강제):
+// kind ∈ page_view|scroll|cta_click, name은 CTA 닫힌 이름, path는 정규화된 경로(쿼리 폐기,
+// /orders/<id>는 [id]로 일반화), value는 스크롤 임계(25/50/75/100), sessionId는 익명
+// sessionStorage ID. PII 필드는 구조적으로 없다(E3).
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  kind      String   // page_view | scroll | cta_click
+  name      String?  // cta_click일 때만 — CTA_NAMES 닫힌 집합
+  path      String   // 정규화된 경로
+  value     Int?     // scroll일 때만 — 25|50|75|100
+  sessionId String   // 익명 세션 ID (쿠키 아님·PII 아님)
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([kind, name])
+  @@index([kind, path])
+  @@index([sessionId])
+}
+
 enum OrderStatus {
   CREATED // 결제 전/시도
   WAITING_FOR_DEPOSIT // F070 — 가상계좌 발급, 입금 대기(미정산)

@@ -45,7 +45,7 @@ export function CoverStep({
         <BackAction data-testid="order-back" onClick={onBack} />
         <div className={styles.navGroup}>
           <p className={styles.navPrice} data-testid="order-line-price">{formatWon(unitPriceWon)}</p>
-          <CtaPrimary data-testid="order-next" onClick={onNext}>다음</CtaPrimary>
+          <CtaPrimary data-testid="order-next" data-analytics="order_next" onClick={onNext}>다음</CtaPrimary>
         </div>
       </div>
     </div>
